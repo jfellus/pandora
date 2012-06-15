@@ -757,7 +757,7 @@ void askForScripts(GtkWidget* pWidget, gpointer pData)
 {
   (void)pWidget;
   (void)pData;  
-  
+  //gdk_threads_enter();
   if (nbScripts > 0) destroyAllScripts(); //Supprime tous les scripts précédents  
   expose_event(zone3D, NULL);
   //gdk_flush();
@@ -766,10 +766,11 @@ void askForScripts(GtkWidget* pWidget, gpointer pData)
   gint i,j;     
   
 #ifdef ETIS       
+  
   japet_bus_send_message("japet(%d)", JAPET_START);  
   sleep(RECEPTION_DELAY);    
   
-  //sem_wait(&sem_script);  
+  
 #else
   //-------------EXEMPLES DE SCRIPTS---------------------
     
@@ -893,6 +894,9 @@ void askForScripts(GtkWidget* pWidget, gpointer pData)
   expose_event(zone3D, NULL);
   gtk_widget_show_all(pWindow); //Affichage du widget pWindow et de tous ceux qui sont dedans
   printf("fin de askForScripts()\n");
+  
+  //gdk_flush();
+  //gdk_threads_leave();
 }
 
 /**
