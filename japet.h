@@ -30,6 +30,8 @@
   #include "../enet/include/enet/enet.h"
   #include "../prom_kernel/include/japet_connect.h"
   #include "../prom_kernel/include/reseau.h"
+#else
+  #define NB_SCRIPTS_MAX 30
 #endif
 
 #define JAPET_PORT 1235

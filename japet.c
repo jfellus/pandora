@@ -272,13 +272,8 @@ void init_japet(int argc, char** argv)
   for (i = 0; i < NB_WINDOWS_MAX; i++) windowGroup[i] == NULL;   
   
   //Tableau des scripts
-/*  scr = malloc(NB_SCRIPTS_MAX * sizeof(script));*/
-  for (i = 0; i < NB_SCRIPTS_MAX; i++) scr[i].z = -4; //Les scripts non créés sont placés dans le plan -4
-  /*printf("%p\n", scr*/
+  for (i = 0; i < NB_SCRIPTS_MAX; i++) scr[i].z = -4; //Les scripts non créés sont placés dans le plan -4    
   
-  //sémaphores
-  //sem_init (&sem_script, 0, 1);
-
   //Initialisation d'ENet
   #ifdef ETIS  
   if (enet_initialize() != 0) 
@@ -348,8 +343,7 @@ void changePlan(GtkWidget* pWidget, gpointer pData) //Un script change de plan
 {
     
     gint n = *((gint*)pData);    
-    gint l = (gint) gtk_spin_button_get_value(GTK_SPIN_BUTTON(pWidget));
-    printf("n = %d\n", n);
+    gint l = (gint) gtk_spin_button_get_value(GTK_SPIN_BUTTON(pWidget));    
     scr[n].z = l;
     gtk_label_set_text(GTK_LABEL(scriptLabel[n]), g_strconcat("<span foreground=\"", tcolor(scr[n]), "\"><b>", scr[n].name, "</b></span>", NULL));
     gtk_label_set_use_markup(GTK_LABEL(scriptLabel[n]), TRUE);
@@ -534,9 +528,12 @@ void key_press_event (GtkWidget* pWidget, GdkEventKey *event)
 	gtk_widget_show_all(pHBox2); //Réaffichage de tout le bandeau des Neurones	
       }
       break;
-    
+/*  
+ *Les touches "espace", "plus" et "moins" sont destinées au mode "instantanés"
+ *
+ *  
     case GDK_space: //Barre d'espace : on change de mode.        
-      //if (strcmp(displayMode, "Snapshots mode") == 0)
+      
       printf("%s\n", displayMode);
       if (displayMode[1] == 'n')
       {
@@ -571,7 +568,7 @@ void key_press_event (GtkWidget* pWidget, GdkEventKey *event)
 	refresh_display();
       }
       break;  
-      
+  */    
     default:; //Appui sur une autre touche. On ne fait rien.
   }  
 }
@@ -584,6 +581,8 @@ void key_press_event (GtkWidget* pWidget, GdkEventKey *event)
  */
 void expose_event (GtkWidget* zone3D, gpointer pData)
 {
+  gdk_threads_enter();
+
   cairo_t* cr = gdk_cairo_create(zone3D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
   (void)pData;
   
@@ -605,9 +604,8 @@ void expose_event (GtkWidget* zone3D, gpointer pData)
     if (scr[i].z > zMax && scr[i].displayed == TRUE) 
       zMax = scr[i].z;      
   
-  //Dessin des groupes : on dessine d'abord les scripts du plan z = 0 (s'il y en a), puis ceux du plan z = 1, etc., jusqu'à zMax inclus
+  //Dessin des groupes : on dessine d'abord les scripts du plan z = 0 (s'il y en a), puis ceux du plan z = 1, etc., jusqu'à zMax inclus  
   
-  //printf("zMax : %d     nbScripts : %d\n", zMax, nbScripts);
   for (k = 0; k <= zMax; k++)  
   {  
     for (i = 0; i < nbScripts; i++)
@@ -615,8 +613,7 @@ void expose_event (GtkWidget* zone3D, gpointer pData)
       if (scr[i].z == k && scr[i].displayed == TRUE) 
       {
 	for (j = 0; j < scr[i].nbGroups; j++)	
-	{
-	  //printf("dessin du groupe %s\n", scr[i].groups[j].name);
+	{	  
 	  dessinGroupe(cr, a, b, c, d, &scr[i].groups[j], scr[i].z, zMax);	
 	}	
       }      
@@ -668,6 +665,8 @@ void expose_event (GtkWidget* zone3D, gpointer pData)
   
   cairo_stroke(cr);  //Le contenu de cr est appliqué sur "zone"   
   cairo_destroy(cr); //Puis, on détruit cr
+  gdk_flush();
+  gdk_threads_leave();
 } 
 
 /**
@@ -759,7 +758,7 @@ void askForScripts(GtkWidget* pWidget, gpointer pData)
   (void)pWidget;
   (void)pData;  
   
-  destroyAllScripts(); //Supprime tous les scripts précédents  
+  if (nbScripts > 0) destroyAllScripts(); //Supprime tous les scripts précédents  
   expose_event(zone3D, NULL);
   //gdk_flush();
   //gdk_threads_leave();
@@ -773,9 +772,6 @@ void askForScripts(GtkWidget* pWidget, gpointer pData)
   //sem_wait(&sem_script);  
 #else
   //-------------EXEMPLES DE SCRIPTS---------------------
-
-    //scr = malloc(3 * sizeof(script)); //Tableau des scripts à afficher   
-    
     
     //Création des 3 scripts
     newScript(&scr[0], "Ex 1", "192.168.0.14", 0, 4);
@@ -840,12 +836,9 @@ void askForScripts(GtkWidget* pWidget, gpointer pData)
       }
      }    
 #endif      
-printf("++ nbScripts: %d\n",nbScripts);
-printf("++ nbGroups de scr[0]: %d\n",scr[0].nbGroups);
   
   /**Calcul du x de chaque groupe  
   */
-  printf("Calcul des x\n");
   for (i = 0; i < nbScripts; i++)   
      for (j = 0; j < scr[i].nbGroups; j++)
      {
@@ -853,8 +846,7 @@ printf("++ nbGroups de scr[0]: %d\n",scr[0].nbGroups);
      }
   
   /**Calcul du y de chaque groupe
-  */
-  printf("Calcul des y\n");
+  */  
   for (i = 0; i < nbScripts; i++)   
      for (j = 0; j < scr[i].nbGroups; j++)
      {
@@ -862,63 +854,45 @@ printf("++ nbGroups de scr[0]: %d\n",scr[0].nbGroups);
      }
      
   /**On veut déterminer zMax, la plus grande valeur de z parmi les scripts ouverts
-  */
-  printf("Calcul de zMax\n");
+  */  
   zMax = 0;  
   for (i = 0; i < nbScripts; i++) if (scr[i].z > zMax) zMax = scr[i].z;   
   
   /**On remplit le panneau des scripts 
-  */
-  //printf("Début du panneau des scripts.\n %d scripts sont disponibles\n", nbScripts);
-  //gdk_threads_enter();  
+  */  
   for (i = 0; i < nbScripts; i++)
   {
     openScripts[i] = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(pVBoxScripts), openScripts[i], FALSE, TRUE, 0);
-	  
-    //Texte = g_locale_to_utf8("<span foreground=\"#73b5ff\"><b>%s</b></span>\n", -1, NULL, NULL, NULL);	  
-	  
+    gtk_box_pack_start(GTK_BOX(pVBoxScripts), openScripts[i], FALSE, TRUE, 0);  
     
-    //Cases à cocher pour afficher les scripts ou pas
-    printf("Case à cocher\n");
+    //Cases à cocher pour afficher les scripts ou pas    
     scriptCheck[i] = gtk_check_button_new();		  
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON (scriptCheck[i]), FALSE); //Par défaut, les scripts ne sont pas cochés, donc pas affichés
     g_signal_connect(G_OBJECT(scriptCheck[i]), "toggled", G_CALLBACK(cocheDecoche), &i);
-    gtk_box_pack_start(GTK_BOX(openScripts[i]), scriptCheck[i], FALSE, TRUE, 0);
-    printf("Fin case à cocher\n");
+    gtk_box_pack_start(GTK_BOX(openScripts[i]), scriptCheck[i], FALSE, TRUE, 0);    
     
     //Labels des scripts : le nom du script écrit en gras, de la couleur du script
     scriptLabel[i] = gtk_label_new(g_strconcat("<span foreground=\"", tcolor(scr[i]), "\"><b>", scr[i].name, "</b></span>", NULL));
     gtk_label_set_use_markup(GTK_LABEL(scriptLabel[i]), TRUE);
-    gtk_box_pack_start(GTK_BOX(openScripts[i]), scriptLabel[i], TRUE, TRUE, 0);	  	  
-    printf("Fin label\n");
+    gtk_box_pack_start(GTK_BOX(openScripts[i]), scriptLabel[i], TRUE, TRUE, 0);	  	      
 	
-    printf("%d %d\n", i, nbScripts);
     zChooser[i] = gtk_spin_button_new_with_range(0, nbScripts-1, 1); //Choix du plan dans lequel on affiche le script. On n'a pas besoin de plus de plans qu'il n'y a de scripts	  
-    printf("Bouton pour z\n");
     gtk_box_pack_start(GTK_BOX(openScripts[i]), zChooser[i], FALSE, TRUE, 0);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(zChooser[i]), scr[i].z);	  	  
     gtk_signal_connect (GTK_OBJECT(zChooser[i]), "value-changed", (GtkSignalFunc) changePlan, &Index[i]);
     //On envoie &Index[i] et pas &i car la valeur à l'adresse &i aura changé quand on recevra le signal	  
-	  
-    //boutonDel[i] = gtk_image_new_from_stock(GTK_STOCK_CLOSE, 2);
-    //gtk_box_pack_start(GTK_BOX(openScripts[i]), boutonDel[i], FALSE, TRUE, 0);
   }		   
   
-  printf("On coche les cases\n");
+  //Pour que les cases soient cochées par défaut
   for (i = 0; i < nbScripts; i++)
   {  
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON (scriptCheck[i]), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON (scriptCheck[i]), FALSE);
     cocheDecoche(scriptCheck[i], NULL);
-  }  
+  }      
   
-  
-  printf("Fin du panneau des scripts\n");
   expose_event(zone3D, NULL);
   gtk_widget_show_all(pWindow); //Affichage du widget pWindow et de tous ceux qui sont dedans
   printf("fin de askForScripts()\n");
-  //gdk_flush();
-  //gdk_threads_leave();
 }
 
 /**
@@ -926,6 +900,7 @@ printf("++ nbGroups de scr[0]: %d\n",scr[0].nbGroups);
 */
 void expose_neurons(GtkWidget* zone2D, gpointer pData)
 {
+  gdk_threads_enter();
   //On cherche le numéro de la fenêtre à afficher  
   gint i, j, currentWindow;
   
@@ -947,8 +922,7 @@ void expose_neurons(GtkWidget* zone2D, gpointer pData)
   for (i = 1; i < g->nbNeurons; i++)
   {
     if (g->neurons[i].s[wV] > valMax) valMax = g->neurons[i].s[wV];
-    if (g->neurons[i].s[wV] < valMin) valMin = g->neurons[i].s[wV];
-    //printf("Valeur du neurone : %f\nvalMax = %f\n", g->neurons[i].s[wV], valMax);
+    if (g->neurons[i].s[wV] < valMin) valMin = g->neurons[i].s[wV];    
   } 
   
   //Dimensions de la fenêtre
@@ -977,18 +951,25 @@ void expose_neurons(GtkWidget* zone2D, gpointer pData)
     cairo_rectangle(cr, g->neurons[i].x * largeurNeurone, g->neurons[i].y * hauteurNeurone, largeurNeurone, hauteurNeurone);  
     cairo_fill(cr);
     
+    if (ndg > 0.5) color(cr, *g);
+    else clearColor(cr, *g);
+    cairo_move_to(cr, g->neurons[i].x * largeurNeurone + 4, (g->neurons[i].y + 0.5) * hauteurNeurone);    
+    gchar valeurNeurone[nbDigits + 1];      
+        
+    //S'il y a assez de place sur le neurone pour afficher sa valeur avec le nombre de digits demandé
     if (largeurNeurone > 4 * (nbDigits + 1) && hauteurNeurone > 15)
-    {
-      if (ndg > 0.5) color(cr, *g);
-      else clearColor(cr, *g);
-      cairo_move_to(cr, g->neurons[i].x * largeurNeurone + 4, (g->neurons[i].y + 0.5) * hauteurNeurone);
-      gchar valeurNeurone[nbDigits + 1];      
+    {                
       sprintf(valeurNeurone, "%f", (g->neurons[i].s[wV]/100));
       valeurNeurone[nbDigits] = '\0';
       if (g->neurons[i].s[wV] >= pow(10, nbDigits) || g->neurons[i].s[wV] <= - pow(10, nbDigits-1)) for (j = 0; j < nbDigits; j++) valeurNeurone[j] = '#';
-      //Si le nombre de digits demandé est insuffisant pour afficher entièrement la partie entière d'une valeur, des # s'affichent à la place de cette valeur
-      cairo_show_text(cr, valeurNeurone);
+      //Si le nombre de digits demandé est insuffisant pour afficher entièrement la partie entière d'une valeur, des # s'affichent à la place de cette valeur      
     }
+    else
+    {      
+      valeurNeurone[0] = '.';
+      valeurNeurone[1] = '\0';
+    }
+    cairo_show_text(cr, valeurNeurone);
   }
   
   cairo_stroke(cr);  //Le contenu de cr est appliqué sur "zoneNeurones"     
@@ -1004,6 +985,8 @@ void expose_neurons(GtkWidget* zone2D, gpointer pData)
     cairo_set_line_width (cr, GRID_WIDTH); //Retour aux traits fins 
   }    
   cairo_destroy(cr); //Destruction du calque
+  gdk_flush();
+  gdk_threads_leave();
 }
 
 void button_press_neurons(GtkWidget* zone2D, GdkEventButton* event)
@@ -1061,22 +1044,17 @@ void newScript(script* s, gchar* name, gchar* machine, gint z, gint nbGroups)
     tailleMachine = strlen(machine);    
     s->machine = (gchar*)malloc((tailleMachine + 1) * sizeof(gchar));            
     strncpy(s->machine, machine, tailleMachine);
-    s->machine[tailleMachine] = '\0';    
+    s->machine[tailleMachine] = '\0';        
     
-    //strcpy(s->name, name);
-    //s->name[SCRIPT_NAME_MAX-1] = '\0'; //Pour être sûr que la chaîne ait bien un '\0' quelque-part
-    //strcpy(s->machine, machine);    
-    //s->machine[IP_LENGTH_MAX-1] = '\0';
     s->z = z;    
     s->nbGroups = nbGroups;
     s->groups = malloc(nbGroups * sizeof(group));
-    s->displayed = FALSE;
-    
-    printf("Création du script %s (envoyé par %s) dans le plan %d. Il comporte %d groupes.\n", s->name, s->machine, s->z, s->nbGroups);
+    s->displayed = FALSE;    
+
     nbScripts++;    
 }
 
-//
+
 /**
  * 
  * Destruction des groupes du script à l'adresse s (ne pas appeler ailleurs que dans destroyAllScripts())
@@ -1090,6 +1068,7 @@ void destroyScript(script* s)
    for (i = 0; i < s->nbGroups; i++) 
    {     
      if (s->groups[i].neurons != NULL) free(s->groups[i].neurons);    
+     if (s->groups[i].previous != NULL) free(s->groups[i].previous);
    }    
    free(s->groups);
    
@@ -1113,9 +1092,8 @@ void destroyAllScripts()
     gtk_widget_destroy(openScripts[nbScripts - 1]);
     destroyScript(&scr[nbScripts - 1]);   
   }
-/*  free(scr);  */
   
-  //Il faut aussi supprimer toutes les petites fenêtres éventuellement ouverte
+  //Il faut aussi supprimer toutes les petites fenêtres éventuellement ouvertes
   gint i;
   for (i = 0; i < NB_WINDOWS_MAX; i++) if (pFrameNeurones[i] != NULL) 
   {
@@ -1131,7 +1109,24 @@ void destroyAllScripts()
   
   #ifdef ETIS
   ivyServerNb = 0;
-  #endif
+  #endif   
+  
+  //Tableau des scripts
+  for (i = 0; i < NB_SCRIPTS_MAX; i++) scr[i].z = -4; //Les scripts non créés sont placés dans le plan -4    
+  
+  //Réinitialisation d'ENet
+  #ifdef ETIS  
+  enet_deinitialize();
+  if (enet_initialize() != 0) 
+  {
+    printf("An error occurred while initializing ENet.\n");
+    exit(EXIT_FAILURE);
+  }
+  atexit (enet_deinitialize);
+  //server_for_promethes();
+  #endif  
+  nbScripts = 0;
+  nbSnapshots = 1; //Par défaut, 1 série de valeurs est enregistrée à leur création dans le tableau "buffer" de chaque neurone  
 }
 
 /**
@@ -1152,11 +1147,9 @@ void newGroup(group* g, script* myScript, gchar* name, gchar* function, gfloat l
   
   gint tailleFonction = strlen(function);  
   g->function = (gchar*)malloc((tailleFonction+1) * sizeof(gchar));          
-  sprintf(g->function, "%s", function);
-  //strncpy(g->function, function, tailleFonction);
-  g->name[tailleFonction] = '\0'; 
+  sprintf(g->function, "%s", function);  
+  g->name[tailleFonction] = '\0';   
   
-  //g->function = function;
   g->learningSpeed = learningSpeed;  
   g->nbNeurons = nbNeurons;
   g->rows = rows;
@@ -1176,8 +1169,7 @@ void newGroup(group* g, script* myScript, gchar* name, gchar* function, gfloat l
   
   g->justRefreshed = FALSE;
   g->firstNeuron = firstNeuron;
-  g->allocatedNeurons = 0;  
-  
+  g->allocatedNeurons = 0;    
 }
 
 /**
@@ -1193,9 +1185,7 @@ void newNeuron(neuron* n, group* myGroup, gfloat s, gfloat s1, gfloat s2, gfloat
   n->s[3] = pic;
   n->x = x;
   n->y = y;  
-  n->myGroup->allocatedNeurons++;
-  
-  printf("Création d'un neurone d'abscisse %d et d'ordonnée %d dans le groupe %s. Son s vaut %f.\n", n->x, n->y, n->myGroup->name, n->s[0]);   
+  n->myGroup->allocatedNeurons++; 
   
   //Ces valeurs sont aussi enregistrées dans la première ligne du tableau "buffer"
   n->buffer[0][0] = s;
@@ -1210,22 +1200,15 @@ void newNeuron(neuron* n, group* myGroup, gfloat s, gfloat s1, gfloat s2, gfloat
  * Mise un jour d'un neurone quand Prométhé envoie de nouvelles données
  * 
  */
+//Actuellement, cette fonction n'est pas utilisée. Elle sera peut-être utile pour le mode "instantanés"
 void updateNeuron(neuron* n, gfloat s, gfloat s1, gfloat s2, gfloat pic)
 {
   n->s[0] = s;
   n->s[1] = s1;
   n->s[2] = s2;
-  n->s[3] = pic;
+  n->s[3] = pic;  
   
-  
-  gint i;  
-  
-  //Vérification des valeurs
-  for (i = 0; i < scr[0].groups[1].nbNeurons; i++)
-  {  
-    if ((n == &scr[0].groups[1].neurons[i]) || (n == &scr[0].groups[0].neurons[i]))
-      printf("neurone du groupe 1 : s = %f, s1 = %f, s2 = %f, n->s[0] = %f, n->s[1] = %f, n->s[2] = %f\n", s, s1, s2, n->s[0], n->s[1], n->s[2]);
-  } 
+  gint i;    
   
   //Mise en mémoire
   if (displayMode[1] == 'a') //Si on est en mode échantillonné ('a' est la deuxième lettre de "Sampled mode")
@@ -1244,12 +1227,8 @@ void updateNeuron(neuron* n, gfloat s, gfloat s1, gfloat s2, gfloat pic)
    n->buffer[0][nbSnapshots - 1] = s;
    n->buffer[1][nbSnapshots - 1] = s1;
    n->buffer[2][nbSnapshots - 1] = s2;
-   n->buffer[3][nbSnapshots - 1] = pic;  
-   
-   
-  }  
-  
-  
+   n->buffer[3][nbSnapshots - 1] = pic;     
+  }    
 }
 
 
@@ -1370,8 +1349,7 @@ void clearColor(cairo_t* cr, group g)
 void dessinGroupe (cairo_t* cr, gint a, gint b, gint c, gint d, group* g, gint z, gint zMax)
 {
   gint x = g->x, y = g->y;
-  //printf("x = %d, y = %d\n", x, y);
-  
+    
   if (g == selectedGroup) cairo_set_source_rgb (cr, RED);
   else if (g->justRefreshed == TRUE) clearColor(cr, *g);
   else color(cr, *g);  
@@ -1384,8 +1362,7 @@ void dessinGroupe (cairo_t* cr, gint a, gint b, gint c, gint d, group* g, gint z
   cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z);
   cairo_show_text(cr, g->name);
   cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z + HAUTEUR_GROUPE / 2);  
-  //gchar strGroupType[1];
-  //sprintf(strGroupType, "%s", g->function);
+  
   cairo_show_text(cr, g->function);
   
   gint i;
@@ -1415,13 +1392,11 @@ void dessinGroupe (cairo_t* cr, gint a, gint b, gint c, gint d, group* g, gint z
 void findX(group* g)
 {
     int i, Max = 0;
-    //printf("findX pour %s, qui a %d prédécesseurs\n", g->name, g->nbLinksTo);
+    
     if (g->previous == NULL) 
-    {
-      //printf("%s n'a pas de prédécesseur\n", g->name);
+    {    
       g->x = 1;       
-    }  
-    //Si ce groupe ne dépend d'aucun autre, on le met tout à gauche
+    }      
     else
     {
       for (i = 0; i < g->nbLinksTo; i++)
@@ -1546,7 +1521,7 @@ void resizeNeurons()
 
 void saveJapetConfigToFile(char* filename) 
 {
-  #define DEBUG_VAR 1
+  /*#define DEBUG_VAR 1
   #ifndef DEBUG_VAR
   printf("Fonction saveJapetConfigToFile \n");
   //Récupération des valeurs à sauvegarder
@@ -1557,11 +1532,10 @@ void saveJapetConfigToFile(char* filename)
   printf("valeur du gap zyScale spin_button: %d \n",gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(zxScale)));
   printf("valeur du neuronHeightScale spin_button: %d \n",gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(neuronHeightScale)));
   printf("valeur du digitsScale spin_button: %d \n",gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale)));
-  #endif
+  #endif*/
   
   FILE* f = fopen(filename,"w");
-
-	  //fwrite(buff,sizeof(char),sizeof(buff),f);
+	  
 	  fprintf(f,"%s\n","refreshScale");
 	  fprintf(f,"%d\n",gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(refreshScale)));
 	  fprintf(f,"%s\n","xScale");
@@ -1594,7 +1568,7 @@ void loadJapetConfigToFile(char* filename)
   char buffer[100]; 
   char* buffer2;
 
-  #ifdef DEBUG_VAR
+  /*#ifdef DEBUG_VAR
   printf("Fonction saveJapetConfigToFile \n");
   //Récupération des valeurs à sauvegarder
   printf("valeur du xscale spin_button: %d \n",gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(yScale)));
@@ -1603,9 +1577,7 @@ void loadJapetConfigToFile(char* filename)
   printf("valeur du gap zyscale spin_button: %d \n",gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(zxScale)));
   printf("valeur du neuronHeight spin_button: %d \n",gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(neuronHeightScale)));
   printf("valeur du digitsScale spin_button: %d \n",gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale)));
-  #endif
-  
-  
+  #endif  */
 
   FILE* f = fopen(filename,"r");
   printf(">READ FILE\n");
@@ -1613,7 +1585,7 @@ void loadJapetConfigToFile(char* filename)
 	  
 	  while(fscanf(f,"%s",buffer) != EOF){
 	     
-		  printf("> buffer read: --%s--	\n", buffer);
+		  //printf("> buffer read: --%s--	\n", buffer);
 		  
 		  if (strcmp(buffer, "refreshScale") == 0){
 			  fscanf(f, "%d\n", &l_refreshScale);
