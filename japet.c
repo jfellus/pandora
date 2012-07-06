@@ -58,13 +58,12 @@ int windowPosition[NB_WINDOWS_MAX]; //Position de la fenêtre de même indice da
 int nbColonnesTotal = 0; //Nombre total de colonnes de neurones dans les fenêtres du bandeau du bas
 int nbLignesMax = 0; //Nombre maximal de lignes de neurones à afficher dans l'une des fenêtres du bandeau du bas
 
+char id[BUS_ID_MAX];
+
 int move_neurons_old_x, move_neurons_old_y, move_neurons_start = 0;
 GtkWidget *move_neurons_frame = NULL;
 //Sémaphores
 //sem_t sem_script;
-
-void drag_drop_neuron_frame(GtkWidget *zone_neurons, GdkEventButton *event, gpointer data);
-void expose_event_zone_neuron(GtkWidget* zone_neurons, gpointer pData);
 
 //--------------------------------------------------2. MAIN-------------------------------------------------------------
 
@@ -80,6 +79,7 @@ void expose_event_zone_neuron(GtkWidget* zone_neurons, gpointer pData);
  */
 int main(int argc, char** argv)
 {
+	int option;
 
 	g_thread_init(NULL);
 	gdk_threads_init();
@@ -88,6 +88,27 @@ int main(int argc, char** argv)
 	gtk_init(&argc, &argv);
 
 	init_japet(argc, argv);
+
+	id[0] = 0;
+
+	while ((option = getopt(argc, argv, "i:")) != -1)
+	{
+		switch (option)
+		{
+		case 'i':
+			strncpy(id, optarg, BUS_ID_MAX);
+			break;
+		default:
+			fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if(id[0] == 0)
+	{
+		fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
 
 	pWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL); //La fenêtre
 	/* Positionne la GTK_WINDOW "pWindow" au centre de l'écran */
@@ -179,16 +200,6 @@ int main(int argc, char** argv)
 	gtk_box_pack_start(GTK_BOX(zySetting), zyScale, TRUE, TRUE, 0);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zyScale), YGAP_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(zyScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
-
-	//Hauteur minimale d'un neurone
-	GtkWidget* neuronHeight = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), neuronHeight, FALSE, TRUE, 0);
-	GtkWidget* neuronHeightLabel = gtk_label_new("Neuron minimal height:");
-	neuronHeightScale = gtk_spin_button_new_with_range(1, 50, 1); //Ce widget est déjà déclaré comme variable globale 
-	gtk_box_pack_start(GTK_BOX(neuronHeight), neuronHeightLabel, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(neuronHeight), neuronHeightScale, TRUE, TRUE, 0);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(neuronHeightScale), NEURON_HEIGHT_MIN_DEFAULT);
-	gtk_signal_connect(GTK_OBJECT(neuronHeightScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Nombre digits pour afficher les valeurs des neurones
 	GtkWidget* digits = gtk_hbox_new(FALSE, 0);
@@ -338,25 +349,11 @@ void Close(GtkWidget* pWidget, gpointer pData) //Fonction de fermeture de Japet
 	(void) pWidget;
 	(void) pData;
 
-	exit(EXIT_SUCCESS);
+	japet_bus_send_message(id, "japet(%d,0)", JAPET_STOP);
 
-	/*
-	 //Création d'une boîte de dialogue pour faire confirmer la fermeture
-	 GtkWidget* pQuestion = gtk_message_dialog_new(GTK_WINDOW(pData),
-	 GTK_DIALOG_MODAL,
-	 GTK_MESSAGE_QUESTION,
-	 GTK_BUTTONS_YES_NO,
-	 "Do you really want to leave Japet ?");
-	 switch(gtk_dialog_run(GTK_DIALOG(pQuestion)))
-	 {
-	 case GTK_RESPONSE_YES:
-	 gtk_main_quit(); //Sortie de la boucle gtk_main
-	 break;
-	 case GTK_RESPONSE_NONE:
-	 case GTK_RESPONSE_NO:
-	 gtk_widget_destroy(pQuestion);
-	 break;
-	 }*/
+
+
+	exit(EXIT_SUCCESS);
 }
 
 /**
@@ -396,6 +393,10 @@ void changeValue(GtkWidget* pWidget, gpointer pData) //Modification d'une échel
 	{
 		for (i = 0; i < NB_WINDOWS_MAX; i++)
 			if (windowGroup[i] != NULL) expose_neurons(zoneNeurones[i], NULL);
+	}
+	else if(pWidget == refreshScale)
+	{
+		//g_timeout_add((guint)(1000 / (gint) gtk_spin_button_get_value(GTK_SPIN_BUTTON(refreshScale))), refresh_display, NULL);
 	}
 	else
 	{
@@ -499,7 +500,7 @@ void button_press_event(GtkWidget* pWidget, GdkEventButton* event)
 							if (selectedGroup->sWindow == NB_WINDOWS_MAX) //ou si toutes les valeurs des neurones de ce groupe sont déjà affichées
 							{
 								newWindow(selectedGroup);
-								japet_bus_send_message("japet(%d,%d) %s", JAPET_START_GROUP, group_id, scr[script_id].name);
+								japet_bus_send_message(id, "japet(%d,%d) %s", JAPET_START_GROUP, group_id, scr[script_id].name);
 							}
 						}
 					}
@@ -529,7 +530,7 @@ void button_press_event(GtkWidget* pWidget, GdkEventButton* event)
 void key_press_event(GtkWidget* pWidget, GdkEventKey *event)
 {
 	int i, j;
-	int libre = 0/*, voisine*/;
+	int libre = 0;
 	int sauts = 1;
 	(void) pWidget;
 
@@ -573,38 +574,7 @@ void key_press_event(GtkWidget* pWidget, GdkEventKey *event)
 			expose_event(zone3D, NULL);
 		}
 		break;
-
-	case GDK_Left: //Flèche gauche, on décale la petite fenêtre sélectionnée d'un cran vers la gauche
-		if (selectedWindow < NB_WINDOWS_MAX) //S'il y a bien une fenêtre sélectionnée et si ce n'est pas déjà la plus à gauche
-		{
-			gtk_layout_move(GTK_LAYOUT(zone_neurons), pFrameNeurones[selectedWindow], 0, 0);
-		}
-		break;
-
-	case GDK_Right: //Flèche droite, on décale la petite fenêtre sélectionnée d'un cran vers la droite
-		/*if (selectedWindow < NB_WINDOWS_MAX && windowPosition[selectedWindow] < usedWindows - 1) //S'il y a bien une fenêtre sélectionnée et si ce n'est pas déjà la plus à droite
-		 {
-		 //On cherche le numéro de sa voisine de droite
-		 for (i = 0; i < NB_WINDOWS_MAX; i++)
-		 if (windowPosition[i] == windowPosition[selectedWindow] + 1)
-		 {
-		 voisine = i;
-		 break;
-		 }
-		 //On déplace la fenêtre
-		 gtk_box_reorder_child(GTK_BOX(h_box_neuron), pFrameNeurones[selectedWindow], windowPosition[selectedWindow] + 1);
-		 //On enregistre les nouvelles positions
-		 windowPosition[selectedWindow]++;
-		 windowPosition[voisine]--;
-
-		 //Et on réaffiche toutes les fenêtres
-		 for (i = 0; i < NB_WINDOWS_MAX; i++)
-		 if (windowGroup[i] != NULL) expose_neurons(zoneNeurones[i], NULL);
-		 gtk_widget_show_all(h_box_neuron); //Réaffichage de tout le bandeau des Neurones
-		 }*/
-		break;
-		/*
-		 *Les touches "espace", "plus" et "moins" sont destinées au mode "instantanés"
+		 /*Les touches "espace", "plus" et "moins" sont destinées au mode "instantanés"
 		 *
 		 *
 		 case GDK_space: //Barre d'espace : on change de mode.
@@ -823,6 +793,7 @@ void japet_load_preferences(GtkWidget* pWidget, gpointer pData)
 	{
 		char* filename;
 		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+
 		loadJapetConfigToFile(filename);
 		g_free(filename);
 	}
@@ -865,7 +836,7 @@ void askForScripts(GtkWidget* pWidget, gpointer pData)
 
 	expose_event(zone3D, NULL);
 
-	japet_bus_send_message("japet(%d,0)", JAPET_START);
+	japet_bus_send_message(id, "japet(%d,0)", JAPET_START);
 }
 
 void update_neurons_display(int script_id, int neuronGroupId)
@@ -998,11 +969,6 @@ void expose_neurons(GtkWidget* zone2D, gpointer pData)
 	//Début du dessin
 	cairo_t* cr = gdk_cairo_create(zone2D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
 
-	//On commence par dessiner un grand rectangle couleur sable
-	cairo_set_source_rgb(cr, SAND);
-	cairo_rectangle(cr, 0, 0, 100, 100);
-	cairo_fill(cr);
-
 	//Affichage des neurones
 	float ndg;
 	int nbDigits = (gint) gtk_spin_button_get_value(GTK_SPIN_BUTTON(digitsScale));
@@ -1063,7 +1029,7 @@ int button_press_neurons(GtkWidget* zone2D, GdkEventButton* event)
 
 	group* g = windowGroup[currentWindow]; //On va chercher l'adresse du groupe concerné
 
-	if (event->button == 3) //Si clic droit dans une petite fenêtre, on la supprime
+	if (event->button == 2) //Si clic molette dans une petite fenêtre, on la supprime
 	{
 		g->sWindow = NB_WINDOWS_MAX; //Cette valeur, pour ce groupe, n'est plus affichée
 
@@ -1071,7 +1037,7 @@ int button_press_neurons(GtkWidget* zone2D, GdkEventButton* event)
 		{
 			if (windowGroup[currentWindow] == &windowGroup[currentWindow]->myScript->groups[group_id])
 			{
-				japet_bus_send_message("japet(%d,%d) %s", JAPET_STOP_GROUP, group_id, windowGroup[currentWindow]->myScript->name);
+				japet_bus_send_message(id, "japet(%d,%d) %s", JAPET_STOP_GROUP, group_id, windowGroup[currentWindow]->myScript->name);
 			}
 		}
 		windowGroup[currentWindow] = NULL; //Plus aucun groupe n'est associé à cette fenêtre
@@ -1086,14 +1052,17 @@ int button_press_neurons(GtkWidget* zone2D, GdkEventButton* event)
 
 		//if (usedWindows == 0) gtk_widget_set_size_request(h_box_neuron, 100, 0); //S'il n'y a plus de petite fenêtre ouverte, on referme le bandeau du bas
 	}
-	else //Si clic gauche, la fenêtre est sélectionnée
+	else if (event->button == 3) //Si droit, la fenêtre peut être déplacée
 	{
-		selectedWindow = currentWindow;
-		selectedGroup = g; //Le groupe associé à la fenêtre dans laquelle on a cliqué est également sélectionné
 		move_neurons_old_x = event->x;
 		move_neurons_old_y = event->y;
 		move_neurons_start = 1;
 		move_neurons_frame = pFrameNeurones[currentWindow];
+	}
+	else if (event->button == 1) //Si clic gauche la fenêtre est séléctionnée
+	{
+		selectedWindow = currentWindow;
+		selectedGroup = g; //Le groupe associé à la fenêtre dans laquelle on a cliqué est également sélectionné
 	}
 
 	//On actualise l'affichage
@@ -1131,7 +1100,7 @@ void drag_drop_neuron_frame(GtkWidget *zone_neurons, GdkEventButton *event, gpoi
 {
 	(void) data;
 
-	if (move_neurons_frame != NULL) gtk_layout_move(GTK_LAYOUT(zone_neurons), move_neurons_frame, ((int)(event->x / 25)) * 25, ((int)(event->y / 25)) * 25);
+	if (move_neurons_frame != NULL) gtk_layout_move(GTK_LAYOUT(zone_neurons), move_neurons_frame, ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
 
 	move_neurons_start = 0;
 	move_neurons_frame = NULL;
@@ -1214,7 +1183,6 @@ void destroyAllScripts()
 	for (i = 0; i < NB_WINDOWS_MAX; i++)
 		if (pFrameNeurones[i] != NULL)
 		{
-			//gtk_container_remove(GTK_CONTAINER(h_box_neuron), pFrameNeurones[i]);
 			gtk_container_remove(GTK_CONTAINER(zone_neurons), pFrameNeurones[i]);
 			windowGroup[i] = NULL;
 			zoneNeurones[i] = NULL;
@@ -1685,10 +1653,6 @@ void saveJapetConfigToFile(char* filename)
 	xml_set_int(scale, "value", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(zyScale)));
 
 	scale = mxmlNewElement(tree, "scale");
-	xml_set_string(scale, "type", "neuron_height_scale");
-	xml_set_int(scale, "value", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(neuronHeightScale)));
-
-	scale = mxmlNewElement(tree, "scale");
 	xml_set_string(scale, "type", "digits_scale");
 	xml_set_int(scale, "value", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale)));
 
@@ -1725,9 +1689,6 @@ void loadJapetConfigToFile(char* filename)
 
 	loading_node = xml_get_next_homonymous_sibling(loading_node);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zyScale), xml_get_int(loading_node, "value"));
-
-	loading_node = xml_get_next_homonymous_sibling(loading_node);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(neuronHeightScale), xml_get_int(loading_node, "value"));
 
 	loading_node = xml_get_next_homonymous_sibling(loading_node);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(digitsScale), xml_get_int(loading_node, "value"));

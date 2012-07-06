@@ -66,6 +66,7 @@
 
 //-------------------------------------------------CONSTANTES----------------------------------------------------------
 
+#define BUS_ID_MAX 128
 
 #define MESSAGE_MAX 256 //Utilisé par la fonction fatal_error dans japet.c
 #define SHOWCOLOR_SIZE 20
@@ -207,6 +208,8 @@ void update_neurons_display(int script_id, int neuronGroupId);
 
 
 //Signaux
+void drag_drop_neuron_frame(GtkWidget *zone_neurons, GdkEventButton *event, gpointer data);
+void expose_event_zone_neuron(GtkWidget* zone_neurons, gpointer pData);
 void cocheDecoche(GtkWidget* pWidget, gpointer pData);
 void Close(GtkWidget* pWidget, gpointer pData); 
 void changePlan(GtkWidget* pWidget, gpointer pData); //Un script change de plan
@@ -251,6 +254,6 @@ void saveJapetConfigToFile(char* filename);
 void loadJapetConfigToFile(char* filename);
 
 void fatal_error(const char *name_of_file, const char* name_of_function,  int numero_of_line, const char *message, ...);
-void japet_bus_send_message(const char *format, ...);
+void japet_bus_send_message(char *id, const char *format, ...);
 void server_for_promethes();
 #endif

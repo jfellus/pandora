@@ -35,13 +35,12 @@ ENetHost* enet_server = NULL;
 sem_t ivy_semaphore;
 char ivy_prom_name[SIZE_OF_IVY_PROM_NAME]; /* utiliser un define, peut être le mettre en commun a themis */
 
-const char* id = "japet"; /* Identifiant des promethes communiquants avec japet. Il faudra que ce soit passé en parametre sous la forme japet -i<identifiant>  en attendant c'est fixe il faut donc lancer promethe -ijapet ou themis -ijapet (voir main de themis.c)*/
-
 void enet_manager(ENetHost *server); /* Sinon il faut mettre la fonction avant les appels */
 
 ivyServer ivyServers[NB_SCRIPTS_MAX]; //Stocke l'ip de chaque promethe qui se connecte et le nom du script qu'il exécute
 int ivyServerNb = 0; //Ce numéro sera affecté au prochain promethe qui se connectera
 
+//const char* id = "japet";
 
 int freePeer = 0; //Utilisé pour numéroter les peers (donc les promethes, donc les scripts) (ENet)
 
@@ -51,7 +50,7 @@ int freePeer = 0; //Utilisé pour numéroter les peers (donc les promethes, donc
  * 
  * @param *format: le message à afficher
  **/
-void japet_bus_send_message(const char *format, ...)
+void japet_bus_send_message(char *id, const char *format, ...)
 {
 	char buffer[MAX_SIZE_OF_PROM_BUS_MESSAGE];
 	va_list arguments;
