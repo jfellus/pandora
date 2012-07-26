@@ -11,67 +11,84 @@
 
 //--------------------------------------------------1. VARIABLES GLOBALES----------------------------------------------------
 
-GtkWidget* pWindow; //La fenêtre de l'application Japet
-GtkWidget *hide_see_scales_button, *menu_bar;
-GtkWidget* pPane; //Panneau latéral
-GtkWidget* pVBoxScripts; //Panneau des scripts
-GtkWidget* zone3D; //La grande zone de dessin des liaisons entre groupes
-GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale, *neuronHeightScale, *digitsScale; //Échelles
+GtkWidget *pWindow; //La fenêtre de l'application Japet
+GtkWidget *hide_see_scales_button; //Boutton permettant de cacher le menu de droite
+GtkWidget *pPane; //Panneau latéral
+GtkWidget *pVBoxScripts; //Panneau des scripts
+GtkWidget *zone3D; //La grande zone de dessin des liaisons entre groupes
+GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale, *digitsScale; //Échelles
 
 //Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshots)
-gchar* displayMode;
-GtkWidget* modeLabel;
+char *displayMode;
+GtkWidget *modeLabel;
 int currentSnapshot;
 int nbSnapshots;
 
 int Index[NB_SCRIPTS_MAX]; //Tableau des indices : Index[0] = 0, Index[1] = 1, ..., Index[NB_SCRIPTS_MAX-1] = NB_SCRIPTS_MAX-1;
 //Ce tableau permet à une fonction signal de retenir la valeur qu'avait i au moment où on a connecté le signal                                                                                                                                                               
 
-GtkWidget** openScripts; //Lignes du panneau des scripts                                                                                                                                                                                                                     
-GtkWidget** scriptCheck; //Cases à cocher/décocher pour afficher les scripts ou les masquer                                                                                                                                                                                  
-GtkWidget** scriptLabel; //Label affichant le nom d'un script dans la bonne couleur                                                                                                                                                                                          
-GtkWidget** zChooser; //Spin_button pour choisir dans quel plan afficher ce script
-GtkWidget** searchButton; //Boutton pour rechercher un groupe dans ce script
+GtkWidget **openScripts; //Lignes du panneau des scripts
+GtkWidget **scriptCheck; //Cases à cocher/décocher pour afficher les scripts ou les masquer
+GtkWidget **scriptLabel; //Label affichant le nom d'un script dans la bonne couleur
+GtkWidget **zChooser; //Spin_button pour choisir dans quel plan afficher ce script
+GtkWidget **searchButton; //Boutton pour rechercher un groupe dans ce script
 
 int nbScripts = 0; //Nombre de scripts à afficher
 char scriptsNames[NB_SCRIPTS_MAX][SCRIPT_NAME_MAX]; //Tableau des noms des scripts
-script scr[NB_SCRIPTS_MAX]; //Tableau des scripts à afficher                                                                                                                                                                                                                                
-/*int newScriptNumber = 0; */
-//Numéro donné à un script quand on l'ouvre
+script scr[NB_SCRIPTS_MAX]; //Tableau des scripts à afficher
 int zMax; //la plus grande valeur de z parmi les scripts ouverts
 int buffered = 0; //Nombre d'instantanés actuellement en mémoire
 
-int nb_update = 0;
-
 int usedWindows = 0;
-group* selectedGroup = NULL; //Pointeur sur le groupe actuellement sélectionné                                                                                                                                                                                               
+group *selectedGroup = NULL; //Pointeur sur le groupe actuellement sélectionné
 int selectedWindow = NB_WINDOWS_MAX; //Numéro de la fenêtre sélectionnée (entre 0 et NB_WINDOWS_MAX-1). NB_WINDOWS_MAX indique qu'aucune fenêtre n'est sélectionnée
 
-//GtkWidget* h_box_neuron; //Panneau des neurones
-GtkWidget* neurons_frame, *zone_neurons;
-GtkWidget* pFrameNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de petites fenêtres pour les neurones                                                                                                                                                         
-GtkWidget* zoneNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de zones où dessiner des neurones                                                                                                                                                              
-group* windowGroup[NB_WINDOWS_MAX]; //Adresse des groupe affiché dans la zoneNeurones de même indice                                                                                                                                                                         
+GtkWidget *neurons_frame, *zone_neurons;//Panneau des neurones
+GtkWidget *pFrameNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de petites fenêtres pour les neurones
+GtkWidget *zoneNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de zones où dessiner des neurones
+group *windowGroup[NB_WINDOWS_MAX]; //Adresse des groupe affiché dans la zoneNeurones de même indice
 int windowValue[NB_WINDOWS_MAX]; //Numéro disant quelle valeur des neurones du groupe il faut afficher dans la fenêtre de même indice (0 : s, 1 : s1, 2 : s2, 3 : pic)
-int windowPosition[NB_WINDOWS_MAX]; //Position de la fenêtre de même indice dans le bandeau du bas (0 : la plus à gauche)
+coordonnees windowPosition[NB_WINDOWS_MAX]; //Position de la fenêtre dans la zone_neurons
 
 int nbColonnesTotal = 0; //Nombre total de colonnes de neurones dans les fenêtres du bandeau du bas
 int nbLignesMax = 0; //Nombre maximal de lignes de neurones à afficher dans l'une des fenêtres du bandeau du bas
 
-char id[BUS_ID_MAX];
+char id[BUS_ID_MAX]; //bus_id
+char file_preferences[PATH_MAX]; //fichier de préférences (*.jap)
 
-int move_neurons_old_x, move_neurons_old_y, move_neurons_start = 0;
-GtkWidget *move_neurons_frame = NULL;
-//Sémaphores
-//sem_t sem_script;
+int move_neurons_old_x, move_neurons_old_y, move_neurons_start = 0, move_neurons_frame_id = -1; //Pour bouger un frame_neuron
+int open_neurons_start = 0; //Pour ouvrir un frame_neuron
+group *open_group = NULL;
 
+guint refresh_timer_id; //id du timer actualement utiliser pour le rafraichissement des frame_neurons ouvertes
+
+type_script_link scripts_links[SCRIPT_LINKS_MAX];
+int nb_script_link = 0;
 //--------------------------------------------------2. MAIN-------------------------------------------------------------
 
+void on_signal_interupt(int signal)
+{
+	switch (signal)
+	{
+	case SIGINT:
+		japet_bus_send_message(id, "japet(%d,0)", JAPET_STOP);
+		exit(EXIT_SUCCESS);
+		break;
+	case SIGSEGV:
+		printf("SEGFAULT\n");
+		japet_bus_send_message(id, "japet(%d,0)", JAPET_STOP);
+		exit(EXIT_FAILURE);
+		break;
+	default:
+		printf("signal %d capture par le gestionnaire mais non traite... revoir le gestinnaire ou le remplissage de sigaction\n", signal);
+		break;
+	}
+}
 
 /**
- * 
+ *
  * name: Programme Principale (Main)
- * 
+ *
  * @param argv, argc
  * @see enet_initialize()
  * @see server_for_promethes()
@@ -80,6 +97,21 @@ GtkWidget *move_neurons_frame = NULL;
 int main(int argc, char** argv)
 {
 	int option;
+	struct sigaction action;
+
+	sigfillset(&action.sa_mask);
+	action.sa_handler = on_signal_interupt;
+	action.sa_flags = 0;
+	if (sigaction(SIGINT, &action, NULL) != 0)
+	{
+		printf("Signal SIGINT not catched.");
+		exit(EXIT_FAILURE);
+	}
+	if (sigaction(SIGSEGV, &action, NULL) != 0)
+	{
+		printf("Signal SIGSEGV not catched.");
+		exit(EXIT_FAILURE);
+	}
 
 	g_thread_init(NULL);
 	gdk_threads_init();
@@ -90,70 +122,89 @@ int main(int argc, char** argv)
 	init_japet(argc, argv);
 
 	id[0] = 0;
+	file_preferences[0] = 0;
 
+	//On regarde les options passées en ligne de commande
 	while ((option = getopt(argc, argv, "i:")) != -1)
 	{
 		switch (option)
 		{
+		// -i "bus_id"
 		case 'i':
 			strncpy(id, optarg, BUS_ID_MAX);
 			break;
+			// autres options : erreur
 		default:
 			fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	if(id[0] == 0)
+	//On regarde les fichier passés en ligne de commande
+	if (optind < argc)
 	{
-		fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
-		exit(EXIT_FAILURE);
+		// fichier des préférences (*.jap)
+		if (strstr(argv[optind], ".jap"))
+		{
+			FILE *file = fopen(argv[optind], "r");
+			//si le fichier existe
+			if (file != NULL)
+			{
+				fclose(file);
+				strncpy(file_preferences, argv[optind], PATH_MAX);
+			}
+			//s'il n'existe pas
+			else
+			{
+				fprintf(stderr, "%s : file not found", argv[optind]);
+				exit(EXIT_FAILURE);
+			}
+		}
 	}
 
-	pWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL); //La fenêtre
+	//La fenêtre principale
+	pWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	/* Positionne la GTK_WINDOW "pWindow" au centre de l'écran */
 	gtk_window_set_position(GTK_WINDOW(pWindow), GTK_WIN_POS_CENTER);
 	/* Taille de la fenêtre */
-	gtk_window_set_default_size(GTK_WINDOW(pWindow), 2000, 1000);
+	gtk_window_set_default_size(GTK_WINDOW(pWindow), 1200, 800);
 	/* Titre de la fenêtre */
 	gtk_window_set_title(GTK_WINDOW(pWindow), "Japet");
 	//Le signal de fermeture de la fenêtre est connecté à la fenêtre (petite croix)
 	g_signal_connect(G_OBJECT(pWindow), "destroy", G_CALLBACK(Close), (GtkWidget*) pWindow);
 
 	/*Création d'une VBox (boîte de widgets disposés verticalement) */
-	GtkWidget* v_box_main = gtk_vbox_new(FALSE, 0);
+	GtkWidget *v_box_main = gtk_vbox_new(FALSE, 0);
 	/*ajout de v_box_main dans pWindow, qui est alors vu comme un GTK_CONTAINER*/
 	gtk_container_add(GTK_CONTAINER(pWindow), v_box_main);
 
 	hide_see_scales_button = gtk_toggle_button_new_with_label("Hide scales");
 	g_signal_connect(G_OBJECT(hide_see_scales_button), "toggled", (GtkSignalFunc) on_hide_see_scales_button_active, NULL);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hide_see_scales_button), FALSE);
+	gtk_widget_set_size_request(hide_see_scales_button, 150, 30);
 	gtk_box_pack_start(GTK_BOX(v_box_main), hide_see_scales_button, FALSE, FALSE, 0);
 
 	/*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
-	GtkWidget* h_box_main = gtk_hbox_new(FALSE, 0);
-	GtkWidget* vpaned = gtk_vpaned_new();
-	//h_box_neuron = gtk_hbox_new(FALSE, 0);
-	//gtk_widget_set_size_request(h_box_neuron, 100, 0); //On n'affiche pas encore les zones "neurones"
+	GtkWidget *h_box_main = gtk_hbox_new(FALSE, 0);
+	GtkWidget *vpaned = gtk_vpaned_new();
+	gtk_paned_set_position(GTK_PANED(vpaned), 600);
 	neurons_frame = gtk_frame_new("Neurons' frame");
-	/*ajout de h_box_main et h_box_neuron dans v_box_main, qui est alors vu comme un GTK_CONTAINER*/
-	//void gtk_box_pack_start(GtkBox* box, GtkWidget* child, gboolean expand, gboolean fill, guint padding);
 	gtk_box_pack_start(GTK_BOX(v_box_main), h_box_main, TRUE, TRUE, 0);
 
 	/*Panneau latéral*/
 	pPane = gtk_vbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(h_box_main), pPane, FALSE, TRUE, 0);
-	//gtk_widget_set_size_request(pPane, 250,100); //Limite la largeur du panneau latéral
+
 	//Les échelles
-	GtkWidget* pFrameEchelles = gtk_frame_new("Scales");
+	GtkWidget *pFrameEchelles = gtk_frame_new("Scales");
 	gtk_container_add(GTK_CONTAINER(pPane), pFrameEchelles);
-	GtkWidget* pVBoxEchelles = gtk_vbox_new(FALSE, 0);
+	GtkWidget *pVBoxEchelles = gtk_vbox_new(FALSE, 0);
 	gtk_container_add(GTK_CONTAINER(pFrameEchelles), pVBoxEchelles);
 
 	//Fréquence de réactualisation de l'affichage, quand on est en mode échantillonné (Sampled)
-	GtkWidget* refreshSetting = gtk_hbox_new(FALSE, 0);
+	GtkWidget *refreshSetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshSetting, FALSE, TRUE, 0);
-	GtkWidget* refreshLabel = gtk_label_new("Refresh (Hz):");
+	GtkWidget *refreshLabel = gtk_label_new("Refresh (Hz):");
 	refreshScale = gtk_spin_button_new_with_range(1, 24, 1); //Ce widget est déjà déclaré comme variable globale
 	//On choisit le nombre de réactualisations de l'affichage par seconde, entre 1 et 24
 	gtk_box_pack_start(GTK_BOX(refreshSetting), refreshLabel, TRUE, TRUE, 0);
@@ -162,9 +213,9 @@ int main(int argc, char** argv)
 	gtk_signal_connect(GTK_OBJECT(refreshScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Echelle de l'axe des x
-	GtkWidget* xSetting = gtk_hbox_new(FALSE, 0);
+	GtkWidget *xSetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), xSetting, FALSE, TRUE, 0);
-	GtkWidget* xLabel = gtk_label_new("x scale:");
+	GtkWidget *xLabel = gtk_label_new("x scale:");
 	xScale = gtk_spin_button_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(xSetting), xLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(xSetting), xScale, TRUE, TRUE, 0);
@@ -172,55 +223,55 @@ int main(int argc, char** argv)
 	gtk_signal_connect(GTK_OBJECT(xScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Echelle de l'axe des y
-	GtkWidget* ySetting = gtk_hbox_new(FALSE, 0);
+	GtkWidget *ySetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), ySetting, FALSE, TRUE, 0);
-	GtkWidget* yLabel = gtk_label_new("y scale:");
-	yScale = gtk_spin_button_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale 
+	GtkWidget *yLabel = gtk_label_new("y scale:");
+	yScale = gtk_spin_button_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(ySetting), yLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(ySetting), yScale, TRUE, TRUE, 0);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(yScale), YSCALE_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(yScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Décalage des plans selon x
-	GtkWidget* zxSetting = gtk_hbox_new(FALSE, 0);
+	GtkWidget *zxSetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zxSetting, FALSE, TRUE, 0);
-	GtkWidget* zxLabel = gtk_label_new("x gap:");
-	zxScale = gtk_spin_button_new_with_range(0, 50, 1); //Ce widget est déjà déclaré comme variable globale 
+	GtkWidget *zxLabel = gtk_label_new("x gap:");
+	zxScale = gtk_spin_button_new_with_range(0, 50, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(zxSetting), zxLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(zxSetting), zxScale, TRUE, TRUE, 0);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zxScale), XGAP_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(zxScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Décalage des plans selon y
-	GtkWidget* zySetting = gtk_hbox_new(FALSE, 0);
+	GtkWidget *zySetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zySetting, FALSE, TRUE, 0);
-	GtkWidget* zyLabel = gtk_label_new("y gap:");
-	zyScale = gtk_spin_button_new_with_range(0, 50, 1); //Ce widget est déjà déclaré comme variable globale 
+	GtkWidget *zyLabel = gtk_label_new("y gap:");
+	zyScale = gtk_spin_button_new_with_range(0, 50, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(zySetting), zyLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(zySetting), zyScale, TRUE, TRUE, 0);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zyScale), YGAP_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(zyScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Nombre digits pour afficher les valeurs des neurones
-	GtkWidget* digits = gtk_hbox_new(FALSE, 0);
+	GtkWidget *digits = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), digits, FALSE, TRUE, 0);
-	GtkWidget* digitsLabel = gtk_label_new("Neuron digits:");
-	digitsScale = gtk_spin_button_new_with_range(1, 10, 1); //Ce widget est déjà déclaré comme variable globale 
+	GtkWidget *digitsLabel = gtk_label_new("Neuron digits:");
+	digitsScale = gtk_spin_button_new_with_range(1, 10, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(digits), digitsLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(digits), digitsScale, TRUE, TRUE, 0);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(digitsScale), DIGITS_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(digitsScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//3 boutons
-	GtkWidget* pBoutons = gtk_hbox_new(TRUE, 0);
+	GtkWidget *pBoutons = gtk_hbox_new(TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), pBoutons, FALSE, TRUE, 0);
-	GtkWidget* boutonSave = gtk_button_new_with_label("Save");
+	GtkWidget *boutonSave = gtk_button_new_with_label("Save");
 	gtk_box_pack_start(GTK_BOX(pBoutons), boutonSave, TRUE, TRUE, 0);
 	g_signal_connect(G_OBJECT(boutonSave), "clicked", G_CALLBACK(japet_save_preferences), NULL);
-	GtkWidget* boutonLoad = gtk_button_new_with_label("Load");
+	GtkWidget *boutonLoad = gtk_button_new_with_label("Load");
 	gtk_box_pack_start(GTK_BOX(pBoutons), boutonLoad, TRUE, TRUE, 0);
 	g_signal_connect(G_OBJECT(boutonLoad), "clicked", G_CALLBACK(japet_load_preferences), NULL);
-	GtkWidget* boutonDefault = gtk_button_new_with_label("Default");
+	GtkWidget *boutonDefault = gtk_button_new_with_label("Default");
 	gtk_box_pack_start(GTK_BOX(pBoutons), boutonDefault, TRUE, TRUE, 0);
 	g_signal_connect(G_OBJECT(boutonDefault), "clicked", G_CALLBACK(defaultScale), NULL);
 
@@ -230,26 +281,24 @@ int main(int argc, char** argv)
 	gtk_container_add(GTK_CONTAINER(pPane), modeLabel);
 
 	//Les scripts
-	GtkWidget* pFrameScripts = gtk_frame_new("Open scripts");
+	GtkWidget *pFrameScripts = gtk_frame_new("Open scripts");
 	gtk_container_add(GTK_CONTAINER(pPane), pFrameScripts);
 	pVBoxScripts = gtk_vbox_new(FALSE, 0);
 	gtk_container_add(GTK_CONTAINER(pFrameScripts), pVBoxScripts);
-	GtkWidget* askButton = gtk_button_new_with_label("Ask for scripts");
+	GtkWidget *askButton = gtk_button_new_with_label("Ask for scripts");
 	gtk_box_pack_start(GTK_BOX(pVBoxScripts), askButton, FALSE, TRUE, 0);
 	g_signal_connect(G_OBJECT(askButton), "clicked", G_CALLBACK(askForScripts), NULL);
 
 	openScripts = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //Il y aura autant de lignes que de scripts ouverts.
 	scriptCheck = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //Sur chacune de ces lignes, il y a une case à cocher...
 	scriptLabel = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //suivie d'un label...
-	zChooser = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //et d'un "spinbutton",
-	searchButton = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*));
-	//GtkWidget** colorLabel = malloc(nbScripts * sizeof(GtkWidget*));
-	//GtkWidget** boutonDel = malloc(nbScripts * sizeof(GtkWidget*)); //et un bouton "croix" pour fermer le script	
+	zChooser = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); // d'un "spinbutton",
+	searchButton = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*));// et d'un boutton "recherche"
 
 	//La zone principale
-	GtkWidget* pFrameGroupes = gtk_frame_new("Neural groups");
-	gtk_container_add(GTK_CONTAINER(vpaned), pFrameGroupes); //gtk_box_pack_start(GTK_BOX(VBox), h_box_neuron, FALSE, TRUE, 0);
-	GtkWidget* scrollbars = gtk_scrolled_window_new(NULL, NULL);
+	GtkWidget *pFrameGroupes = gtk_frame_new("Neural groups");
+	gtk_container_add(GTK_CONTAINER(vpaned), pFrameGroupes);
+	GtkWidget *scrollbars = gtk_scrolled_window_new(NULL, NULL);
 	gtk_container_add(GTK_CONTAINER(pFrameGroupes), scrollbars);
 	zone3D = gtk_drawing_area_new(); //Déjà déclarée comme variable globale
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars), zone3D);
@@ -259,6 +308,7 @@ int main(int argc, char** argv)
 	gtk_signal_connect(GTK_OBJECT(zone3D), "button_press_event", (GtkSignalFunc) button_press_event, NULL);
 	gtk_signal_connect(GTK_OBJECT(pWindow), "key_press_event", (GtkSignalFunc) key_press_event, NULL);
 
+	//la zone des groupes de neurones
 	gtk_container_add(GTK_CONTAINER(vpaned), neurons_frame);
 	GtkWidget *scrollbars2 = gtk_scrolled_window_new(NULL, NULL);
 	gtk_container_add(GTK_CONTAINER(neurons_frame), scrollbars2);
@@ -266,17 +316,32 @@ int main(int argc, char** argv)
 	gtk_widget_set_size_request(GTK_WIDGET(zone_neurons), 3000, 3000);
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars2), zone_neurons);
 	gtk_widget_add_events(zone_neurons, GDK_ALL_EVENTS_MASK);
-	//	g_signal_connect(GTK_OBJECT(zone_neurons), "expose-event", (GtkSignalFunc) expose_event_zone_neuron, NULL);
 	g_signal_connect(GTK_OBJECT(zone_neurons), "button-release-event", (GtkSignalFunc) drag_drop_neuron_frame, NULL);
 
 	gtk_box_pack_start(GTK_BOX(h_box_main), vpaned, TRUE, TRUE, 0);
 
 	//Appelle la fonction refresh_display à intervalles réguliers si on est en mode échantillonné ('a' est la deuxième lettre de "Sampled mode")
-	if (displayMode[1] == 'a') g_timeout_add((guint)(1000 / (gint) gtk_spin_button_get_value(GTK_SPIN_BUTTON(refreshScale))), refresh_display, NULL);
-
+	if (displayMode[1] == 'a') refresh_timer_id = g_timeout_add((guint)(1000 / (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(refreshScale))), refresh_display, NULL);
 	gtk_widget_show_all(pWindow); //Affichage du widget pWindow et de tous ceux qui sont dedans
 
 	prom_bus_init(BROADCAST_IP);
+
+	//si un fichier des preférences (*.jap) à été passé en ligne de commande on le charge
+	if (file_preferences[0] != 0) loadJapetConfigToFile(file_preferences);
+
+	//si après chargement il n'y a pas de bus_id
+	if (id[0] == 0)
+	{
+		fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
+	for (option = 0; option < SCRIPT_LINKS_MAX; option++)
+	{
+		scripts_links[option].previous = NULL;
+		scripts_links[option].next = NULL;
+		scripts_links[option].type = -1;
+	}
 
 	gdk_threads_enter();
 	gtk_main(); //Boucle infinie : attente des événements
@@ -288,12 +353,12 @@ int main(int argc, char** argv)
 //-------------------------------------------------3. INITIALISATION-----------------------------------------------
 //
 /**
- * 
- * 
+ *
+ *
  * Initialise les bibliothèques GTK et ENet, ainsi que quelques tableaux
  * @param argv, argc
  */
-void init_japet(int argc, char** argv)
+void init_japet(int argc, char **argv)
 {
 	//Initialisations de tableaux
 	int i;
@@ -324,44 +389,45 @@ void init_japet(int argc, char** argv)
 
 //-----------------------------------------------------4. SIGNAUX---------------------------------------------
 
-void cocheDecoche(GtkWidget* pWidget, gpointer pData)
+void cocheDecoche(GtkWidget *pWidget, gpointer pData)
 {
 	int i;
 	(void) pData;
 
 	//Identification du script à afficher ou à masquer
 	for (i = 0; i < nbScripts; i++)
-		if (scriptCheck[i] == pWidget) break;
-
-	scr[i].displayed = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pWidget));
+		if (scriptCheck[i] == pWidget)
+		{
+			scr[i].displayed = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pWidget));
+			break;
+		}
 
 	expose_event(zone3D, NULL);
 }
 
 /**
- * 
+ *
  * Fonction de fermeture de Japet
- * 
+ *
  * @return EXIT_SUCCESS
  */
-void Close(GtkWidget* pWidget, gpointer pData) //Fonction de fermeture de Japet
+void Close(GtkWidget *pWidget, gpointer pData) //Fonction de fermeture de Japet
 {
 	(void) pWidget;
 	(void) pData;
 
+	//On indique aux prométhés qu'ils doivent arreter d'envoyer des données à Japet
 	japet_bus_send_message(id, "japet(%d,0)", JAPET_STOP);
-
-
 
 	exit(EXIT_SUCCESS);
 }
 
 /**
- * 
+ *
  * Un script change de plan
- * 
+ *
  */
-void changePlan(GtkWidget* pWidget, gpointer pData) //Un script change de plan
+void changePlan(GtkWidget *pWidget, gpointer pData) //Un script change de plan
 {
 
 	int n = *((int*) pData);
@@ -379,24 +445,29 @@ void changePlan(GtkWidget* pWidget, gpointer pData) //Un script change de plan
 }
 
 /**
- * 
+ *
  * Modification d'une échelle
- * 
+ *
  */
-void changeValue(GtkWidget* pWidget, gpointer pData) //Modification d'une échelle
+void changeValue(GtkWidget *pWidget, gpointer pData) //Modification d'une échelle
 {
 	int i;
 
 	(void) pData;
 
+	//Si le changement concerne les digits
 	if (pWidget == digitsScale)
 	{
 		for (i = 0; i < NB_WINDOWS_MAX; i++)
 			if (windowGroup[i] != NULL) expose_neurons(zoneNeurones[i], NULL);
 	}
-	else if(pWidget == refreshScale)
+	//Si il concerne le rafraîchissement
+	else if (pWidget == refreshScale)
 	{
-		//g_timeout_add((guint)(1000 / (gint) gtk_spin_button_get_value(GTK_SPIN_BUTTON(refreshScale))), refresh_display, NULL);
+		//on détruit le timer
+		g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
+		//on en crée un autre avec la nouvelle valeur de rafraîchissement
+		refresh_timer_id = g_timeout_add((guint)(1000 / (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(refreshScale))), refresh_display, NULL);
 	}
 	else
 	{
@@ -404,70 +475,114 @@ void changeValue(GtkWidget* pWidget, gpointer pData) //Modification d'une échel
 	}
 }
 
-void on_search_group_button_active(GtkWidget* pWidget, script *script)
+void on_search_group_button_active(GtkWidget *pWidget, script *script)
 {
 	(void) pWidget;
 
-	GtkWidget *search_dialog, *search_entry;
-	int i;
+	GtkWidget *search_dialog, *search_entry, *h_box, *name_radio_button_search, *function_radio_button_search;
+	int i, last_occurence = 0, stop = 0;
 
-	search_dialog = gtk_dialog_new_with_buttons("Recherche d'un groupe", GTK_WINDOW(pWindow), GTK_DIALOG_MODAL, GTK_STOCK_OK, GTK_RESPONSE_OK, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, NULL);
+	//On crée une fenêtre de dialogue
+	search_dialog = gtk_dialog_new_with_buttons("Recherche d'un groupe", GTK_WINDOW(pWindow), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_OK, GTK_RESPONSE_OK, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, NULL);
 	gtk_window_set_default_size(GTK_WINDOW(search_dialog), 300, 75);
 
-	search_entry = gtk_entry_new();
-	gtk_entry_set_text(GTK_ENTRY(search_entry), "Saisissez le nom du groupe recherché");
+	name_radio_button_search = gtk_radio_button_new_with_label_from_widget(NULL, "par nom");
+	function_radio_button_search = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(name_radio_button_search), "par fonction");
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(name_radio_button_search), TRUE);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(function_radio_button_search), FALSE);
 
+	h_box = gtk_hbox_new(TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(h_box), name_radio_button_search, TRUE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(h_box), function_radio_button_search, TRUE, FALSE, 0);
+
+	//On lui ajoute une entrée de saisie de texte
+	search_entry = gtk_entry_new();
+	gtk_entry_set_text(GTK_ENTRY(search_entry), "nom/fonction du groupe recherché");
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(search_dialog)->vbox), h_box, TRUE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(search_dialog)->vbox), search_entry, TRUE, FALSE, 0);
 
 	gtk_widget_show_all(GTK_DIALOG(search_dialog)->vbox);
 
+	//Aucun groupe n'est séléctionné
 	selectedGroup = NULL;
 
-	switch (gtk_dialog_run(GTK_DIALOG(search_dialog)))
+	do
 	{
-	case GTK_RESPONSE_OK:
-		for (i = 0; i < script->nbGroups; i++)
+		switch (gtk_dialog_run(GTK_DIALOG(search_dialog)))
 		{
-			if (strcmp(gtk_entry_get_text(GTK_ENTRY(search_entry)), script->groups[i].name) == 0)
+		//Si la réponse est OK
+		case GTK_RESPONSE_OK:
+			if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(name_radio_button_search)))
 			{
-				selectedGroup = &script->groups[i];
-				break;
+				for (i = 0; i < script->nbGroups; i++)
+				{
+					if (strcmp(gtk_entry_get_text(GTK_ENTRY(search_entry)), script->groups[i].name) == 0)
+					{
+						//Le groupe correspondant est séléctionné
+						selectedGroup = &script->groups[i];
+						break;
+					}
+				}
+				stop = 1;
 			}
+			else
+			{
+				for (i = last_occurence; i < script->nbGroups; i++)
+				{
+					if (strcmp(gtk_entry_get_text(GTK_ENTRY(search_entry)), script->groups[i].function) == 0)
+					{
+						//Le groupe correspondant est séléctionné
+						selectedGroup = &script->groups[i];
+						last_occurence = i + 1;
+						break;
+					}
+				}
+			}
+			break;
+		case GTK_RESPONSE_CANCEL:
+			stop = 1;
+			break;
+		case GTK_RESPONSE_NONE:
+			stop = 1;
+			break;
+		default:
+			stop = 1;
+			break;
 		}
-		break;
-	case GTK_RESPONSE_CANCEL:
-	case GTK_RESPONSE_NONE:
-	default:
-		break;
-	}
+		expose_event(zone3D, NULL);
+	} while (stop != 1);
 
 	gtk_widget_destroy(search_dialog);
-	expose_event(zone3D, NULL);
 }
 
-void on_hide_see_scales_button_active(GtkWidget* hide_see_scales_button, gpointer pData)
+void on_hide_see_scales_button_active(GtkWidget *hide_see_scales_button, gpointer pData)
 {
 	(void) pData;
 
+	//Si le bouton est activé
 	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(hide_see_scales_button)))
 	{
+		//On cache le menu de droite
 		gtk_widget_hide(pPane);
+		//On actualise le label du boutton
 		gtk_button_set_label(GTK_BUTTON(hide_see_scales_button), "Show scales");
 	}
+	//Si le bouton est désactivé
 	else
 	{
+		//On montre le menu de droite
 		gtk_widget_show(pPane);
+		//On actualise le label du boutton
 		gtk_button_set_label(GTK_BUTTON(hide_see_scales_button), "Hide scales");
 	}
 }
 
-//Clic souris
 /**
- * 
+ *
  * Clic souris
- * 
+ *
  */
-void button_press_event(GtkWidget* pWidget, GdkEventButton* event)
+void button_press_event(GtkWidget *pWidget, GdkEventButton *event)
 {
 	int script_id, group_id, k;
 	int neuron_zone_id;
@@ -495,13 +610,11 @@ void button_press_event(GtkWidget* pWidget, GdkEventButton* event)
 
 					if (event->button == 3)
 					{ //Si clic droit, on ouvre une nouvelle petite fenêtre affichant les neurones de ce groupe,
-						if (usedWindows < NB_WINDOWS_MAX)//sauf si le nombre max de fenêtres ouvertes est atteint
+						if (selectedGroup->sWindow == NB_WINDOWS_MAX) //ou si toutes les valeurs des neurones de ce groupe sont déjà affichées
 						{
-							if (selectedGroup->sWindow == NB_WINDOWS_MAX) //ou si toutes les valeurs des neurones de ce groupe sont déjà affichées
-							{
-								newWindow(selectedGroup);
-								japet_bus_send_message(id, "japet(%d,%d) %s", JAPET_START_GROUP, group_id, scr[script_id].name);
-							}
+							open_neurons_start = 1;
+							move_neurons_start = 0;
+							open_group = selectedGroup;
 						}
 					}
 					else //Si clic gauche dans un groupe
@@ -527,7 +640,7 @@ void button_press_event(GtkWidget* pWidget, GdkEventButton* event)
  * Appui sur une touche
  *
  */
-void key_press_event(GtkWidget* pWidget, GdkEventKey *event)
+void key_press_event(GtkWidget *pWidget, GdkEventKey *event)
 {
 	int i, j;
 	int libre = 0;
@@ -574,7 +687,7 @@ void key_press_event(GtkWidget* pWidget, GdkEventKey *event)
 			expose_event(zone3D, NULL);
 		}
 		break;
-		 /*Les touches "espace", "plus" et "moins" sont destinées au mode "instantanés"
+		/*Les touches "espace", "plus" et "moins" sont destinées au mode "instantanés"
 		 *
 		 *
 		 case GDK_space: //Barre d'espace : on change de mode.
@@ -619,44 +732,14 @@ void key_press_event(GtkWidget* pWidget, GdkEventKey *event)
 	}
 }
 
-void expose_event_zone_neuron(GtkWidget* zone_neurons, gpointer pData)
-{
-	(void) pData;
-
-	cairo_t* cr = gdk_cairo_create(zone_neurons->window);
-
-	cairo_set_source_rgb(cr, WHITE);
-	cairo_rectangle(cr, 0, 0, 3000, 3000);
-	cairo_fill(cr);
-
-	cairo_set_source_rgb(cr, RED); //On va dessiner en noir
-	cairo_set_line_width(cr, GRID_WIDTH); //Épaisseur du trait
-
-	int i;
-	for (i = 0; i < 3000; i += 10)
-	{
-		cairo_move_to(cr, 0, i);
-		cairo_line_to(cr, 3000, i);
-	}
-
-	for (i = 0; i < 3000; i += 10)
-	{
-		cairo_move_to(cr, i, 0);
-		cairo_line_to(cr, i, 3000);
-	}
-
-	cairo_stroke(cr); //Le contenu de cr est appliqué sur "zone"
-	cairo_destroy(cr);
-}
-
 /**
- * 
+ *
  * Réactualisation de la zone 3D
- * 
+ *
  */
-void expose_event(GtkWidget* zone3D, gpointer pData)
+void expose_event(GtkWidget *zone3D, gpointer pData)
 {
-	cairo_t* cr = gdk_cairo_create(zone3D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
+	cairo_t *cr = gdk_cairo_create(zone3D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
 	(void) pData;
 
 	//On commence par dessiner un grand rectangle blanc
@@ -739,13 +822,13 @@ void expose_event(GtkWidget* zone3D, gpointer pData)
 }
 
 /**
- * 
- * Enregistrer les échelles dans un fichier
- * 
+ *
+ * Enregistrer les préférences dans un fichier
+ *
  */
-void japet_save_preferences(GtkWidget* pWidget, gpointer pData)
+void japet_save_preferences(GtkWidget *pWidget, gpointer pData)
 {
-	GtkWidget* dialog = gtk_file_chooser_dialog_new("Save your scales", GTK_WINDOW(pWindow), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
+	GtkWidget *dialog = gtk_file_chooser_dialog_new("Save your scales", GTK_WINDOW(pWindow), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
 	int i, test;
 	(void) pWidget;
 	(void) pData;
@@ -778,13 +861,14 @@ void japet_save_preferences(GtkWidget* pWidget, gpointer pData)
 }
 
 /**
- * 
- * Ouvrir un fichier d'échelles
- * 
+ *
+ * Ouvrir un fichier de préférences
+ *
  */
-void japet_load_preferences(GtkWidget* pWidget, gpointer pData)
+void japet_load_preferences(GtkWidget *pWidget, gpointer pData)
 {
-	GtkWidget* dialog = gtk_file_chooser_dialog_new("Open scales file", GTK_WINDOW(pWindow), GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
+	GtkFileFilter *file_filter, *generic_file_filter;
+	GtkWidget *dialog = gtk_file_chooser_dialog_new("Open scales file", GTK_WINDOW(pWindow), GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
 
 	(void) pWidget;
 	(void) pData;
@@ -794,6 +878,19 @@ void japet_load_preferences(GtkWidget* pWidget, gpointer pData)
 		char* filename;
 		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
 
+		file_filter = gtk_file_filter_new();
+		generic_file_filter = gtk_file_filter_new();
+
+		gtk_file_filter_add_pattern(file_filter, "*.net");
+		gtk_file_filter_add_pattern(generic_file_filter, "*");
+
+		gtk_file_filter_set_name(file_filter, "coeos/themis (.net)");
+		gtk_file_filter_set_name(generic_file_filter, "all types");
+
+		gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), file_filter);
+		gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), generic_file_filter);
+
+		strncpy(file_preferences, filename, PATH_MAX);
 		loadJapetConfigToFile(filename);
 		g_free(filename);
 	}
@@ -803,7 +900,7 @@ void japet_load_preferences(GtkWidget* pWidget, gpointer pData)
 
 }
 
-void defaultScale(GtkWidget* pWidget, gpointer pData)
+void defaultScale(GtkWidget *pWidget, gpointer pData)
 {
 	(void) pWidget;
 	(void) pData;
@@ -813,21 +910,20 @@ void defaultScale(GtkWidget* pWidget, gpointer pData)
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(yScale), YSCALE_DEFAULT);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zxScale), XGAP_DEFAULT);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zyScale), YGAP_DEFAULT);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(neuronHeightScale), NEURON_HEIGHT_MIN_DEFAULT);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(digitsScale), DIGITS_DEFAULT);
 
 	expose_event(zone3D, NULL); //On redessine la grille avec la nouvelle échelle
 }
 
 /**
- * 
+ *
  * Quand on clique sur le bouton "Ask for scripts", Japet envoie un message broadcast à tous les Promethe, leur demandant d'envoyer leurs scripts
  * S'il y avait déjà des scripts dans la mémoire de Japet, ils sont effacés
- * 
- * @param GtkWidget* pWidget : pointeur sur le bouton "Ask for scripts", gpointer pData : donnée éventuelle passée à la fonction (non utilisée) 
+ *
+ * @param GtkWidget* pWidget : pointeur sur le bouton "Ask for scripts", gpointer pData : donnée éventuelle passée à la fonction (non utilisée)
  * @see destroyAllScripts() japet_bus_send_message() findY() findX()
  */
-void askForScripts(GtkWidget* pWidget, gpointer pData)
+void askForScripts(GtkWidget *pWidget, gpointer pData)
 {
 	(void) pWidget;
 	(void) pData;
@@ -909,9 +1005,55 @@ void update_script_display(int script_id)
 	expose_event(zone3D, NULL);
 
 	//Pour que les cases soient cochées par défaut
-
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptCheck[script_id]), TRUE);
 	scr[script_id].displayed = TRUE;
+
+	if (file_preferences[0] != 0)
+	{
+		int i, j, k;
+		Node *tree, *loading_script, *loading_group;
+
+		tree = xml_load_file(file_preferences);
+		if (xml_get_number_of_childs(tree) > 2)
+		{
+			loading_script = xml_get_first_child_with_node_name(tree, "script");
+
+			for (i = 2; i < xml_get_number_of_childs(tree); i++)
+			{
+
+				if (!strcmp(scr[script_id].name, xml_get_string(loading_script, "name")))
+				{
+					if (xml_get_int(loading_script, "visibility") == 1)
+					{
+						scr[script_id].displayed = TRUE;
+						gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptCheck[script_id]), TRUE);
+					}
+					else
+					{
+						scr[script_id].displayed = FALSE;
+						gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptCheck[script_id]), FALSE);
+					}
+
+					if (xml_get_number_of_childs(loading_script) > 0)
+					{
+						for (j = 0; j < scr[script_id].nbGroups; j++)
+						{
+							loading_group = xml_get_first_child_with_node_name(loading_script, "group");
+							for (k = 0; k < xml_get_number_of_childs(loading_script); k++)
+							{
+								if (!strcmp(scr[script_id].groups[j].name, xml_get_string(loading_group, "name")))
+								{
+									newWindow(&scr[script_id].groups[j], xml_get_float(loading_group, "x"), xml_get_float(loading_group, "y"));
+								}
+								loading_group = xml_get_next_homonymous_sibling(loading_group);
+							}
+						}
+					}
+				}
+				loading_script = xml_get_next_homonymous_sibling(loading_script);
+			}
+		}
+	}
 
 	gtk_widget_show_all(pWindow); //Affichage du widget pWindow et de tous ceux qui sont dedans
 	gdk_threads_leave();
@@ -922,16 +1064,16 @@ int get_width_height(int nb_row_column)
 	if (nb_row_column == 1) return 75;
 	else if (nb_row_column <= 16) return 300;
 	else if (nb_row_column <= 128) return 400;
-	else if (nb_row_column <= 256) return 500;
-	else return 600;
+	else if (nb_row_column <= 256) return 700;
+	else return 1000;
 }
 
 /**
  *  Affiche les neurones d'une petite fenêtre
  */
-void expose_neurons(GtkWidget* zone2D, gpointer pData)
+void expose_neurons(GtkWidget *zone2D, gpointer pData)
 {
-	int i, j, currentWindow;
+	int i, j, currentWindow/*, neurons_x = 0, neurons_y = 0*/;
 
 	(void) pData;
 
@@ -949,7 +1091,7 @@ void expose_neurons(GtkWidget* zone2D, gpointer pData)
 	//On détermine la plus grande valeur à afficher (valMax) et la plus petite (valMax). valMax s'affichera en blanc et valMin en noir.
 	float valMax, valMin;
 	int wV = windowValue[currentWindow]; //Abréviation
-	int incrementation = g->nbNeurons / (g->rows * g->columns);
+	int incrementation = g->nbNeurons / (g->columns * g->rows);
 
 	valMax = g->neurons[0].s[wV];
 	valMin = g->neurons[0].s[wV];
@@ -959,31 +1101,39 @@ void expose_neurons(GtkWidget* zone2D, gpointer pData)
 		if (g->neurons[i].s[wV] < valMin) valMin = g->neurons[i].s[wV];
 	}
 
-	//Dimensions de la fenêtre
-	int largeurNeuron = get_width_height(g->columns) / g->columns;
-	int hauteurNeuron = get_width_height(g->rows) / g->rows;
 	//Dimensions d'un neurone
-	//int largeurNeurone = largeur / g->columns;
-	//int hauteurNeurone = hauteur / g->rows;
+	float largeurNeuron = get_width_height(g->columns) / (float) g->columns;
+	float hauteurNeuron = get_width_height(g->rows) / (float) g->rows;
 
 	//Début du dessin
-	cairo_t* cr = gdk_cairo_create(zone2D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
+	cairo_t *cr = gdk_cairo_create(zone2D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
 
 	//Affichage des neurones
 	float ndg;
-	int nbDigits = (gint) gtk_spin_button_get_value(GTK_SPIN_BUTTON(digitsScale));
+	int nbDigits = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale));
 
+	int x = 0, y = 0;
 	for (i = 0; i < g->nbNeurons; i += incrementation)
 	{
 		ndg = niveauDeGris(g->neurons[i].s[wV], valMin, valMax);
 		cairo_set_source_rgb(cr, ndg, ndg, ndg);
-		cairo_rectangle(cr, g->neurons[i].x * largeurNeuron, g->neurons[i].y * hauteurNeuron, largeurNeuron, hauteurNeuron);
+		//cairo_rectangle(cr, g->neurons[i].x * largeurNeuron, g->neurons[i].y * hauteurNeuron, largeurNeuron, hauteurNeuron);
+		cairo_rectangle(cr, x * largeurNeuron, y * hauteurNeuron, largeurNeuron, hauteurNeuron);
 		cairo_fill(cr);
 
 		if (ndg > 0.5) color(cr, *g);
 		else clearColor(cr, *g);
-		cairo_move_to(cr, g->neurons[i].x * largeurNeuron + 4, (g->neurons[i].y + 0.5) * hauteurNeuron);
-		gchar valeurNeurone[nbDigits + 1];
+
+		cairo_move_to(cr, x * largeurNeuron + 4, (y + 0.5) * hauteurNeuron);
+
+		char valeurNeurone[nbDigits + 1];
+
+		x++;
+		if (x >= g->columns)
+		{
+			x = 0;
+			y++;
+		}
 
 		//S'il y a assez de place sur le neurone pour afficher sa valeur avec le nombre de digits demandé
 		if (largeurNeuron > 4 * (nbDigits + 1) && hauteurNeuron > 15)
@@ -993,13 +1143,8 @@ void expose_neurons(GtkWidget* zone2D, gpointer pData)
 			if (g->neurons[i].s[wV] >= pow(10, nbDigits) || g->neurons[i].s[wV] <= -pow(10, nbDigits - 1)) for (j = 0; j < nbDigits; j++)
 				valeurNeurone[j] = '#';
 			//Si le nombre de digits demandé est insuffisant pour afficher entièrement la partie entière d'une valeur, des # s'affichent à la place de cette valeur
+			cairo_show_text(cr, valeurNeurone);
 		}
-		else
-		{
-			valeurNeurone[0] = '.';
-			valeurNeurone[1] = '\0';
-		}
-		cairo_show_text(cr, valeurNeurone);
 	}
 
 	cairo_stroke(cr); //Le contenu de cr est appliqué sur "zoneNeurones"
@@ -1016,10 +1161,11 @@ void expose_neurons(GtkWidget* zone2D, gpointer pData)
 	cairo_destroy(cr); //Destruction du calque
 }
 
-int button_press_neurons(GtkWidget* zone2D, GdkEventButton* event)
+int button_press_neurons(GtkWidget *zone2D, GdkEventButton *event)
 {
-	//On cherche le numéro de la fenêtre concernée
 	int i, group_id, currentWindow;
+
+	//On cherche le numéro de la fenêtre concernée
 	for (i = 0; i < NB_WINDOWS_MAX; i++)
 		if (zoneNeurones[i] == zone2D)
 		{
@@ -1044,20 +1190,17 @@ int button_press_neurons(GtkWidget* zone2D, GdkEventButton* event)
 
 		if (currentWindow == selectedWindow) selectedWindow = NB_WINDOWS_MAX; //Si on supprime la fenêtre sélectionnée, il n'y a plus de fenêtre sélectionnée
 
-		//gtk_container_remove(GTK_CONTAINER(h_box_neuron), pFrameNeurones[currentWindow]); //On efface la fenêtre
-		gtk_container_remove(GTK_CONTAINER(zone_neurons), pFrameNeurones[currentWindow]);
+		gtk_container_remove(GTK_CONTAINER(zone_neurons), pFrameNeurones[currentWindow]);//On efface la fenêtre
 		zoneNeurones[currentWindow] = NULL;
 		pFrameNeurones[currentWindow] = NULL;
 		usedWindows--;
-
-		//if (usedWindows == 0) gtk_widget_set_size_request(h_box_neuron, 100, 0); //S'il n'y a plus de petite fenêtre ouverte, on referme le bandeau du bas
 	}
 	else if (event->button == 3) //Si droit, la fenêtre peut être déplacée
 	{
 		move_neurons_old_x = event->x;
 		move_neurons_old_y = event->y;
 		move_neurons_start = 1;
-		move_neurons_frame = pFrameNeurones[currentWindow];
+		move_neurons_frame_id = currentWindow;
 	}
 	else if (event->button == 1) //Si clic gauche la fenêtre est séléctionnée
 	{
@@ -1074,7 +1217,7 @@ int button_press_neurons(GtkWidget* zone2D, GdkEventButton* event)
 	return TRUE;
 }
 
-void switch_output(GtkWidget* pWidget, group *group)
+void switch_output(GtkWidget *pWidget, group *group)
 {
 	char *output_name;
 	int currentWindow;
@@ -1100,15 +1243,24 @@ void drag_drop_neuron_frame(GtkWidget *zone_neurons, GdkEventButton *event, gpoi
 {
 	(void) data;
 
-	if (move_neurons_frame != NULL) gtk_layout_move(GTK_LAYOUT(zone_neurons), move_neurons_frame, ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
-
-	move_neurons_start = 0;
-	move_neurons_frame = NULL;
+	if (move_neurons_frame_id != -1 && move_neurons_start == 1)
+	{
+		gtk_layout_move(GTK_LAYOUT(zone_neurons), pFrameNeurones[move_neurons_frame_id], ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
+		windowPosition[move_neurons_frame_id].x = ((int) (event->x / 25)) * 25;
+		windowPosition[move_neurons_frame_id].y = ((int) (event->y / 25)) * 25;
+		move_neurons_frame_id = -1;
+		move_neurons_start = 0;
+	}
+	else if (open_group != NULL && open_neurons_start == 1)
+	{
+		newWindow(open_group, ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
+		open_neurons_start = 0;
+	}
 }
 
 //--------------------------------------------------5. "CONSTRUCTEURS"---------------------------------------------
 
-void newScript(script* script, char* name, char* machine, int z, int nbGroups)
+void newScript(script *script, char *name, char *machine, int z, int nbGroups)
 {
 	int tailleName, tailleMachine;
 
@@ -1129,11 +1281,11 @@ void newScript(script* script, char* name, char* machine, int z, int nbGroups)
 }
 
 /**
- * 
+ *
  * Destruction des groupes du script à l'adresse s
- * 
- * @param s à supprimer
- * 
+ *
+ * @param script_id : id du script à supprimer
+ *
  */
 void destroyScript(int script_id)
 {
@@ -1156,11 +1308,10 @@ void destroyScript(int script_id)
 	free(scr[script_id].machine);
 }
 
-//
 /**
- * 
+ *
  * Destruction de tous les scripts
- * 
+ *
  */
 
 void destroyAllScripts()
@@ -1190,32 +1341,16 @@ void destroyAllScripts()
 		}
 
 	usedWindows = 0;
-	//gtk_widget_set_size_request(h_box_neuron, 100, 0);
 
 	ivyServerNb = 0;
-
-	//Réinitialisation d'ENet
-	/*enet_deinitialize();
-
-	 if (enet_initialize() != 0)
-	 {
-	 printf("An error occurred while initializing ENet.\n");
-	 exit(EXIT_FAILURE);
-	 }
-
-	 atexit(enet_deinitialize);*/
-	//server_for_promethes();
 
 	nbSnapshots = 1; //Par défaut, 1 série de valeurs est enregistrée à leur création dans le tableau "buffer" de chaque neurone
 }
 
 /**
- * 
- * Créer un script. 
- * 
- * sWindow: Toutes les cases du script sont initialisées à NB_WINDOWS_MAX
+ * Créer un script.
  */
-void newGroup(group *g, script* myScript, char* name, char* function, float learningSpeed, int nbNeurons, int rows, int columns, int y, int nbLinksTo, int firstNeuron)
+void newGroup(group *g, script *myScript, char *name, char *function, float learningSpeed, int nbNeurons, int rows, int columns, int y, int nbLinksTo, int firstNeuron)
 {
 	g->myScript = myScript;
 
@@ -1227,7 +1362,7 @@ void newGroup(group *g, script* myScript, char* name, char* function, float lear
 	int tailleFonction = strlen(function);
 	g->function = (char*) malloc((tailleFonction + 1) * sizeof(char));
 	sprintf(g->function, "%s", function);
-	g->name[tailleFonction] = '\0';
+	g->function[tailleFonction] = '\0';
 
 	g->learningSpeed = learningSpeed;
 	g->nbNeurons = nbNeurons;
@@ -1253,10 +1388,9 @@ void newGroup(group *g, script* myScript, char* name, char* function, float lear
 }
 
 /**
- * 
  * Créer un nouveau neurone
  */
-void newNeuron(neuron* neuron, group* myGroup, float s, float s1, float s2, float pic, int x, int y)
+void newNeuron(neuron *neuron, group *myGroup, float s, float s1, float s2, float pic, int x, int y)
 {
 	neuron->myGroup = myGroup;
 	neuron->s[0] = s;
@@ -1275,12 +1409,10 @@ void newNeuron(neuron* neuron, group* myGroup, float s, float s1, float s2, floa
 }
 
 /**
- * 
  * Mise un jour d'un neurone quand Prométhé envoie de nouvelles données
- * 
  */
 //Actuellement, cette fonction n'est pas utilisée. Elle sera peut-être utile pour le mode "instantanés"
-void updateNeuron(neuron* neuron, gfloat s, gfloat s1, gfloat s2, gfloat pic)
+void updateNeuron(neuron *neuron, float s, float s1, float s2, float pic)
 {
 	neuron->s[0] = s;
 	neuron->s[1] = s1;
@@ -1312,7 +1444,7 @@ void updateNeuron(neuron* neuron, gfloat s, gfloat s1, gfloat s2, gfloat pic)
 
 //---------------------------------------------------6. AUTRES FONCTIONS---------------------------------------------
 
-/** 
+/**
  * Cette fonction permet de traiter les informations provenant de prométhé pour mettre à jour
  * l'affichage. Elle est appelée automatiquement plusieurs fois par seconde.
  */
@@ -1359,11 +1491,11 @@ char* tcolor(script script)
 }
 
 /**
- * 
+ *
  * Donne au pinceau la couleur foncée correspondant à une certaine valeur de z
- * 
+ *
  */
-void color(cairo_t* cr, group group)
+void color(cairo_t *cr, group group)
 {
 	switch (group.myScript->z)
 	//La couleur d'un groupe ou d'une liaison dépend du plan dans lequel il/elle se trouve
@@ -1393,11 +1525,11 @@ void color(cairo_t* cr, group group)
 }
 
 /**
- * 
+ *
  * Donne au pinceau la couleur claire correspondant à une certaine valeur de z
- * 
+ *
  */
-void clearColor(cairo_t* cr, group group)
+void clearColor(cairo_t *cr, group group)
 {
 	switch (group.myScript->z)
 	//La couleur d'un groupe ou d'une liaison dépend du plan dans lequel il/elle se trouve
@@ -1426,18 +1558,15 @@ void clearColor(cairo_t* cr, group group)
 	}
 }
 
-void dessinGroupe(cairo_t* cr, int a, int b, int c, int d, group* g, int z, int zMax)
+void dessinGroupe(cairo_t *cr, int a, int b, int c, int d, group *g, int z, int zMax)
 {
 	int x = g->x, y = g->y;
 
 	if (g == selectedGroup) cairo_set_source_rgb(cr, RED);
-	//else if (g->justRefreshed == TRUE) clearColor(cr, *g);
 	else color(cr, *g);
 	cairo_rectangle(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z - HAUTEUR_GROUPE / 2, LARGEUR_GROUPE, HAUTEUR_GROUPE);
 	cairo_fill(cr);
 
-	/*	if (g->justRefreshed == TRUE) cairo_set_source_rgb(cr, BLACK);
-	 else */
 	cairo_set_source_rgb(cr, WHITE);
 	cairo_set_font_size(cr, 8);
 	cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z);
@@ -1452,10 +1581,9 @@ void dessinGroupe(cairo_t* cr, int a, int b, int c, int d, group* g, int z, int 
 	for (i = 0; i < g->nbLinksTo; i++)
 		if (g->previous[i]->myScript->displayed == TRUE)
 		{
-			gint x1 = g->previous[i]->x, y1 = g->previous[i]->y, z1 = g->previous[i]->myScript->z; //Coordonnées du groupe situé avant la liaison
+			int x1 = g->previous[i]->x, y1 = g->previous[i]->y, z1 = g->previous[i]->myScript->z; //Coordonnées du groupe situé avant la liaison
 
 			if (g->previous[i]->myScript == g->myScript) color(cr, *g);
-			else cairo_set_source_rgb(cr, RED); //Si c'est une liaison entre deux groupes appartenant à des scripts différents, elle est dessinée en rouge
 
 			cairo_set_line_width(cr, 0.8); //Trait épais représentant une liaison entre groupes
 
@@ -1464,14 +1592,48 @@ void dessinGroupe(cairo_t* cr, int a, int b, int c, int d, group* g, int z, int 
 
 			cairo_stroke(cr);
 		}
+
+	for (i = 0; i < nb_script_link; i++)
+	{
+		if (scripts_links[i].previous == g)
+		{
+			cairo_set_source_rgb(cr, GREY);
+			cairo_set_line_width(cr, 5);
+			cairo_move_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2, b * y + d * z - 10);
+			cairo_line_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2 + 25, b * y + d * z - 10);
+			cairo_move_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2 + 30, b * y + d * z - 10);
+
+			if (scripts_links[i].type == NET_LINK_ACK || scripts_links[i].type == NET_LINK_BLOCK_ACK)
+			{
+				cairo_set_source_rgb(cr, INDIGO);
+				cairo_show_text(cr, "ack");
+			}
+			cairo_stroke(cr);
+		}
+		else if (scripts_links[i].next == g)
+		{
+			cairo_set_source_rgb(cr, GREY);
+			cairo_set_line_width(cr, 5);
+			cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2 - 25, b * y + d * z - 10);
+			cairo_line_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z - 10);
+			cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2 - 50, b * y + d * z - 10);
+			if (scripts_links[i].type == NET_LINK_BLOCK || scripts_links[i].type == NET_LINK_BLOCK_ACK)
+			{
+				cairo_set_source_rgb(cr, RED);
+				cairo_show_text(cr, "block");
+			}
+			cairo_stroke(cr);
+		}
+	}
+
 }
 
 /**
- * 
+ *
  * Calcule la coordonnée x d'un groupe en fonction de ses prédécesseurs
- * 
+ *
  */
-void findX(group* group)
+void findX(group *group)
 {
 	int i, Max = 0;
 
@@ -1493,11 +1655,11 @@ void findX(group* group)
 }
 
 /**
- * 
+ *
  * Calcule la coordonnée y d'un groupe
- * 
+ *
  */
-void findY(group* group)
+void findY(group *group)
 {
 	int freeY;
 	int i, j;
@@ -1522,7 +1684,7 @@ void findY(group* group)
 	group->knownY = TRUE;
 }
 
-void newWindow(group* g)
+void newWindow(group *g, float pos_x, float pos_y)
 {
 	int i, currentWindow; //On cherche la première case vide dans le tableau windowGroup et on donne son numéro à la nouvelle fenêtre
 	GtkWidget *button_frame;
@@ -1535,7 +1697,6 @@ void newWindow(group* g)
 		}
 
 	windowGroup[currentWindow] = g; //On enregistre l'adresse du groupe affiché dans cette fenêtre
-	windowPosition[currentWindow] = usedWindows; //et la position de cette fenêtre dans le bandeau
 	usedWindows++; //Puis on incrémente le nombre de fenêtres utilisées
 
 	windowValue[currentWindow] = 1;
@@ -1545,18 +1706,13 @@ void newWindow(group* g)
 	//Création de la petite fenêtre
 	pFrameNeurones[currentWindow] = gtk_frame_new(""); //Titre de la fenêtre
 
-	gtk_layout_put(GTK_LAYOUT(zone_neurons), pFrameNeurones[currentWindow], 400 * (usedWindows - 1), 0);
+	gtk_layout_put(GTK_LAYOUT(zone_neurons), pFrameNeurones[currentWindow], pos_x, pos_y);
+	windowPosition[currentWindow].x = pos_x;
+	windowPosition[currentWindow].y = pos_y;
 
 	button_frame = gtk_toggle_button_new_with_label(g_strconcat(g->name, " - ", "s1", NULL));
 	g_signal_connect(GTK_OBJECT(button_frame), "toggled", (GtkSignalFunc) switch_output, g);
 	gtk_frame_set_label_widget(GTK_FRAME(pFrameNeurones[currentWindow]), button_frame);
-
-	/*gtk_widget_add_events(pFrameNeurones[currentWindow], GDK_BUTTON_PRESS_MASK);*/
-
-	/*
-	 g_signal_connect(GTK_OBJECT(pFrameNeurones[currentWindow]), "drag-begin", (GtkSignalFunc) drag_begin_neuron_frame, NULL);
-	 g_signal_connect(GTK_OBJECT(pFrameNeurones[currentWindow]), "drag-drop", (GtkSignalFunc) drag_drop_neuron_frame, NULL);
-	 */
 
 	zoneNeurones[currentWindow] = gtk_drawing_area_new();
 	gtk_container_add(GTK_CONTAINER(pFrameNeurones[currentWindow]), zoneNeurones[currentWindow]);
@@ -1576,9 +1732,8 @@ float niveauDeGris(float val, float valMin, float valMax)
 
 void resizeNeurons()
 {
-	//On partage la largeur de la grande fenêtre Japet entre les petites fenêtres ouvertes, en fonction du nombre de colonnes de neurones dans chacune
 	int i;
-	//int largeurJapet = h_box_neuron->allocation.width; //Largeur totale de la grande fenêtre Japet
+
 	for (i = 0; i < NB_WINDOWS_MAX; i++)
 		if (windowGroup[i] != NULL)
 		{
@@ -1588,7 +1743,10 @@ void resizeNeurons()
 	gtk_widget_show_all(neurons_frame);
 }
 
-const char * whitespace_callback_japet(mxml_node_t *node, int where)
+/*
+ * Mise en page du xml dans le fichier de sauvegarde des préférences (*.jap)
+ */
+const char* whitespace_callback_japet(mxml_node_t *node, int where)
 {
 	const char *name;
 
@@ -1605,56 +1763,39 @@ const char * whitespace_callback_japet(mxml_node_t *node, int where)
 		return ("\n");
 	}
 
-	if (!strcmp(name, "scale") || !strcmp(name, "script"))
+	if (!strcmp(name, "properties") || !strcmp(name, "script") || !strcmp(name, "bus_id"))
 	{
-		if (where == MXML_WS_BEFORE_OPEN || where == MXML_WS_BEFORE_CLOSE) return ("\n\t");
+		if (where == MXML_WS_BEFORE_OPEN || where == MXML_WS_BEFORE_CLOSE) return ("\t");
 	}
-	/*else if (!strcmp(name, "script_oscillo"))
-	 {
-	 if (where == MXML_WS_BEFORE_OPEN) return ("\n\t\t");
-	 else if (where == MXML_WS_BEFORE_CLOSE) return ("\t\t");
-	 }
-	 else if(!strcmp(name, "informations") || !strcmp(name, "script"))
-	 {
-	 if (where == MXML_WS_BEFORE_OPEN) return ("\n\t");
-	 }
-	 else if (!strcmp(name, "group"))
-	 {
-	 if (where == MXML_WS_BEFORE_OPEN) return ("\t\t\t");
-	 }*/
+	else if (!strcmp(name, "group"))
+	{
+		if (where == MXML_WS_BEFORE_OPEN || where == MXML_WS_BEFORE_CLOSE) return ("\t\t");
+	}
 
 	return (NULL);
 }
-void saveJapetConfigToFile(char* filename)
+void saveJapetConfigToFile(char *filename)
 {
-	int script_id;
-	Node *tree, *scale, *script;
+	int script_id, current_window;
+	Node *tree, *bus_id, *properties, *script, *group;
 
 	tree = mxmlNewXML("1.0");
 
-	scale = mxmlNewElement(tree, "scale");
-	xml_set_string(scale, "type", "refresh_scale");
-	xml_set_int(scale, "value", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(refreshScale)));
+	bus_id = mxmlNewElement(tree, "bus_id");
+	xml_set_string(bus_id, "name", id);
 
-	scale = mxmlNewElement(tree, "scale");
-	xml_set_string(scale, "type", "x_scale");
-	xml_set_int(scale, "value", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(xScale)));
+	properties = mxmlNewElement(tree, "properties");
+	xml_set_int(properties, "refresh", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(refreshScale)));
 
-	scale = mxmlNewElement(tree, "scale");
-	xml_set_string(scale, "type", "y_scale");
-	xml_set_int(scale, "value", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(yScale)));
+	xml_set_int(properties, "x_scale", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(xScale)));
 
-	scale = mxmlNewElement(tree, "scale");
-	xml_set_string(scale, "type", "z_x_scale");
-	xml_set_int(scale, "value", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(zxScale)));
+	xml_set_int(properties, "y_scale", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(yScale)));
 
-	scale = mxmlNewElement(tree, "scale");
-	xml_set_string(scale, "type", "z_y_scale");
-	xml_set_int(scale, "value", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(zyScale)));
+	xml_set_int(properties, "z_x_scale", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(zxScale)));
 
-	scale = mxmlNewElement(tree, "scale");
-	xml_set_string(scale, "type", "digits_scale");
-	xml_set_int(scale, "value", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale)));
+	xml_set_int(properties, "z_y_scale", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(zyScale)));
+
+	xml_set_int(properties, "digits", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale)));
 
 	for (script_id = 0; script_id < nbScripts; script_id++)
 	{
@@ -1663,74 +1804,88 @@ void saveJapetConfigToFile(char* filename)
 
 		if (scr[script_id].displayed) xml_set_int(script, "visibility", 1);
 		else xml_set_int(script, "visibility", 0);
+
+		for (current_window = 0; current_window < usedWindows; current_window++)
+		{
+			if (windowGroup[current_window]->myScript == &scr[script_id])
+			{
+				group = mxmlNewElement(script, "group");
+				xml_set_string(group, "name", windowGroup[current_window]->name);
+				xml_set_int(group, "x", windowPosition[current_window].x);
+				xml_set_int(group, "y", windowPosition[current_window].y);
+			}
+		}
 	}
 
 	xml_save_file(filename, tree, whitespace_callback_japet);
 }
 
-void loadJapetConfigToFile(char* filename)
+void loadJapetConfigToFile(char *filename)
 {
-	int script_id, i;
-	Node *tree, *loading_node;
+	int script_id, i, j, k;
+	Node *tree, *loading_node, *loading_group;
 
 	tree = xml_load_file(filename);
 
-	loading_node = xml_get_first_child_with_node_name(tree, "scale");
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(refreshScale), xml_get_int(loading_node, "value"));
+	loading_node = xml_get_first_child_with_node_name(tree, "bus_id");
+	strcpy(id, xml_get_string(loading_node, "name"));
 
-	loading_node = xml_get_next_homonymous_sibling(loading_node);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(xScale), xml_get_int(loading_node, "value"));
+	loading_node = xml_get_first_child_with_node_name(tree, "properties");
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(refreshScale), xml_get_int(loading_node, "refresh"));
 
-	loading_node = xml_get_next_homonymous_sibling(loading_node);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(yScale), xml_get_int(loading_node, "value"));
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(xScale), xml_get_int(loading_node, "x_scale"));
 
-	loading_node = xml_get_next_homonymous_sibling(loading_node);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zxScale), xml_get_int(loading_node, "value"));
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(yScale), xml_get_int(loading_node, "y_scale"));
 
-	loading_node = xml_get_next_homonymous_sibling(loading_node);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zyScale), xml_get_int(loading_node, "value"));
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zxScale), xml_get_int(loading_node, "z_x_scale"));
 
-	loading_node = xml_get_next_homonymous_sibling(loading_node);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(digitsScale), xml_get_int(loading_node, "value"));
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zyScale), xml_get_int(loading_node, "z_y_scale"));
+
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(digitsScale), xml_get_int(loading_node, "digits"));
 
 	for (script_id = 0; script_id < nbScripts; script_id++)
-	{
-		loading_node = xml_get_first_child_with_node_name(tree, "script");
-		if (!strcmp(scr[script_id].name, xml_get_string(loading_node, "name")))
+		if (xml_get_number_of_childs(tree) > 2)
 		{
-			if (xml_get_int(loading_node, "visibility") == 1)
-			{
-				scr[script_id].displayed = TRUE;
-				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptCheck[script_id]), TRUE);
-			}
-			else
-			{
-				scr[script_id].displayed = FALSE;
-				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptCheck[script_id]), FALSE);
-			}
-		}
+			loading_node = xml_get_first_child_with_node_name(tree, "script");
 
-		for (i = 8; i < xml_get_number_of_childs(tree); i++)
-		{
-			loading_node = xml_get_next_homonymous_sibling(loading_node);
-			if (!strcmp(scr[script_id].name, xml_get_string(loading_node, "name")))
+			for (i = 2; i < xml_get_number_of_childs(tree); i++)
 			{
-				if (xml_get_int(loading_node, "visibility") == 1)
+
+				if (!strcmp(scr[script_id].name, xml_get_string(loading_node, "name")))
 				{
-					scr[script_id].displayed = TRUE;
-					gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptCheck[script_id]), TRUE);
+					if (xml_get_int(loading_node, "visibility") == 1)
+					{
+						scr[script_id].displayed = TRUE;
+						gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptCheck[script_id]), TRUE);
+					}
+					else
+					{
+						scr[script_id].displayed = FALSE;
+						gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptCheck[script_id]), FALSE);
+					}
+
+					if (xml_get_number_of_childs(loading_node) > 0)
+					{
+						for (j = 0; j < scr[script_id].nbGroups; j++)
+						{
+							loading_group = xml_get_first_child_with_node_name(loading_node, "group");
+							for (k = 0; k < xml_get_number_of_childs(loading_node); k++)
+							{
+								if (!strcmp(scr[script_id].groups[j].name, xml_get_string(loading_group, "name")))
+								{
+									newWindow(&scr[script_id].groups[j], xml_get_float(loading_group, "x"), xml_get_float(loading_group, "y"));
+								}
+								loading_group = xml_get_next_homonymous_sibling(loading_group);
+							}
+						}
+					}
 				}
-				else
-				{
-					scr[script_id].displayed = FALSE;
-					gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scriptCheck[script_id]), FALSE);
-				}
+				loading_node = xml_get_next_homonymous_sibling(loading_node);
 			}
 		}
-	}
 }
 
-void fatal_error(const char *name_of_file, const char* name_of_function, int numero_of_line, const char *message, ...)
+void fatal_error(const char *name_of_file, const char *name_of_function, int numero_of_line, const char *message, ...)
 {
 	char total_message[MESSAGE_MAX];
 

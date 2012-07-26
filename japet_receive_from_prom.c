@@ -168,12 +168,11 @@ void enet_manager(ENetHost *server)
 
 	//variables temporaires, pour analyser chaque liaison reçue
 	int linkSecondary;
-	//char previousName[SIZE_NO_NAME];
-	//char nextName[SIZE_NO_NAME];
-	int previousNb;
-	int nextNb;
+	int previousNb, nextNb;
 	int linkCreated;
 	int nbCreatedLinksForThisScript;
+	int already_add = 0, type;
+	char *link_name, *option;
 
 	//variables temporaires, pour analyser chaque neurone reçu
 	int neuronGroupId;
@@ -188,7 +187,7 @@ void enet_manager(ENetHost *server)
 
 	while (running)
 	{
-		gint script_id;
+		int script_id;
 		/* Wait up to 2000 milliseconds for an event. */
 		while (enet_host_service(server, &event, 2000) > 0)
 		{
@@ -254,21 +253,93 @@ void enet_manager(ENetHost *server)
 					for (i = 0; i < number_of_links; i++)
 					{
 						linkSecondary = received_links_packet[i].secondaire;
-						//strncpy(previousName, received_links_packet[i].depart_name, SIZE_NO_NAME);
-						//strncpy(nextName, received_links_packet[i].arrivee_name, SIZE_NO_NAME);
 						previousNb = received_links_packet[i].depart;
 						nextNb = received_links_packet[i].arrivee;
-					//	if (linkSecondary == 0) scr[script_id].groups[received_links_packet[i].depart].nbLinksTo++;
+						already_add = 0;
 
-						if (linkSecondary == 0) //Si c'est une liaison principale (pour l'instant, on ne tient pas compte des liaisons secondaires)
+						if (nextNb >= 0 && strcmp(scr[script_id].groups[nextNb].function, "f_send") == 0)
+						{
+							if (strchr(received_links_packet[i].nom, '-'))
+							{
+								link_name = strtok(received_links_packet[i].nom, "-");
+								option = strtok(NULL, "-");
+								if (strcmp(option, "ack") == 0) type = NET_LINK_ACK;
+								else type = NET_LINK_SIMPLE;
+							}
+							else
+							{
+								link_name = malloc(strlen(received_links_packet[i].nom) * sizeof(char));
+								strcpy(link_name, received_links_packet[i].nom);
+								type = NET_LINK_SIMPLE;
+							}
+
+							for (j = 0; j < nb_script_link; j++)
+							{
+								if (strcmp(link_name, scripts_links[j].name) == 0)
+								{
+									scripts_links[j].previous = &scr[script_id].groups[nextNb];
+									if (scripts_links[j].type == NET_LINK_BLOCK && type == NET_LINK_ACK) scripts_links[j].type = NET_LINK_BLOCK_ACK;
+									else if (scripts_links[j].type == NET_LINK_SIMPLE) scripts_links[j].type = type;
+									already_add = 1;
+									break;
+								}
+							}
+
+							if (already_add != 1)
+							{
+								strcpy(scripts_links[nb_script_link].name, link_name);
+								scripts_links[nb_script_link].previous = malloc(sizeof(group));
+								scripts_links[nb_script_link].previous = &scr[script_id].groups[nextNb];
+								scripts_links[nb_script_link].type = type;
+								nb_script_link++;
+							}
+						}
+						else if (nextNb >= 0 && strcmp(scr[script_id].groups[nextNb].function, "f_recv") == 0)
+						{
+							if (strchr(received_links_packet[i].nom, '-'))
+							{
+								link_name = strtok(received_links_packet[i].nom, "-");
+								option = strtok(NULL, "-");
+								if (strcmp(option, "block") == 0) type = NET_LINK_BLOCK;
+								else type = NET_LINK_SIMPLE;
+							}
+							else
+							{
+								link_name = malloc(strlen(received_links_packet[i].nom) * sizeof(char));
+								strcpy(link_name, received_links_packet[i].nom);
+								type = NET_LINK_SIMPLE;
+							}
+
+							for (j = 0; j < nb_script_link; j++)
+							{
+								if (strcmp(link_name, scripts_links[j].name) == 0)
+								{
+									scripts_links[j].next = &scr[script_id].groups[nextNb];
+									if (scripts_links[j].type == NET_LINK_ACK && type == NET_LINK_BLOCK) scripts_links[j].type = NET_LINK_BLOCK_ACK;
+									else if (scripts_links[j].type == NET_LINK_SIMPLE) scripts_links[j].type = type;
+									already_add = 1;
+									break;
+								}
+							}
+
+							if (already_add != 1)
+							{
+								strcpy(scripts_links[nb_script_link].name, link_name);
+								scripts_links[nb_script_link].next = malloc(sizeof(group));
+								scripts_links[nb_script_link].next = &scr[script_id].groups[nextNb];
+								scripts_links[nb_script_link].type = type;
+								nb_script_link++;
+							}
+						}
+
+						if (linkSecondary == 0) //Si c'est une liaison principale
+
 						{
 							//On vérifie que les groupes au début et à la fin de la liaison sont bien dans le script n°script_id
 							for (j = 0; j < scr[script_id].nbGroups; j++)
 							{
-								//printf("%s vs %s\n", scr[script_id].groups[j].name, nextName);
 								for (k = 0; k < scr[script_id].nbGroups; k++)
-									//if (strcmp(scr[script_id].groups[j].name, nextName) == 0 && strcmp(scr[script_id].groups[k].name, previousName) == 0)
-									if(j == nextNb  && k == previousNb)
+									if (j == nextNb && k == previousNb)
 									{
 										scr[script_id].groups[j].nbLinksTo++; //Il y a une liaison de plus qu'avant vers ce groupe
 									}
@@ -290,32 +361,26 @@ void enet_manager(ENetHost *server)
 					for (i = 0; i < number_of_links; i++)
 					{
 						linkSecondary = received_links_packet[i].secondaire;
-						//strncpy(previousName, received_links_packet[i].depart_name, SIZE_NO_NAME);
-						//strncpy(nextName, received_links_packet[i].arrivee_name, SIZE_NO_NAME);
 						previousNb = received_links_packet[i].depart;
 						nextNb = received_links_packet[i].arrivee;
 
-						//Si c'est une liaison principale (pour l'instant, on ne tient pas compte des liaisons secondaires)
+						//Si c'est une liaison principale
 						if (linkSecondary == 0)
 						{
 							linkCreated = 0;
 							for (j = 0; j < scr[script_id].nbGroups; j++)
 							{
-								//if (strcmp(scr[script_id].groups[j].name, nextName) == 0)
-								if(j == nextNb)
+								if (j == nextNb)
 								{
-									//printf("j = %d    name = %s    nextName = %s\n", j, scr[script_id].groups[j].name, nextName);
 									for (k = 0; k < scr[script_id].nbGroups; k++)
-										//if (strcmp(scr[script_id].groups[k].name, previousName) == 0)
-										if(k == previousNb)
+										if (k == previousNb)
 										{
 											//Liaison de groups[k] vers groups[j]
 											l = 0;
-											//printf("j : %d, name : %s nbLinksTo : %d\n", j, scr[script_id].groups[j].name, scr[script_id].groups[j].nbLinksTo);
 											do
 											{
-												//printf("l = %d\n", l);
 												if (scr[script_id].groups[j].previous[l] == NULL) //Si cette case du tableau previous est libre
+
 												{
 													scr[script_id].groups[j].previous[l] = &scr[script_id].groups[k];
 													linkCreated = 1;
@@ -323,14 +388,11 @@ void enet_manager(ENetHost *server)
 												}
 												l++;
 											} while (linkCreated == 0 && l <= scr[script_id].groups[j].nbLinksTo);
-											//printf("Création d'une liaison de %s vers %s\n", scr[script_id].groups[k].name, scr[script_id].groups[j].name);
 										}
 								}
 							}
-							//if (linkCreated == 0) printf("La liaison de %s vers %s a été ignorée car l'un des deux n'existe pas\n", previousName, nextName);
 							if (linkCreated == 0) printf("La liaison de %d vers %d a été ignorée car l'un des deux n'existe pas\n", previousNb, nextNb);
 						}
-						//else printf("La liaison de %s vers %s a été ignorée car secondaire\n", previousName, nextName);
 						else printf("La liaison de %d vers %d a été ignorée car secondaire\n", previousNb, nextNb);
 					}
 					printf("%d liaisons ont été créées pour le script %s\n", nbCreatedLinksForThisScript, scr[script_id].name);
@@ -368,12 +430,10 @@ void enet_manager(ENetHost *server)
 
 				case ENET_UPDATE_NEURON_CHANNEL:
 
-					if(scr[script_id].autorize_neurons_update == 1)
+					if (scr[script_id].autorize_neurons_update == 1)
 					{
-						//if(nb_update == gtk_spin_button_get_value(GTK_SPIN_BUTTON(refreshScale)))
 						{
 							//On commence par remettre à FALSE le champ justRefreshed de tous les groupes
-
 							for (j = 0; j < scr[script_id].nbGroups; j++)
 								scr[script_id].groups[j].justRefreshed = FALSE;
 
@@ -395,16 +455,11 @@ void enet_manager(ENetHost *server)
 
 								//On indique que le groupe dont ce neurone fait partie vient d'être mis à jour
 								scr[script_id].groups[neuronGroupId].justRefreshed = TRUE;
-
-
 							}
 
 							if (displayMode[1] == 'a' && nbSnapshots < NB_BUFFERED_MAX) nbSnapshots++; //Si on est en mode échantillonné, et si les tableaux "buffer" ne sont pas pleins,
 							//on note qu'on a un instantané de plus en mémoire.
-							//update_neurons_display(script_id, neuronGroupId);
-							//nb_update = 0;
 						}
-						//nb_update++;
 					}
 				}
 				/* Clean up the packet now that we're done using it. */

@@ -60,13 +60,11 @@
 
 #define IP_LENGTH_MAX 16  //Une adresse IPv4 comporte 15 caractères, + 1 pour le '\0' final
 
-
-
-
-
-//-------------------------------------------------CONSTANTES----------------------------------------------------------
+#define SCRIPT_LINKS_MAX 128
 
 #define BUS_ID_MAX 128
+
+//-------------------------------------------------CONSTANTES----------------------------------------------------------
 
 #define MESSAGE_MAX 256 //Utilisé par la fonction fatal_error dans japet.c
 #define SHOWCOLOR_SIZE 20
@@ -84,16 +82,29 @@
 #define YSCALE_DEFAULT 150
 #define XGAP_DEFAULT 30
 #define YGAP_DEFAULT 20
-#define NEURON_HEIGHT_MIN_DEFAULT 30 //Hauteur minimale d'un neurone dans les fenêtres du bas
 #define DIGITS_DEFAULT 3 //Nombre de caractères pour afficher les valeurs d'un neurone
 
+//-----------------------------------------------ENUMERATIONS--------------------------------------------------------
+
+enum
+{
+		NET_LINK_SIMPLE = 0,
+		NET_LINK_BLOCK ,
+		NET_LINK_ACK,
+		NET_LINK_BLOCK_ACK,
+};
 
 //------------------------------------------------STRUCTURES---------------------------------------------------------
 
+typedef struct coordonnees
+{
+	int x;
+	int y;
+} coordonnees;
 
 typedef struct neuron 
 {
-    struct group* myGroup;
+    struct group *myGroup;
     float s[4]; //Valeurs du neurone (0 : s, 1 : s1, 2 : s2, 3 : pic)
     int x;
     int y;
@@ -102,20 +113,20 @@ typedef struct neuron
 
 typedef struct group
 {
-    struct script* myScript;
-    char* name;
-    char* function;
+    struct script *myScript;
+    char *name;
+    char *function;
     float learningSpeed;
     int nbNeurons;
     int rows;
     int columns;
-    neuron* neurons; //Tableau des neurones du groupe
+    neuron *neurons; //Tableau des neurones du groupe
     int x;
     int y;
     gboolean knownX; //TRUE si la coordonnée x est connue
     gboolean knownY;
     int nbLinksTo;
-    struct group** previous;	//Adresses des groupes ayant des liaisons vers celui-ci
+    struct group **previous;	//Adresses des groupes ayant des liaisons vers celui-ci
     int sWindow; //Numéro (entre 0 et NB_WINDOWS_MAX - 1) de la fenêtre où s'affichent les valeurs des neurones de ce groupe (NB_WINDOWS_MAX si pas encore de fenêtre). Il y a 4 valeurs affichables par neurone
     gboolean justRefreshed; //TRUE si le dernier message envoyé par Prométhé a réactualisé ce groupe
     int firstNeuron; ///Numéro du premier neurone de ce groupe dans le grand tableau de tous les neurones du script
@@ -125,16 +136,23 @@ typedef struct group
 
 typedef struct script
 {
-    char* name;//[SCRIPT_NAME_MAX];
-    char* machine;//[IP_LENGTH_MAX];
+    char *name;//[SCRIPT_NAME_MAX];
+    char *machine;//[IP_LENGTH_MAX];
     int autorize_neurons_update;
     int z;
     int nbGroups;
-    group* groups; //Tableau des groupes du script
+    group *groups; //Tableau des groupes du script
     gboolean displayed; //TRUE s'il faut afficher le script
     ENetPeer *peer;
 } script;
 
+typedef struct script_link
+{
+	char name[TAILLE_CHAINE];
+	group *previous;
+	group *next;
+	int type;
+} type_script_link;
 
 typedef struct ivyServer
 {
@@ -145,60 +163,54 @@ typedef struct ivyServer
 
 //---------------------------------------------VARIABLES GLOBALES----------------------------------------------------
  
-extern GtkWidget* pWindow; //La fenêtre de l'application Japet
-extern GtkWidget* pVBoxScripts; //Panneau des scripts
-extern GtkWidget* zone3D; //La grande zone de dessin des liaisons entre groupes
-extern GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale, *neuronHeightScale, *digitsScale; //Échelles
+extern GtkWidget *pWindow; //La fenêtre de l'application Japet
+extern GtkWidget *pVBoxScripts; //Panneau des scripts
+extern GtkWidget *zone3D; //La grande zone de dessin des liaisons entre groupes
+extern GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale, *digitsScale; //Échelles
 
 //Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshot)
-extern gchar* displayMode;
-extern GtkWidget* modeLabel; 
-extern gint currentSnapshot;
-extern gint nbSnapshots;
+extern char *displayMode;
+extern GtkWidget *modeLabel;
+extern int currentSnapshot;
+extern int nbSnapshots;
 
-extern gint Index[NB_SCRIPTS_MAX]; //Tableau des indices : Index[0] = 0, Index[1] = 1, ..., Index[NB_SCRIPTS_MAX-1] = NB_SCRIPTS_MAX-1;
+extern int Index[NB_SCRIPTS_MAX]; //Tableau des indices : Index[0] = 0, Index[1] = 1, ..., Index[NB_SCRIPTS_MAX-1] = NB_SCRIPTS_MAX-1;
 //Ce tableau permet à une fonction signal de retenir la valeur qu'avait i au moment où on a connecté le signal
 
 extern int autorize_neuron_update;
 
-extern GtkWidget** openScripts; //Lignes du panneau des scripts
-extern GtkWidget** scriptCheck; //Cases à cocher/décocher pour afficher les scripts ou les masquer
-extern GtkWidget** scriptLabel; //Label affichant le nom d'un script dans la bonne couleur
-extern GtkWidget** zChooser; //Spin_button pour choisir dans quel plan afficher ce script
+extern GtkWidget **openScripts; //Lignes du panneau des scripts
+extern GtkWidget **scriptCheck; //Cases à cocher/décocher pour afficher les scripts ou les masquer
+extern GtkWidget **scriptLabel; //Label affichant le nom d'un script dans la bonne couleur
+extern GtkWidget **zChooser; //Spin_button pour choisir dans quel plan afficher ce script
 
-extern gint nbScripts ; //Nombre de scripts à afficher
-gchar scriptsNames[NB_SCRIPTS_MAX][SCRIPT_NAME_MAX]; //Tableau des noms des scripts
+extern int nbScripts ; //Nombre de scripts à afficher
+char scriptsNames[NB_SCRIPTS_MAX][SCRIPT_NAME_MAX]; //Tableau des noms des scripts
 extern script scr[NB_SCRIPTS_MAX]; //Tableau des scripts à afficher
-extern gint newScriptNumber; //Numéro donné à un script quand on l'ouvre
-extern gint zMax; //la plus grande valeur de z parmi les scripts ouverts
-extern gint buffered ; //Nombre d'instantanés actuellement en mémoire
+extern int newScriptNumber; //Numéro donné à un script quand on l'ouvre
+extern int zMax; //la plus grande valeur de z parmi les scripts ouverts
+extern int buffered ; //Nombre d'instantanés actuellement en mémoire
 
-extern gint usedWindows ;
-extern group* selectedGroup; //Pointeur sur le groupe actuellement sélectionné
-extern gint selectedWindow ; //Numéro de la fenêtre sélectionnée (entre 0 et NB_WINDOWS_MAX-1). NB_WINDOWS_MAX indique qu'aucune fenêtre n'est sélectionnée
+extern int usedWindows ;
+extern group *selectedGroup; //Pointeur sur le groupe actuellement sélectionné
+extern int selectedWindow ; //Numéro de la fenêtre sélectionnée (entre 0 et NB_WINDOWS_MAX-1). NB_WINDOWS_MAX indique qu'aucune fenêtre n'est sélectionnée
 
-extern GtkWidget* pHBox2; //Panneau des neurones
-extern GtkWidget* pFrameNeurones[NB_WINDOWS_MAX];//Tableau de NB_WINDOWS_MAX adresses de petites fenêtres pour les neurones
-extern GtkWidget* zoneNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de zones où dessiner des neurones
-extern group* windowGroup[NB_WINDOWS_MAX]; //Adresse des groupe affiché dans la zoneNeurones de même indice
-extern gint windowValue[NB_WINDOWS_MAX]; //Numéro disant quelle valeur des neurones du groupe il faut afficher dans la fenêtre de même indice (0 : s, 1 : s1, 2 : s2, 3 : pic)
-extern gint windowPosition[NB_WINDOWS_MAX]; //Position de la fenêtre de même indice dans le bandeau du bas (0 : la plus à gauche)
+extern GtkWidget *pHBox2; //Panneau des neurones
+extern GtkWidget *pFrameNeurones[NB_WINDOWS_MAX];//Tableau de NB_WINDOWS_MAX adresses de petites fenêtres pour les neurones
+extern GtkWidget *zoneNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de zones où dessiner des neurones
+extern group *windowGroup[NB_WINDOWS_MAX]; //Adresse des groupe affiché dans la zoneNeurones de même indice
+extern int windowValue[NB_WINDOWS_MAX]; //Numéro disant quelle valeur des neurones du groupe il faut afficher dans la fenêtre de même indice (0 : s, 1 : s1, 2 : s2, 3 : pic)
 
-extern gint nbColonnesTotal; //Nombre total de colonnes de neurones dans les fenêtres du bandeau du bas
-extern gint nbLignesMax; //Nombre maximal de lignes de neurones à afficher dans l'une des fenêtres du bandeau du bas
+extern int nbColonnesTotal; //Nombre total de colonnes de neurones dans les fenêtres du bandeau du bas
+extern int nbLignesMax; //Nombre maximal de lignes de neurones à afficher dans l'une des fenêtres du bandeau du bas
 
 //Pour japet_receive_from_prom.c
 extern int ivyServerNb;
 
-//int nbre_groupe;
-#ifdef ETIS
-extern ENetHost* enet_server;
-#endif
-//Sémaphores
-//extern sem_t sem_script;
+extern ENetHost *enet_server;
 
-
-
+extern type_script_link scripts_links[SCRIPT_LINKS_MAX];
+extern int nb_script_link;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_japet(int argc, char** argv);
@@ -209,51 +221,51 @@ void update_neurons_display(int script_id, int neuronGroupId);
 
 //Signaux
 void drag_drop_neuron_frame(GtkWidget *zone_neurons, GdkEventButton *event, gpointer data);
-void expose_event_zone_neuron(GtkWidget* zone_neurons, gpointer pData);
-void cocheDecoche(GtkWidget* pWidget, gpointer pData);
-void Close(GtkWidget* pWidget, gpointer pData); 
-void changePlan(GtkWidget* pWidget, gpointer pData); //Un script change de plan
-void changeValue(GtkWidget* pWidget, gpointer pData);
-void on_search_group_button_active(GtkWidget* pWidget, script *script);
-void on_hide_see_scales_button_active(GtkWidget* hide_see_scales_button, gpointer pData);
+void expose_event_zone_neuron(GtkWidget *zone_neurons, gpointer pData);
+void cocheDecoche(GtkWidget *pWidget, gpointer pData);
+void Close(GtkWidget *pWidget, gpointer pData);
+void changePlan(GtkWidget *pWidget, gpointer pData); //Un script change de plan
+void changeValue(GtkWidget *pWidget, gpointer pData);
+void on_search_group_button_active(GtkWidget *pWidget, script *script);
+void on_hide_see_scales_button_active(GtkWidget *hide_see_scales_button, gpointer pData);
 
-void button_press_event (GtkWidget* pWidget, GdkEventButton* event);
-void key_press_event (GtkWidget* pWidget, GdkEventKey *event);
-void expose_event(GtkWidget* zone3D, gpointer pData);
+void button_press_event (GtkWidget *pWidget, GdkEventButton *event);
+void key_press_event (GtkWidget *pWidget, GdkEventKey *event);
+void expose_event(GtkWidget *zone3D, gpointer pData);
 
-void japet_save_preferences(GtkWidget* pWidget, gpointer pData);
-void japet_load_preferences(GtkWidget* pWidget, gpointer pData);
-void defaultScale(GtkWidget* pWidget, gpointer pData);
-void askForScripts(GtkWidget* pWidget, gpointer pData);
+void japet_save_preferences(GtkWidget *pWidget, gpointer pData);
+void japet_load_preferences(GtkWidget *pWidget, gpointer pData);
+void defaultScale(GtkWidget *pWidget, gpointer pData);
+void askForScripts(GtkWidget *pWidget, gpointer pData);
 
-void expose_neurons(GtkWidget* zone2D, gpointer pData);
+void expose_neurons(GtkWidget *zone2D, gpointer pData);
 
 //"Constructeurs"
-void newScript(script* s, gchar* name, gchar* machine, gint z, gint nbGroups);
+void newScript(script *s, char *name, char *machine, int z, int nbGroups);
 void destroyScript(int script_id);
 void destroyAllScripts();
-void newGroup(group* g, script* myScript, gchar* name, gchar* function, gfloat learningSpeed, gint nbNeurons, gint rows, gint columns, gint y, gint nbLinksTo, gint firstNeuron);
-void newNeuron(neuron* n, group* mygroup, gfloat s, gfloat s1, gfloat s2, gfloat pic, gint x, gint y);
+void newGroup(group *g, script *myScript, char *name, char *function, float learningSpeed, int nbNeurons, int rows, int columns, int y, int nbLinksTo, int firstNeuron);
+void newNeuron(neuron *n, group *mygroup, float s, float s1, float s2, float pic, int x, int y);
 //Mise un jour d'un neurone quand Prométhé envoie de nouvelles données
-void updateNeuron(neuron* n, gfloat s, gfloat s1, gfloat s2, gfloat pic);
+void updateNeuron(neuron *n, float s, float s1, float s2, float pic);
 //Mise un jour d'un groupe quand Prométhé envoie de nouvelles données
-void updateGroup(group* g, gfloat learningSpeed, gfloat execTime);
+void updateGroup(group *g, float learningSpeed, float execTime);
 
 //Autres
 gboolean refresh_display();
 gchar* tcolor(script S);
-void color(cairo_t* cr, group g);
-void clearColor(cairo_t* cr, group g);
-void dessinGroupe (cairo_t* cr, gint a, gint b, gint c, gint d, group* g, gint z, gint zMax);
-void findX(group* g);
-void findY(group* g);
-void newWindow(group* g);
-gfloat niveauDeGris(gfloat val, gfloat valMin, gfloat valMax);
+void color(cairo_t *cr, group g);
+void clearColor(cairo_t *cr, group g);
+void dessinGroupe (cairo_t *cr, int a, int b, int c, int d, group *g, int z, int zMax);
+void findX(group *g);
+void findY(group *g);
+void newWindow(group *g, float pos_x, float pos_y);
+gfloat niveauDeGris(float val, float valMin, float valMax);
 void resizeNeurons();
-void saveJapetConfigToFile(char* filename);
-void loadJapetConfigToFile(char* filename);
+void saveJapetConfigToFile(char *filename);
+void loadJapetConfigToFile(char *filename);
 
-void fatal_error(const char *name_of_file, const char* name_of_function,  int numero_of_line, const char *message, ...);
+void fatal_error(const char *name_of_file, const char *name_of_function,  int numero_of_line, const char *message, ...);
 void japet_bus_send_message(char *id, const char *format, ...);
 void server_for_promethes();
 #endif
