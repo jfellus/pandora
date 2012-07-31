@@ -1,0 +1,42 @@
+		MANUEL D'UTILISATION DE JAPET
+		=============================
+
+
+
+
+	Sommaire
+	--------
+
+1. Lancement de Japet
+
+2. Utilisation de Japet
+
+
+
+	
+	1. Lancement de Japet
+	---------------------
+
+Pour démarer Japet il faut lui donner un "-i" (bus id).
+Ce "-i" correspond au "-i" utilisé par les prométhés que l'on souhaite écouter.
+utilisation : japet -inom_du_bus_id
+
+Il est aussi possible de passer en argument un fichier de type (*.jap) qui permet de charger vos préférences. (bus id, échelles, groupes observés, ...).
+utilisation : japet nom_du_fichier.jap
+
+Si je combine les deux, le bus id passé en option sera prioritaire.
+utilisation : japet nom_du_fichier.jap -inom_du_bus_id_qui_sera_utilisé
+
+
+
+
+	2. Utilisation de Japet
+	-----------------------
+
+Pour rechercher les prométhés il faut appuyer sur le bouton "Ask for scripts".
+
+On peut ensuite observer un groupe en particulier. Pour celà on fait un clic droit sur le groupe, puis un clic droit là où je souhaite positionner la fenêtre liée au groupe.
+
+Il est alors possible de la redéplacer en faisant un clic droit sur la fenêtre puis un clic droit sur la nouvelle position souhaitée.
+
+Pour fermer une fenêtre il faut faire un clic molette sur la fenêtre à fermer.

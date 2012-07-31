@@ -124,22 +124,6 @@ int main(int argc, char** argv)
 	id[0] = 0;
 	file_preferences[0] = 0;
 
-	//On regarde les options passées en ligne de commande
-	while ((option = getopt(argc, argv, "i:")) != -1)
-	{
-		switch (option)
-		{
-		// -i "bus_id"
-		case 'i':
-			strncpy(id, optarg, BUS_ID_MAX);
-			break;
-			// autres options : erreur
-		default:
-			fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
-			exit(EXIT_FAILURE);
-		}
-	}
-
 	//On regarde les fichier passés en ligne de commande
 	if (optind < argc)
 	{
@@ -337,6 +321,22 @@ int main(int argc, char** argv)
 
 	//si un fichier des preférences (*.jap) à été passé en ligne de commande on le charge
 	if (file_preferences[0] != 0) loadJapetConfigToFile(file_preferences);
+
+	//On regarde les options passées en ligne de commande
+	while ((option = getopt(argc, argv, "i:")) != -1)
+	{
+		switch (option)
+		{
+		// -i "bus_id"
+		case 'i':
+			strncpy(id, optarg, BUS_ID_MAX);
+			break;
+			// autres options : erreur
+		default:
+			fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	//si après chargement il n'y a pas de bus_id
 	if (id[0] == 0)
