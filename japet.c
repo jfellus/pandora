@@ -992,7 +992,7 @@ void update_positions(int script_id)
 {
 	int i;
 
-	gdk_threads_enter();
+	/*gdk_threads_enter();*/
 
 	/**Calcul du x de chaque groupe
 	 */
@@ -1008,7 +1008,7 @@ void update_positions(int script_id)
 		if (scr[script_id].groups[i].knownY == FALSE) findY(&scr[script_id].groups[i]);
 	}
 
-	gdk_threads_leave();
+/*	gdk_threads_leave();*/
 
 }
 
