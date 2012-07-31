@@ -7,41 +7,26 @@
 #include "japet.h"
 #include <gtk/gtk.h>
 #include <enet/enet.h>
-#include "../prom_tools/include/basic_tools.h"
+#include "prom_tools/include/basic_tools.h"
 #include "net_message_debug_dist.h"
-#include "../prom_kernel/include/japet_connect.h"
+#include "prom_kernel/include/japet_connect.h"
 #include "prom_bus.h"
 
-#include "../prom_kernel/include/reseau.h"
-
-/*
- #include "../prom_kernel/include/prom_enet_debug.h"
- #include "../prom_tools/include/oscillo_kernel_display.h"
-
- #include "enet_server.h"
- #include "themis_ivy.h"
- #include "themis.h"*/
-
-//extern ENetHost* enet_server = NULL;
-
-
+#include "prom_kernel/include/reseau.h"
 #define MAX_SIZE_OF_PROM_BUS_MESSAGE 256
 #define BROADCAST_MAX 32
 #define SIZE_OF_IVY_PROM_NAME 64
 
-/*#define EXIT_ON_ERROR printf  Il faudrait se faire un vrai EXIT_ON_ERROR avec print_fatal_error comme fait dans themis et avec le define  de basic_tool.h. C'est maintenant dans japet.h */
 
 ENetHost* enet_server = NULL;
 sem_t ivy_semaphore;
 char ivy_prom_name[SIZE_OF_IVY_PROM_NAME]; /* utiliser un define, peut être le mettre en commun a themis */
+const char *displayMode;
 
 void enet_manager(ENetHost *server); /* Sinon il faut mettre la fonction avant les appels */
 
 ivyServer ivyServers[NB_SCRIPTS_MAX]; //Stocke l'ip de chaque promethe qui se connecte et le nom du script qu'il exécute
 int ivyServerNb = 0; //Ce numéro sera affecté au prochain promethe qui se connectera
-
-//const char* id = "japet";
-
 int freePeer = 0; //Utilisé pour numéroter les peers (donc les promethes, donc les scripts) (ENet)
 
 /**
@@ -93,7 +78,7 @@ void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEve
 	}
 }
 
-void prom_bus_init(char* brodcast_ip)
+void prom_bus_init(const char* brodcast_ip)
 {
 	char broadcast[BROADCAST_MAX];
 	char computer_name[HOST_NAME_MAX];
@@ -175,12 +160,15 @@ void enet_manager(ENetHost *server)
 	char *link_name, *option;
 
 	//variables temporaires, pour analyser chaque neurone reçu
-	int neuronGroupId;
+	int neuronGroupId = -1;
 	int s;
 	int s1;
 	int s2;
 	int neuronX;
 	int neuronY;
+
+	int allocatedNeurons;
+
 
 	//int request; //Requête envoyée à un Prométhé
 	//ENetPacket* answer_packet;
@@ -404,7 +392,6 @@ void enet_manager(ENetHost *server)
 					number_of_neurons = (event.packet->dataLength) / sizeof(type_neurone);
 					received_neurons_packet = (type_neurone*) event.packet->data;
 
-					int allocatedNeurons;
 
 					neuronGroupId = 0;
 

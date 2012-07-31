@@ -9,7 +9,9 @@
  */
 #include "japet.h"
 
-//--------------------------------------------------1. VARIABLES GLOBALES----------------------------------------------------
+#define DIGITS_MAX 32
+
+/*--------------------------------------------------1. VARIABLES GLOBALES----------------------------------------------------*/
 
 GtkWidget *pWindow; //La fenêtre de l'application Japet
 GtkWidget *hide_see_scales_button; //Boutton permettant de cacher le menu de droite
@@ -18,20 +20,20 @@ GtkWidget *pVBoxScripts; //Panneau des scripts
 GtkWidget *zone3D; //La grande zone de dessin des liaisons entre groupes
 GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale, *digitsScale; //Échelles
 GtkWidget *check_button_draw_connections, *check_button_draw_net_connections;
-//Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshots)
-char *displayMode;
+/*Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshots)*/
+const char *displayMode;
 GtkWidget *modeLabel;
 int currentSnapshot;
 int nbSnapshots;
 
-int Index[NB_SCRIPTS_MAX]; //Tableau des indices : Index[0] = 0, Index[1] = 1, ..., Index[NB_SCRIPTS_MAX-1] = NB_SCRIPTS_MAX-1;
-//Ce tableau permet à une fonction signal de retenir la valeur qu'avait i au moment où on a connecté le signal                                                                                                                                                               
+int Index[NB_SCRIPTS_MAX]; /*Tableau des indices : Index[0] = 0, Index[1] = 1, ..., Index[NB_SCRIPTS_MAX-1] = NB_SCRIPTS_MAX-1;
+Ce tableau permet à une fonction signal de retenir la valeur qu'avait i au moment où on a connecté le signal*/
 
-GtkWidget **openScripts; //Lignes du panneau des scripts
-GtkWidget **scriptCheck; //Cases à cocher/décocher pour afficher les scripts ou les masquer
-GtkWidget **scriptLabel; //Label affichant le nom d'un script dans la bonne couleur
-GtkWidget **zChooser; //Spin_button pour choisir dans quel plan afficher ce script
-GtkWidget **searchButton; //Boutton pour rechercher un groupe dans ce script
+GtkWidget **openScripts; /*Lignes du panneau des scripts*/
+GtkWidget **scriptCheck; /*Cases à cocher/décocher pour afficher les scripts ou les masquer*/
+GtkWidget **scriptLabel; /*Label affichant le nom d'un script dans la bonne couleur*/
+GtkWidget **zChooser; /*Spin_button pour choisir dans quel plan afficher ce script*/
+GtkWidget **searchButton; /*Boutton pour rechercher un groupe dans ce script*/
 
 int nbScripts = 0; //Nombre de scripts à afficher
 char scriptsNames[NB_SCRIPTS_MAX][SCRIPT_NAME_MAX]; //Tableau des noms des scripts
@@ -96,8 +98,15 @@ void on_signal_interupt(int signal)
  */
 int main(int argc, char** argv)
 {
+	GtkWidget *h_box_main, *v_box_main, *vpaned,  *pFrameEchelles, *pVBoxEchelles, *refreshSetting, *refreshLabel, *xSetting, *xLabel;
+	GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *scrollbars, *zySetting, *zyLabel, *digits, *digitsLabel;
+	GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault;
+	GtkWidget *pFrameScripts, *askButton,  *scrollbars2;
+
 	int option;
 	struct sigaction action;
+
+
 
 	sigfillset(&action.sa_mask);
 	action.sa_handler = on_signal_interupt;
@@ -158,7 +167,7 @@ int main(int argc, char** argv)
 	g_signal_connect(G_OBJECT(pWindow), "destroy", G_CALLBACK(Close), (GtkWidget*) pWindow);
 
 	/*Création d'une VBox (boîte de widgets disposés verticalement) */
-	GtkWidget *v_box_main = gtk_vbox_new(FALSE, 0);
+	v_box_main = gtk_vbox_new(FALSE, 0);
 	/*ajout de v_box_main dans pWindow, qui est alors vu comme un GTK_CONTAINER*/
 	gtk_container_add(GTK_CONTAINER(pWindow), v_box_main);
 
@@ -169,8 +178,8 @@ int main(int argc, char** argv)
 	gtk_box_pack_start(GTK_BOX(v_box_main), hide_see_scales_button, FALSE, FALSE, 0);
 
 	/*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
-	GtkWidget *h_box_main = gtk_hbox_new(FALSE, 0);
-	GtkWidget *vpaned = gtk_vpaned_new();
+	h_box_main = gtk_hbox_new(FALSE, 0);
+	vpaned = gtk_vpaned_new();
 	gtk_paned_set_position(GTK_PANED(vpaned), 600);
 	neurons_frame = gtk_frame_new("Neurons' frame");
 	gtk_box_pack_start(GTK_BOX(v_box_main), h_box_main, TRUE, TRUE, 0);
@@ -180,15 +189,15 @@ int main(int argc, char** argv)
 	gtk_box_pack_start(GTK_BOX(h_box_main), pPane, FALSE, TRUE, 0);
 
 	//Les échelles
-	GtkWidget *pFrameEchelles = gtk_frame_new("Scales");
+	pFrameEchelles = gtk_frame_new("Scales");
 	gtk_container_add(GTK_CONTAINER(pPane), pFrameEchelles);
-	GtkWidget *pVBoxEchelles = gtk_vbox_new(FALSE, 0);
+	pVBoxEchelles = gtk_vbox_new(FALSE, 0);
 	gtk_container_add(GTK_CONTAINER(pFrameEchelles), pVBoxEchelles);
 
 	//Fréquence de réactualisation de l'affichage, quand on est en mode échantillonné (Sampled)
-	GtkWidget *refreshSetting = gtk_hbox_new(FALSE, 0);
+	refreshSetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshSetting, FALSE, TRUE, 0);
-	GtkWidget *refreshLabel = gtk_label_new("Refresh (Hz):");
+	refreshLabel = gtk_label_new("Refresh (Hz):");
 	refreshScale = gtk_hscale_new_with_range(1, 24, 1); //Ce widget est déjà déclaré comme variable globale
 	//On choisit le nombre de réactualisations de l'affichage par seconde, entre 1 et 24
 	gtk_box_pack_start(GTK_BOX(refreshSetting), refreshLabel, TRUE, TRUE, 0);
@@ -197,9 +206,9 @@ int main(int argc, char** argv)
 	gtk_signal_connect(GTK_OBJECT(refreshScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Echelle de l'axe des x
-	GtkWidget *xSetting = gtk_hbox_new(FALSE, 0);
+	xSetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), xSetting, FALSE, TRUE, 0);
-	GtkWidget *xLabel = gtk_label_new("x scale:");
+	xLabel = gtk_label_new("x scale:");
 	xScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(xSetting), xLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(xSetting), xScale, TRUE, TRUE, 0);
@@ -207,9 +216,9 @@ int main(int argc, char** argv)
 	gtk_signal_connect(GTK_OBJECT(xScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Echelle de l'axe des y
-	GtkWidget *ySetting = gtk_hbox_new(FALSE, 0);
+	ySetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), ySetting, FALSE, TRUE, 0);
-	GtkWidget *yLabel = gtk_label_new("y scale:");
+	yLabel = gtk_label_new("y scale:");
 	yScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(ySetting), yLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(ySetting), yScale, TRUE, TRUE, 0);
@@ -217,9 +226,9 @@ int main(int argc, char** argv)
 	gtk_signal_connect(GTK_OBJECT(yScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Décalage des plans selon x
-	GtkWidget *zxSetting = gtk_hbox_new(FALSE, 0);
+	zxSetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zxSetting, FALSE, TRUE, 0);
-	GtkWidget *zxLabel = gtk_label_new("x gap:");
+	zxLabel = gtk_label_new("x gap:");
 	zxScale = gtk_hscale_new_with_range(0, 200, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(zxSetting), zxLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(zxSetting), zxScale, TRUE, TRUE, 0);
@@ -227,9 +236,9 @@ int main(int argc, char** argv)
 	gtk_signal_connect(GTK_OBJECT(zxScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Décalage des plans selon y
-	GtkWidget *zySetting = gtk_hbox_new(FALSE, 0);
+	zySetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zySetting, FALSE, TRUE, 0);
-	GtkWidget *zyLabel = gtk_label_new("y gap:");
+	zyLabel = gtk_label_new("y gap:");
 	zyScale = gtk_hscale_new_with_range(0, 2000, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(zySetting), zyLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(zySetting), zyScale, TRUE, TRUE, 0);
@@ -237,9 +246,9 @@ int main(int argc, char** argv)
 	gtk_signal_connect(GTK_OBJECT(zyScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Nombre digits pour afficher les valeurs des neurones
-	GtkWidget *digits = gtk_hbox_new(FALSE, 0);
+	digits = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), digits, FALSE, TRUE, 0);
-	GtkWidget *digitsLabel = gtk_label_new("Neuron digits:");
+	digitsLabel = gtk_label_new("Neuron digits:");
 	digitsScale = gtk_hscale_new_with_range(1, 10, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(digits), digitsLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(digits), digitsScale, TRUE, TRUE, 0);
@@ -247,15 +256,15 @@ int main(int argc, char** argv)
 	gtk_signal_connect(GTK_OBJECT(digitsScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//3 boutons
-	GtkWidget *pBoutons = gtk_hbox_new(TRUE, 0);
+	pBoutons = gtk_hbox_new(TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), pBoutons, FALSE, TRUE, 0);
-	GtkWidget *boutonSave = gtk_button_new_with_label("Save");
+	boutonSave = gtk_button_new_with_label("Save");
 	gtk_box_pack_start(GTK_BOX(pBoutons), boutonSave, TRUE, TRUE, 0);
 	g_signal_connect(G_OBJECT(boutonSave), "clicked", G_CALLBACK(japet_save_preferences), NULL);
-	GtkWidget *boutonLoad = gtk_button_new_with_label("Load");
+	boutonLoad = gtk_button_new_with_label("Load");
 	gtk_box_pack_start(GTK_BOX(pBoutons), boutonLoad, TRUE, TRUE, 0);
 	g_signal_connect(G_OBJECT(boutonLoad), "clicked", G_CALLBACK(japet_load_preferences), NULL);
-	GtkWidget *boutonDefault = gtk_button_new_with_label("Default");
+	boutonDefault = gtk_button_new_with_label("Default");
 	gtk_box_pack_start(GTK_BOX(pBoutons), boutonDefault, TRUE, TRUE, 0);
 	g_signal_connect(G_OBJECT(boutonDefault), "clicked", G_CALLBACK(defaultScale), NULL);
 
@@ -274,11 +283,11 @@ int main(int argc, char** argv)
 	gtk_container_add(GTK_CONTAINER(pPane), modeLabel);
 
 	//Les scripts
-	GtkWidget *pFrameScripts = gtk_frame_new("Open scripts");
+	pFrameScripts = gtk_frame_new("Open scripts");
 	gtk_container_add(GTK_CONTAINER(pPane), pFrameScripts);
 	pVBoxScripts = gtk_vbox_new(FALSE, 0);
 	gtk_container_add(GTK_CONTAINER(pFrameScripts), pVBoxScripts);
-	GtkWidget *askButton = gtk_button_new_with_label("Ask for scripts");
+	askButton = gtk_button_new_with_label("Ask for scripts");
 	gtk_box_pack_start(GTK_BOX(pVBoxScripts), askButton, FALSE, TRUE, 0);
 	g_signal_connect(G_OBJECT(askButton), "clicked", G_CALLBACK(askForScripts), NULL);
 
@@ -289,9 +298,9 @@ int main(int argc, char** argv)
 	searchButton = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*));// et d'un boutton "recherche"
 
 	//La zone principale
-	GtkWidget *pFrameGroupes = gtk_frame_new("Neural groups");
+	pFrameGroupes = gtk_frame_new("Neural groups");
 	gtk_container_add(GTK_CONTAINER(vpaned), pFrameGroupes);
-	GtkWidget *scrollbars = gtk_scrolled_window_new(NULL, NULL);
+	scrollbars = gtk_scrolled_window_new(NULL, NULL);
 	gtk_container_add(GTK_CONTAINER(pFrameGroupes), scrollbars);
 	zone3D = gtk_drawing_area_new(); //Déjà déclarée comme variable globale
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars), zone3D);
@@ -303,7 +312,7 @@ int main(int argc, char** argv)
 
 	//la zone des groupes de neurones
 	gtk_container_add(GTK_CONTAINER(vpaned), neurons_frame);
-	GtkWidget *scrollbars2 = gtk_scrolled_window_new(NULL, NULL);
+	scrollbars2 = gtk_scrolled_window_new(NULL, NULL);
 	gtk_container_add(GTK_CONTAINER(neurons_frame), scrollbars2);
 	zone_neurons = gtk_layout_new(NULL, NULL);
 	gtk_widget_set_size_request(GTK_WIDGET(zone_neurons), 3000, 3000);
@@ -439,6 +448,7 @@ void Close(GtkWidget *pWidget, gpointer pData) //Fonction de fermeture de Japet
 void changePlan(GtkWidget *pWidget, gpointer pData) //Un script change de plan
 {
 
+	int i;
 	int n = *((int*) pData);
 	int l = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(pWidget));
 	scr[n].z = l;
@@ -447,7 +457,6 @@ void changePlan(GtkWidget *pWidget, gpointer pData) //Un script change de plan
 
 	expose_event(zone3D, NULL);//On redessine la grille avec la nouvelle valeur de z
 
-	int i;
 	for (i = 0; i < NB_WINDOWS_MAX; i++)
 		if (windowGroup[i] != NULL) if (windowGroup[i]->myScript == &scr[n]) expose_neurons(zoneNeurones[i], NULL);
 	//Réaffiche le contenu des petites fenêtres montrant des groupes de ce script
@@ -486,10 +495,11 @@ void changeValue(GtkWidget *pWidget, gpointer pData) //Modification d'une échel
 
 void on_search_group_button_active(GtkWidget *pWidget, script *script)
 {
-	(void) pWidget;
 
 	GtkWidget *search_dialog, *search_entry, *h_box, *name_radio_button_search, *function_radio_button_search;
 	int i, last_occurence = 0, stop = 0;
+	(void) pWidget;
+
 
 	//On crée une fenêtre de dialogue
 	search_dialog = gtk_dialog_new_with_buttons("Recherche d'un groupe", GTK_WINDOW(pWindow), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_OK, GTK_RESPONSE_OK, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, NULL);
@@ -601,6 +611,7 @@ void on_check_button_draw_active(GtkWidget *check_button, gpointer data)
  */
 void button_press_event(GtkWidget *pWidget, GdkEventButton *event)
 {
+	int aucun=1; //1 : aucun groupe n'est sélectionné
 	int script_id, group_id, k;
 	int neuron_zone_id;
 	//Récupération des échelles
@@ -611,7 +622,6 @@ void button_press_event(GtkWidget *pWidget, GdkEventButton *event)
 
 	(void) pWidget;
 
-	int aucun = 1; //1 : aucun groupe n'est sélectionné
 	selectedWindow = NB_WINDOWS_MAX; //aucune fenêtre n'est sélectionnée
 
 	for (k = 0; k <= zMax; k++)
@@ -757,6 +767,13 @@ void key_press_event(GtkWidget *pWidget, GdkEventKey *event)
 void expose_event(GtkWidget *zone3D, gpointer pData)
 {
 	cairo_t *cr = gdk_cairo_create(zone3D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
+	double dashes[] = { 10.0, 20.0 };
+	int i, j=0, k;
+	int a, b, c, d;
+	int abscisse, ordonnee, zxSetting, zySetting;
+	int I,J;
+
+
 	(void) pData;
 
 	//On commence par dessiner un grand rectangle blanc
@@ -764,13 +781,11 @@ void expose_event(GtkWidget *zone3D, gpointer pData)
 	cairo_rectangle(cr, 0, 0, zone3D->allocation.width, zone3D->allocation.height);
 	cairo_fill(cr);
 
-	double dashes[] = { 10.0, 20.0 };
 
-	int a = (int) gtk_range_get_value(GTK_RANGE(xScale));
-	int b = (int) gtk_range_get_value(GTK_RANGE(yScale));
-	int c = (int) gtk_range_get_value(GTK_RANGE(zxScale));
-	int d = (int) gtk_range_get_value(GTK_RANGE(zyScale));
-	int i, j, k;
+	a = (int) gtk_range_get_value(GTK_RANGE(xScale));
+	b = (int) gtk_range_get_value(GTK_RANGE(yScale));
+	c = (int) gtk_range_get_value(GTK_RANGE(zxScale));
+	d = (int) gtk_range_get_value(GTK_RANGE(zyScale));
 
 	//On recalcule zMax, la plus grande valeur de z parmi les scripts ouverts
 	zMax = 0;
@@ -795,8 +810,6 @@ void expose_event(GtkWidget *zone3D, gpointer pData)
 
 	cairo_set_source_rgb(cr, GREY); //On va dessiner en noir
 	cairo_set_line_width(cr, GRID_WIDTH); //Épaisseur du trait
-
-	int abscisse, ordonnee, zxSetting, zySetting;
 
 	//Dessin de la grille
 	for (k = 0; k <= zMax; k++)
@@ -826,7 +839,8 @@ void expose_event(GtkWidget *zone3D, gpointer pData)
 	}
 
 	//Lignes obliques
-	int I = i, J = j;
+	I = i;
+	J = j;
 
 	for (i = 0; i < I; i++)
 		for (j = 0; j < J; j++)
@@ -1122,7 +1136,17 @@ int get_width_height(int nb_row_column)
  */
 void expose_neurons(GtkWidget *zone2D, gpointer pData)
 {
-	int i, j, currentWindow;
+	cairo_t *cr;
+	char valeurNeurone[DIGITS_MAX];
+
+	float ndg;
+	float valMax, valMin;
+	float largeurNeuron, hauteurNeuron;
+	int i, j, currentWindow=-1;
+	int wV,  incrementation;
+	int nbDigits;
+	int x = 0, y = 0;
+	group* g;
 
 	(void) pData;
 
@@ -1135,12 +1159,11 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 		}
 
 	//On va chercher l'adresse du groupe à afficher dans le tableau windowGroup
-	group* g = windowGroup[currentWindow];
+	g = windowGroup[currentWindow];
 
 	//On détermine la plus grande valeur à afficher (valMax) et la plus petite (valMax). valMax s'affichera en blanc et valMin en noir.
-	float valMax, valMin;
-	int wV = windowValue[currentWindow]; //Abréviation
-	int incrementation = g->nbNeurons / (g->columns * g->rows);
+	wV = windowValue[currentWindow]; //Abréviation
+	incrementation = g->nbNeurons / (g->columns * g->rows);
 
 	valMax = g->neurons[0].s[wV];
 	valMin = g->neurons[0].s[wV];
@@ -1151,17 +1174,15 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 	}
 
 	//Dimensions d'un neurone
-	float largeurNeuron = (float) get_width_height(g->columns) / (float) g->columns;
-	float hauteurNeuron = (float) get_width_height(g->rows) / (float) g->rows;
+	largeurNeuron = get_width_height(g->columns) / (float) g->columns;
+	hauteurNeuron = get_width_height(g->rows) / (float) g->rows;
 
 	//Début du dessin
-	cairo_t *cr = gdk_cairo_create(zone2D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
+	cr = gdk_cairo_create(zone2D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
 
 	//Affichage des neurones
-	float ndg;
-	int nbDigits = gtk_range_get_value(GTK_RANGE(digitsScale));
+	nbDigits = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale));
 
-	int x = 0, y = 0;
 	for (i = 0; i < g->nbNeurons; i += incrementation)
 	{
 		ndg = niveauDeGris(g->neurons[i].s[wV], valMin, valMax);
@@ -1174,7 +1195,6 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 
 		cairo_move_to(cr, x * largeurNeuron + 4, (y + 0.5) * hauteurNeuron);
 
-		char valeurNeurone[nbDigits + 1];
 
 		x++;
 		if (x >= g->columns)
@@ -1211,7 +1231,8 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 
 int button_press_neurons(GtkWidget *zone2D, GdkEventButton *event)
 {
-	int i, group_id, currentWindow;
+	int i, group_id, currentWindow=-1;
+	group *g;
 
 	//On cherche le numéro de la fenêtre concernée
 	for (i = 0; i < NB_WINDOWS_MAX; i++)
@@ -1221,7 +1242,7 @@ int button_press_neurons(GtkWidget *zone2D, GdkEventButton *event)
 			break;
 		}
 
-	group* g = windowGroup[currentWindow]; //On va chercher l'adresse du groupe concerné
+	g = windowGroup[currentWindow]; //On va chercher l'adresse du groupe concerné
 
 	if (event->button == 2) //Si clic molette dans une petite fenêtre, on la supprime
 	{
@@ -1267,7 +1288,7 @@ int button_press_neurons(GtkWidget *zone2D, GdkEventButton *event)
 
 void switch_output(GtkWidget *pWidget, group *group)
 {
-	char *output_name;
+	const char *output_name="";
 	int currentWindow;
 
 	for (currentWindow = 0; currentWindow < NB_WINDOWS_MAX; currentWindow++)
@@ -1408,14 +1429,15 @@ void destroyAllScripts()
  */
 void newGroup(group *g, script *myScript, char *name, char *function, float learningSpeed, int nbNeurons, int rows, int columns, int y, int nbLinksTo, int firstNeuron)
 {
-	g->myScript = myScript;
-
+	int i;
 	int tailleName = strlen(name);
+	int tailleFonction = strlen(function);
+
+	g->myScript = myScript;
 	g->name = (char*) malloc((tailleName + 1) * sizeof(char));
 	strncpy(g->name, name, tailleName);
 	g->name[tailleName] = '\0';
 
-	int tailleFonction = strlen(function);
 	g->function = (char*) malloc((tailleFonction + 1) * sizeof(char));
 	sprintf(g->function, "%s", function);
 	g->function[tailleFonction] = '\0';
@@ -1433,7 +1455,7 @@ void newGroup(group *g, script *myScript, char *name, char *function, float lear
 	if (nbLinksTo == 0) g->previous = NULL;
 	else g->previous = malloc(nbLinksTo * sizeof(group*));
 
-	int i;
+
 	for (i = 0; i < 4; i++)
 		g->sWindow = NB_WINDOWS_MAX;
 	//Toutes les cases sont initialisées à NB_WINDOWS_MAX, ce qui signifie que cette valeur n'est encore affichée dans aucune petite fenêtre
@@ -1470,12 +1492,14 @@ void newNeuron(neuron *neuron, group *myGroup, float s, float s1, float s2, floa
 //Actuellement, cette fonction n'est pas utilisée. Elle sera peut-être utile pour le mode "instantanés"
 void updateNeuron(neuron *neuron, float s, float s1, float s2, float pic)
 {
+	int i;
+
 	neuron->s[0] = s;
 	neuron->s[1] = s1;
 	neuron->s[2] = s2;
 	neuron->s[3] = pic;
 
-	int i;
+
 
 	//Mise en mémoire
 	if (displayMode[1] == 'a') //Si on est en mode échantillonné ('a' est la deuxième lettre de "Sampled mode")
@@ -1523,7 +1547,7 @@ gboolean refresh_display()
 	//}
 }
 
-char* tcolor(script script)
+const char* tcolor(script script)
 {
 	switch (script.z)
 	{
@@ -1616,6 +1640,7 @@ void clearColor(cairo_t *cr, group group)
 
 void dessinGroupe(cairo_t *cr, int a, int b, int c, int d, group *g, int z, int zMax)
 {
+	int i;
 	int x = g->x, y = g->y;
 
 	if (g == selectedGroup) cairo_set_source_rgb(cr, RED);
@@ -1631,7 +1656,6 @@ void dessinGroupe(cairo_t *cr, int a, int b, int c, int d, group *g, int z, int 
 
 	cairo_show_text(cr, g->function);
 
-	int i;
 
 	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_connections)))
 	{
@@ -1762,7 +1786,7 @@ void findY(group *group)
 
 void newWindow(group *g, float pos_x, float pos_y)
 {
-	int i, currentWindow; //On cherche la première case vide dans le tableau windowGroup et on donne son numéro à la nouvelle fenêtre
+	int i, currentWindow=-1; //On cherche la première case vide dans le tableau windowGroup et on donne son numéro à la nouvelle fenêtre
 	GtkWidget *button_frame;
 
 	for (i = 0; i < NB_WINDOWS_MAX; i++)

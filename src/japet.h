@@ -24,16 +24,11 @@
 #include <gdk/gdkkeysyms.h>
 
 #include "colors.h"
-#include "../prom_tools/include/xml_tools.h"
+#include "prom_tools/include/xml_tools.h"
+#include "enet/include/enet/enet.h"
+#include "prom_kernel/include/japet_connect.h"
+#include "prom_kernel/include/reseau.h"
 
-
-#ifdef ETIS
-  #include "../enet/include/enet/enet.h"
-  #include "../prom_kernel/include/japet_connect.h"
-  #include "../prom_kernel/include/reseau.h"
-#else
-  #define NB_SCRIPTS_MAX 30
-#endif
 
 #define JAPET_PORT 1235
 #define BROADCAST_IP "127.255.255.255"
@@ -169,7 +164,6 @@ extern GtkWidget *zone3D; //La grande zone de dessin des liaisons entre groupes
 extern GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale, *digitsScale; //Échelles
 
 //Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshot)
-extern char *displayMode;
 extern GtkWidget *modeLabel;
 extern int currentSnapshot;
 extern int nbSnapshots;
@@ -214,7 +208,7 @@ extern int nb_net_link;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_japet(int argc, char** argv);
-void prom_bus_init( char *ip); 
+void prom_bus_init(const char *ip);
 void update_positions(int i);
 void update_script_display(int script_id);
 void update_neurons_display(int script_id, int neuronGroupId);
@@ -255,7 +249,7 @@ void updateGroup(group *g, float learningSpeed, float execTime);
 
 //Autres
 gboolean refresh_display();
-gchar* tcolor(script S);
+const char* tcolor(script S);
 void color(cairo_t *cr, group g);
 void clearColor(cairo_t *cr, group g);
 void dessinGroupe (cairo_t *cr, int a, int b, int c, int d, group *g, int z, int zMax);
