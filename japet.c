@@ -17,7 +17,7 @@ GtkWidget *pPane; //Panneau latéral
 GtkWidget *pVBoxScripts; //Panneau des scripts
 GtkWidget *zone3D; //La grande zone de dessin des liaisons entre groupes
 GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale, *digitsScale; //Échelles
-
+GtkWidget *check_button_draw_connections, *check_button_draw_net_connections;
 //Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshots)
 char *displayMode;
 GtkWidget *modeLabel;
@@ -62,8 +62,8 @@ group *open_group = NULL;
 
 guint refresh_timer_id; //id du timer actualement utiliser pour le rafraichissement des frame_neurons ouvertes
 
-type_script_link scripts_links[SCRIPT_LINKS_MAX];
-int nb_script_link = 0;
+type_script_link net_link[SCRIPT_LINKS_MAX];
+int nb_net_link = 0;
 //--------------------------------------------------2. MAIN-------------------------------------------------------------
 
 void on_signal_interupt(int signal)
@@ -205,61 +205,61 @@ int main(int argc, char** argv)
 	GtkWidget *refreshSetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshSetting, FALSE, TRUE, 0);
 	GtkWidget *refreshLabel = gtk_label_new("Refresh (Hz):");
-	refreshScale = gtk_spin_button_new_with_range(1, 24, 1); //Ce widget est déjà déclaré comme variable globale
+	refreshScale = gtk_hscale_new_with_range(1, 24, 1); //Ce widget est déjà déclaré comme variable globale
 	//On choisit le nombre de réactualisations de l'affichage par seconde, entre 1 et 24
 	gtk_box_pack_start(GTK_BOX(refreshSetting), refreshLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(refreshSetting), refreshScale, TRUE, TRUE, 0);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(refreshScale), REFRESHSCALE_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(refreshScale), REFRESHSCALE_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(refreshScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Echelle de l'axe des x
 	GtkWidget *xSetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), xSetting, FALSE, TRUE, 0);
 	GtkWidget *xLabel = gtk_label_new("x scale:");
-	xScale = gtk_spin_button_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
+	xScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(xSetting), xLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(xSetting), xScale, TRUE, TRUE, 0);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(xScale), XSCALE_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(xScale), XSCALE_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(xScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Echelle de l'axe des y
 	GtkWidget *ySetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), ySetting, FALSE, TRUE, 0);
 	GtkWidget *yLabel = gtk_label_new("y scale:");
-	yScale = gtk_spin_button_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
+	yScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(ySetting), yLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(ySetting), yScale, TRUE, TRUE, 0);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(yScale), YSCALE_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(yScale), YSCALE_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(yScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Décalage des plans selon x
 	GtkWidget *zxSetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zxSetting, FALSE, TRUE, 0);
 	GtkWidget *zxLabel = gtk_label_new("x gap:");
-	zxScale = gtk_spin_button_new_with_range(0, 50, 1); //Ce widget est déjà déclaré comme variable globale
+	zxScale = gtk_hscale_new_with_range(0, 200, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(zxSetting), zxLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(zxSetting), zxScale, TRUE, TRUE, 0);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zxScale), XGAP_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(zxScale), XGAP_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(zxScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Décalage des plans selon y
 	GtkWidget *zySetting = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zySetting, FALSE, TRUE, 0);
 	GtkWidget *zyLabel = gtk_label_new("y gap:");
-	zyScale = gtk_spin_button_new_with_range(0, 50, 1); //Ce widget est déjà déclaré comme variable globale
+	zyScale = gtk_hscale_new_with_range(0, 2000, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(zySetting), zyLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(zySetting), zyScale, TRUE, TRUE, 0);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zyScale), YGAP_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(zyScale), YGAP_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(zyScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//Nombre digits pour afficher les valeurs des neurones
 	GtkWidget *digits = gtk_hbox_new(FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), digits, FALSE, TRUE, 0);
 	GtkWidget *digitsLabel = gtk_label_new("Neuron digits:");
-	digitsScale = gtk_spin_button_new_with_range(1, 10, 1); //Ce widget est déjà déclaré comme variable globale
+	digitsScale = gtk_hscale_new_with_range(1, 10, 1); //Ce widget est déjà déclaré comme variable globale
 	gtk_box_pack_start(GTK_BOX(digits), digitsLabel, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(digits), digitsScale, TRUE, TRUE, 0);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(digitsScale), DIGITS_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(digitsScale), DIGITS_DEFAULT);
 	gtk_signal_connect(GTK_OBJECT(digitsScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
 
 	//3 boutons
@@ -274,6 +274,15 @@ int main(int argc, char** argv)
 	GtkWidget *boutonDefault = gtk_button_new_with_label("Default");
 	gtk_box_pack_start(GTK_BOX(pBoutons), boutonDefault, TRUE, TRUE, 0);
 	g_signal_connect(G_OBJECT(boutonDefault), "clicked", G_CALLBACK(defaultScale), NULL);
+
+	check_button_draw_connections = gtk_check_button_new_with_label("draw connections");
+	check_button_draw_net_connections = gtk_check_button_new_with_label("draw net connections");
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button_draw_connections), TRUE);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections), TRUE);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), check_button_draw_connections, FALSE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), check_button_draw_net_connections, FALSE, TRUE, 0);
+	gtk_signal_connect(GTK_OBJECT(check_button_draw_connections), "toggled", (GtkSignalFunc) on_check_button_draw_active, NULL);
+	gtk_signal_connect(GTK_OBJECT(check_button_draw_net_connections), "toggled", (GtkSignalFunc) on_check_button_draw_active, NULL);
 
 	displayMode = "Sampled mode";
 
@@ -302,7 +311,7 @@ int main(int argc, char** argv)
 	gtk_container_add(GTK_CONTAINER(pFrameGroupes), scrollbars);
 	zone3D = gtk_drawing_area_new(); //Déjà déclarée comme variable globale
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars), zone3D);
-	gtk_drawing_area_size(GTK_DRAWING_AREA(zone3D), 3000, 3000);
+	gtk_drawing_area_size(GTK_DRAWING_AREA(zone3D), 10000, 10000);
 	gtk_signal_connect(GTK_OBJECT(zone3D), "expose_event", (GtkSignalFunc) expose_event, NULL);
 	gtk_widget_set_events(zone3D, GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK); //Détecte quand on appuie OU quand on relache un bouton de la souris alors que le curseur est dans la zone3D
 	gtk_signal_connect(GTK_OBJECT(zone3D), "button_press_event", (GtkSignalFunc) button_press_event, NULL);
@@ -321,7 +330,7 @@ int main(int argc, char** argv)
 	gtk_box_pack_start(GTK_BOX(h_box_main), vpaned, TRUE, TRUE, 0);
 
 	//Appelle la fonction refresh_display à intervalles réguliers si on est en mode échantillonné ('a' est la deuxième lettre de "Sampled mode")
-	if (displayMode[1] == 'a') refresh_timer_id = g_timeout_add((guint)(1000 / (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(refreshScale))), refresh_display, NULL);
+	if (displayMode[1] == 'a') refresh_timer_id = g_timeout_add((guint)(1000 / (int) gtk_range_get_value(GTK_RANGE(refreshScale))), refresh_display, NULL);
 	gtk_widget_show_all(pWindow); //Affichage du widget pWindow et de tous ceux qui sont dedans
 
 	prom_bus_init(BROADCAST_IP);
@@ -338,9 +347,9 @@ int main(int argc, char** argv)
 
 	for (option = 0; option < SCRIPT_LINKS_MAX; option++)
 	{
-		scripts_links[option].previous = NULL;
-		scripts_links[option].next = NULL;
-		scripts_links[option].type = -1;
+		net_link[option].previous = NULL;
+		net_link[option].next = NULL;
+		net_link[option].type = -1;
 	}
 
 	gdk_threads_enter();
@@ -467,7 +476,7 @@ void changeValue(GtkWidget *pWidget, gpointer pData) //Modification d'une échel
 		//on détruit le timer
 		g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
 		//on en crée un autre avec la nouvelle valeur de rafraîchissement
-		refresh_timer_id = g_timeout_add((guint)(1000 / (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(refreshScale))), refresh_display, NULL);
+		refresh_timer_id = g_timeout_add((guint)(1000 / gtk_range_get_value(GTK_RANGE(refreshScale))), refresh_display, NULL);
 	}
 	else
 	{
@@ -577,6 +586,14 @@ void on_hide_see_scales_button_active(GtkWidget *hide_see_scales_button, gpointe
 	}
 }
 
+void on_check_button_draw_active(GtkWidget *check_button, gpointer data)
+{
+	(void) check_button;
+	(void) data;
+
+	expose_event(zone3D, NULL);
+}
+
 /**
  *
  * Clic souris
@@ -587,10 +604,10 @@ void button_press_event(GtkWidget *pWidget, GdkEventButton *event)
 	int script_id, group_id, k;
 	int neuron_zone_id;
 	//Récupération des échelles
-	int a = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(xScale));
-	int b = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(yScale));
-	int c = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(zxScale));
-	int d = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(zyScale));
+	int a = (int) gtk_range_get_value(GTK_RANGE(xScale));
+	int b = (int) gtk_range_get_value(GTK_RANGE(yScale));
+	int c = (int) gtk_range_get_value(GTK_RANGE(zxScale));
+	int d = (int) gtk_range_get_value(GTK_RANGE(zyScale));
 
 	(void) pWidget;
 
@@ -747,11 +764,12 @@ void expose_event(GtkWidget *zone3D, gpointer pData)
 	cairo_rectangle(cr, 0, 0, zone3D->allocation.width, zone3D->allocation.height);
 	cairo_fill(cr);
 
-	int a = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(xScale));
-	int b = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(yScale));
-	int c = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(zxScale));
-	int d = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(zyScale));
+	double dashes[] = { 10.0, 20.0 };
 
+	int a = (int) gtk_range_get_value(GTK_RANGE(xScale));
+	int b = (int) gtk_range_get_value(GTK_RANGE(yScale));
+	int c = (int) gtk_range_get_value(GTK_RANGE(zxScale));
+	int d = (int) gtk_range_get_value(GTK_RANGE(zyScale));
 	int i, j, k;
 
 	//On recalcule zMax, la plus grande valeur de z parmi les scripts ouverts
@@ -818,6 +836,25 @@ void expose_event(GtkWidget *zone3D, gpointer pData)
 		}
 
 	cairo_stroke(cr); //Le contenu de cr est appliqué sur "zone"
+
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections)))
+	{
+		for (i = 0; i < nb_net_link; i++)
+		{
+			if (net_link[i].previous != NULL && net_link[i].next != NULL)
+			{
+				if (net_link[i].previous->myScript->displayed && net_link[i].next->myScript->displayed)
+				{
+					cairo_set_source_rgb(cr, RED);
+					cairo_set_line_width(cr, 3);
+					if (net_link[i].type == NET_LINK_SIMPLE) cairo_set_dash(cr, dashes, 2, 0);
+					cairo_move_to(cr, a * net_link[i].previous->x + c * (zMax - net_link[i].previous->myScript->z) + LARGEUR_GROUPE / 2 - 25, b * net_link[i].previous->y + d * net_link[i].previous->myScript->z);
+					cairo_line_to(cr, a * net_link[i].next->x + c * (zMax - net_link[i].next->myScript->z) - LARGEUR_GROUPE / 2 + 25, b * net_link[i].next->y + d * net_link[i].next->myScript->z);
+					cairo_stroke(cr);
+				}
+			}
+		}
+	}
 	cairo_destroy(cr); //Puis, on détruit cr
 }
 
@@ -905,12 +942,12 @@ void defaultScale(GtkWidget *pWidget, gpointer pData)
 	(void) pWidget;
 	(void) pData;
 
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(refreshScale), REFRESHSCALE_DEFAULT);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(xScale), XSCALE_DEFAULT);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(yScale), YSCALE_DEFAULT);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zxScale), XGAP_DEFAULT);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zyScale), YGAP_DEFAULT);
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(digitsScale), DIGITS_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(refreshScale), REFRESHSCALE_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(xScale), XSCALE_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(yScale), YSCALE_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(zxScale), XGAP_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(zyScale), YGAP_DEFAULT);
+	gtk_range_set_value(GTK_RANGE(digitsScale), DIGITS_DEFAULT);
 
 	expose_event(zone3D, NULL); //On redessine la grille avec la nouvelle échelle
 }
@@ -951,9 +988,11 @@ void update_neurons_display(int script_id, int neuronGroupId)
 	}
 }
 
-void update_script_display(int script_id)
+void update_positions(int script_id)
 {
 	int i;
+
+	gdk_threads_enter();
 
 	/**Calcul du x de chaque groupe
 	 */
@@ -968,6 +1007,14 @@ void update_script_display(int script_id)
 	{
 		if (scr[script_id].groups[i].knownY == FALSE) findY(&scr[script_id].groups[i]);
 	}
+
+	gdk_threads_leave();
+
+}
+
+void update_script_display(int script_id)
+{
+	GtkWidget *search_icon;
 
 	/**On veut déterminer zMax, la plus grande valeur de z parmi les scripts ouverts
 	 */
@@ -998,7 +1045,9 @@ void update_script_display(int script_id)
 	gtk_signal_connect(GTK_OBJECT(zChooser[script_id]), "value-changed", (GtkSignalFunc) changePlan, &Index[script_id]);
 	//On envoie &Index[i] et pas &i car la valeur à l'adresse &i aura changé quand on recevra le signal
 
-	searchButton[script_id] = gtk_toggle_button_new_with_label("Search a group");
+	searchButton[script_id] = gtk_toggle_button_new();
+	search_icon = gtk_image_new_from_stock(GTK_STOCK_FIND, GTK_ICON_SIZE_MENU);
+	gtk_button_set_image(GTK_BUTTON(searchButton[script_id]), search_icon);
 	gtk_box_pack_start(GTK_BOX(openScripts[script_id]), searchButton[script_id], FALSE, TRUE, 0);
 	g_signal_connect(GTK_OBJECT(searchButton[script_id]), "toggled", (GtkSignalFunc) on_search_group_button_active, &scr[script_id]);
 
@@ -1073,7 +1122,7 @@ int get_width_height(int nb_row_column)
  */
 void expose_neurons(GtkWidget *zone2D, gpointer pData)
 {
-	int i, j, currentWindow/*, neurons_x = 0, neurons_y = 0*/;
+	int i, j, currentWindow;
 
 	(void) pData;
 
@@ -1102,22 +1151,21 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 	}
 
 	//Dimensions d'un neurone
-	float largeurNeuron = get_width_height(g->columns) / (float) g->columns;
-	float hauteurNeuron = get_width_height(g->rows) / (float) g->rows;
+	float largeurNeuron = (float) get_width_height(g->columns) / (float) g->columns;
+	float hauteurNeuron = (float) get_width_height(g->rows) / (float) g->rows;
 
 	//Début du dessin
 	cairo_t *cr = gdk_cairo_create(zone2D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
 
 	//Affichage des neurones
 	float ndg;
-	int nbDigits = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale));
+	int nbDigits = gtk_range_get_value(GTK_RANGE(digitsScale));
 
 	int x = 0, y = 0;
 	for (i = 0; i < g->nbNeurons; i += incrementation)
 	{
 		ndg = niveauDeGris(g->neurons[i].s[wV], valMin, valMax);
 		cairo_set_source_rgb(cr, ndg, ndg, ndg);
-		//cairo_rectangle(cr, g->neurons[i].x * largeurNeuron, g->neurons[i].y * hauteurNeuron, largeurNeuron, hauteurNeuron);
 		cairo_rectangle(cr, x * largeurNeuron, y * hauteurNeuron, largeurNeuron, hauteurNeuron);
 		cairo_fill(cr);
 
@@ -1136,7 +1184,7 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 		}
 
 		//S'il y a assez de place sur le neurone pour afficher sa valeur avec le nombre de digits demandé
-		if (largeurNeuron > 4 * (nbDigits + 1) && hauteurNeuron > 15)
+		if (largeurNeuron - 1 > 4 * (nbDigits + 1) && hauteurNeuron > 16)
 		{
 			sprintf(valeurNeurone, "%f", (g->neurons[i].s[wV] / 100));
 			valeurNeurone[nbDigits] = '\0';
@@ -1147,14 +1195,14 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 		}
 	}
 
-	cairo_stroke(cr); //Le contenu de cr est appliqué sur "zoneNeurones"
+	cairo_stroke(cr);//Le contenu de cr est appliqué sur "zoneNeurones"
 
 	if (windowGroup[currentWindow] == selectedGroup) //Si le groupe affiché dans cette fenêtre est sélectionné
 	{
 		cairo_set_line_width(cr, 10); //Traits plus épais
 		cairo_set_source_rgb(cr, RED);
 		cairo_move_to(cr, 0, get_width_height(g->rows));
-		cairo_line_to(cr, get_width_height(g->columns), get_width_height(g->rows));
+		cairo_line_to(cr, get_width_height(g->columns) - 1, get_width_height(g->rows));
 		cairo_stroke(cr); //Le contenu de cr est appliqué sur "zoneNeurones"
 		cairo_set_line_width(cr, GRID_WIDTH); //Retour aux traits fins*/
 	}
@@ -1321,6 +1369,14 @@ void destroyAllScripts()
 	//Tableau des scripts
 	for (i = 0; i < NB_SCRIPTS_MAX; i++)
 		scr[i].z = -4; //Les scripts non créés sont placés dans le plan -4
+
+	for (i = 0; i < nb_net_link; i++)
+	{
+		net_link[i].previous = NULL;
+		net_link[i].next = NULL;
+	}
+
+	nb_net_link = 0;
 
 	for (current_script = 0; current_script < nbScripts; current_script++)
 	{
@@ -1577,52 +1633,59 @@ void dessinGroupe(cairo_t *cr, int a, int b, int c, int d, group *g, int z, int 
 
 	int i;
 
-	//Dessin des liaisons aboutissant à ce groupe
-	for (i = 0; i < g->nbLinksTo; i++)
-		if (g->previous[i]->myScript->displayed == TRUE)
-		{
-			int x1 = g->previous[i]->x, y1 = g->previous[i]->y, z1 = g->previous[i]->myScript->z; //Coordonnées du groupe situé avant la liaison
-
-			if (g->previous[i]->myScript == g->myScript) color(cr, *g);
-
-			cairo_set_line_width(cr, 0.8); //Trait épais représentant une liaison entre groupes
-
-			cairo_move_to(cr, a * x1 + c * (zMax - z1) + LARGEUR_GROUPE / 2, b * y1 + d * z1); //Début de la liaison (à droite du groupe prédécesseur)
-			cairo_line_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z); //Fin de la liaison (à gauche du groupe courant)
-
-			cairo_stroke(cr);
-		}
-
-	for (i = 0; i < nb_script_link; i++)
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_connections)))
 	{
-		if (scripts_links[i].previous == g)
-		{
-			cairo_set_source_rgb(cr, GREY);
-			cairo_set_line_width(cr, 5);
-			cairo_move_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2, b * y + d * z - 10);
-			cairo_line_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2 + 25, b * y + d * z - 10);
-			cairo_move_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2 + 30, b * y + d * z - 10);
+		//Dessin des liaisons aboutissant à ce groupe
+		for (i = 0; i < g->nbLinksTo; i++)
+			if (g->previous[i]->myScript->displayed == TRUE)
+			{
+				int x1 = g->previous[i]->x, y1 = g->previous[i]->y, z1 = g->previous[i]->myScript->z; //Coordonnées du groupe situé avant la liaison
 
-			if (scripts_links[i].type == NET_LINK_ACK || scripts_links[i].type == NET_LINK_BLOCK_ACK)
-			{
-				cairo_set_source_rgb(cr, INDIGO);
-				cairo_show_text(cr, "ack");
+				if (g->previous[i]->myScript == g->myScript) color(cr, *g);
+
+				cairo_set_line_width(cr, 0.8); //Trait épais représentant une liaison entre groupes
+
+				cairo_move_to(cr, a * x1 + c * (zMax - z1) + LARGEUR_GROUPE / 2, b * y1 + d * z1); //Début de la liaison (à droite du groupe prédécesseur)
+				cairo_line_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z); //Fin de la liaison (à gauche du groupe courant)
+
+				cairo_stroke(cr);
 			}
-			cairo_stroke(cr);
-		}
-		else if (scripts_links[i].next == g)
+	}
+
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections)))
+	{
+		for (i = 0; i < nb_net_link; i++)
 		{
-			cairo_set_source_rgb(cr, GREY);
-			cairo_set_line_width(cr, 5);
-			cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2 - 25, b * y + d * z - 10);
-			cairo_line_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z - 10);
-			cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2 - 50, b * y + d * z - 10);
-			if (scripts_links[i].type == NET_LINK_BLOCK || scripts_links[i].type == NET_LINK_BLOCK_ACK)
+			if (net_link[i].previous == g)
 			{
-				cairo_set_source_rgb(cr, RED);
-				cairo_show_text(cr, "block");
+				cairo_set_source_rgb(cr, GREY);
+				cairo_set_line_width(cr, 3);
+				cairo_move_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2, b * y + d * z - 10);
+				cairo_line_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2 + 10, b * y + d * z - 10);
+
+				if (net_link[i].type == NET_LINK_ACK || net_link[i].type == NET_LINK_BLOCK_ACK)
+				{
+					cairo_move_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2, b * y + d * z);
+					cairo_set_source_rgb(cr, INDIGO);
+					cairo_show_text(cr, "ack");
+				}
+				cairo_stroke(cr);
 			}
-			cairo_stroke(cr);
+			else if (net_link[i].next == g)
+			{
+				cairo_set_source_rgb(cr, GREY);
+				cairo_set_line_width(cr, 3);
+				cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2 - 10, b * y + d * z - 10);
+				cairo_line_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z - 10);
+
+				if (net_link[i].type == NET_LINK_BLOCK || net_link[i].type == NET_LINK_BLOCK_ACK)
+				{
+					cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2 - 25, b * y + d * z);
+					cairo_set_source_rgb(cr, RED);
+					cairo_show_text(cr, "block");
+				}
+				cairo_stroke(cr);
+			}
 		}
 	}
 
@@ -1635,7 +1698,7 @@ void dessinGroupe(cairo_t *cr, int a, int b, int c, int d, group *g, int z, int 
  */
 void findX(group *group)
 {
-	int i, Max = 0;
+	int i;
 
 	if (group->previous == NULL)
 	{
@@ -1646,9 +1709,22 @@ void findX(group *group)
 		for (i = 0; i < group->nbLinksTo; i++)
 		{
 			if (group->previous[i]->knownX == FALSE) findX(group->previous[i]);
-			if (group->previous[i]->x > Max) Max = group->previous[i]->x;
+			if (group->previous[i]->x >= group->x) group->x = group->previous[i]->x + 1;
 		}
-		group->x = Max + 1;
+
+		for (i = 0; i < nb_net_link; i++)
+		{
+			if (net_link[i].next == group && net_link[i].previous != NULL)
+			{
+				if (net_link[i].type == NET_LINK_BLOCK || net_link[i].type == NET_LINK_BLOCK_ACK)
+				{
+					if (!net_link[i].previous->knownX) findX(net_link[i].previous);
+					if (net_link[i].next->x < net_link[i].previous->x) net_link[i].next->x = net_link[i].previous->x + 1;
+				}
+			}
+		}
+
+		//	group->x = Max + 1;
 	}
 
 	group->knownX = TRUE;
@@ -1785,17 +1861,17 @@ void saveJapetConfigToFile(char *filename)
 	xml_set_string(bus_id, "name", id);
 
 	properties = mxmlNewElement(tree, "properties");
-	xml_set_int(properties, "refresh", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(refreshScale)));
+	xml_set_int(properties, "refresh", gtk_range_get_value(GTK_RANGE(refreshScale)));
 
-	xml_set_int(properties, "x_scale", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(xScale)));
+	xml_set_int(properties, "x_scale", gtk_range_get_value(GTK_RANGE(xScale)));
 
-	xml_set_int(properties, "y_scale", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(yScale)));
+	xml_set_int(properties, "y_scale", gtk_range_get_value(GTK_RANGE(yScale)));
 
-	xml_set_int(properties, "z_x_scale", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(zxScale)));
+	xml_set_int(properties, "z_x_scale", gtk_range_get_value(GTK_RANGE(zxScale)));
 
-	xml_set_int(properties, "z_y_scale", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(zyScale)));
+	xml_set_int(properties, "z_y_scale", gtk_range_get_value(GTK_RANGE(zyScale)));
 
-	xml_set_int(properties, "digits", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale)));
+	xml_set_int(properties, "digits", gtk_range_get_value(GTK_RANGE(digitsScale)));
 
 	for (script_id = 0; script_id < nbScripts; script_id++)
 	{
@@ -1831,17 +1907,17 @@ void loadJapetConfigToFile(char *filename)
 	strcpy(id, xml_get_string(loading_node, "name"));
 
 	loading_node = xml_get_first_child_with_node_name(tree, "properties");
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(refreshScale), xml_get_int(loading_node, "refresh"));
+	gtk_range_set_value(GTK_RANGE(refreshScale), xml_get_int(loading_node, "refresh"));
 
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(xScale), xml_get_int(loading_node, "x_scale"));
+	gtk_range_set_value(GTK_RANGE(xScale), (double) xml_get_int(loading_node, "x_scale"));
 
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(yScale), xml_get_int(loading_node, "y_scale"));
+	gtk_range_set_value(GTK_RANGE(yScale), xml_get_int(loading_node, "y_scale"));
 
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zxScale), xml_get_int(loading_node, "z_x_scale"));
+	gtk_range_set_value(GTK_RANGE(zxScale), xml_get_int(loading_node, "z_x_scale"));
 
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(zyScale), xml_get_int(loading_node, "z_y_scale"));
+	gtk_range_set_value(GTK_RANGE(zyScale), xml_get_int(loading_node, "z_y_scale"));
 
-	gtk_spin_button_set_value(GTK_SPIN_BUTTON(digitsScale), xml_get_int(loading_node, "digits"));
+	gtk_range_set_value(GTK_RANGE(digitsScale), xml_get_int(loading_node, "digits"));
 
 	for (script_id = 0; script_id < nbScripts; script_id++)
 		if (xml_get_number_of_childs(tree) > 2)

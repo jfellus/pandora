@@ -82,7 +82,7 @@
 #define YSCALE_DEFAULT 150
 #define XGAP_DEFAULT 30
 #define YGAP_DEFAULT 20
-#define DIGITS_DEFAULT 3 //Nombre de caractères pour afficher les valeurs d'un neurone
+#define DIGITS_DEFAULT 4 //Nombre de caractères pour afficher les valeurs d'un neurone
 
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 
@@ -209,12 +209,13 @@ extern int ivyServerNb;
 
 extern ENetHost *enet_server;
 
-extern type_script_link scripts_links[SCRIPT_LINKS_MAX];
-extern int nb_script_link;
+extern type_script_link net_link[SCRIPT_LINKS_MAX];
+extern int nb_net_link;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_japet(int argc, char** argv);
 void prom_bus_init( char *ip); 
+void update_positions(int i);
 void update_script_display(int script_id);
 void update_neurons_display(int script_id, int neuronGroupId);
 
@@ -228,6 +229,7 @@ void changePlan(GtkWidget *pWidget, gpointer pData); //Un script change de plan
 void changeValue(GtkWidget *pWidget, gpointer pData);
 void on_search_group_button_active(GtkWidget *pWidget, script *script);
 void on_hide_see_scales_button_active(GtkWidget *hide_see_scales_button, gpointer pData);
+void on_check_button_draw_active(GtkWidget *check_button, gpointer data);
 
 void button_press_event (GtkWidget *pWidget, GdkEventButton *event);
 void key_press_event (GtkWidget *pWidget, GdkEventKey *event);

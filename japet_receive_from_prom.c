@@ -273,13 +273,13 @@ void enet_manager(ENetHost *server)
 								type = NET_LINK_SIMPLE;
 							}
 
-							for (j = 0; j < nb_script_link; j++)
+							for (j = 0; j < nb_net_link; j++)
 							{
-								if (strcmp(link_name, scripts_links[j].name) == 0)
+								if (strcmp(link_name, net_link[j].name) == 0)
 								{
-									scripts_links[j].previous = &scr[script_id].groups[nextNb];
-									if (scripts_links[j].type == NET_LINK_BLOCK && type == NET_LINK_ACK) scripts_links[j].type = NET_LINK_BLOCK_ACK;
-									else if (scripts_links[j].type == NET_LINK_SIMPLE) scripts_links[j].type = type;
+									net_link[j].previous = &scr[script_id].groups[nextNb];
+									if (net_link[j].type == NET_LINK_BLOCK && type == NET_LINK_ACK) net_link[j].type = NET_LINK_BLOCK_ACK;
+									else if (net_link[j].type == NET_LINK_SIMPLE) net_link[j].type = type;
 									already_add = 1;
 									break;
 								}
@@ -287,11 +287,11 @@ void enet_manager(ENetHost *server)
 
 							if (already_add != 1)
 							{
-								strcpy(scripts_links[nb_script_link].name, link_name);
-								scripts_links[nb_script_link].previous = malloc(sizeof(group));
-								scripts_links[nb_script_link].previous = &scr[script_id].groups[nextNb];
-								scripts_links[nb_script_link].type = type;
-								nb_script_link++;
+								strcpy(net_link[nb_net_link].name, link_name);
+								net_link[nb_net_link].previous = malloc(sizeof(group));
+								net_link[nb_net_link].previous = &scr[script_id].groups[nextNb];
+								net_link[nb_net_link].type = type;
+								nb_net_link++;
 							}
 						}
 						else if (nextNb >= 0 && strcmp(scr[script_id].groups[nextNb].function, "f_recv") == 0)
@@ -310,13 +310,13 @@ void enet_manager(ENetHost *server)
 								type = NET_LINK_SIMPLE;
 							}
 
-							for (j = 0; j < nb_script_link; j++)
+							for (j = 0; j < nb_net_link; j++)
 							{
-								if (strcmp(link_name, scripts_links[j].name) == 0)
+								if (strcmp(link_name, net_link[j].name) == 0)
 								{
-									scripts_links[j].next = &scr[script_id].groups[nextNb];
-									if (scripts_links[j].type == NET_LINK_ACK && type == NET_LINK_BLOCK) scripts_links[j].type = NET_LINK_BLOCK_ACK;
-									else if (scripts_links[j].type == NET_LINK_SIMPLE) scripts_links[j].type = type;
+									net_link[j].next = &scr[script_id].groups[nextNb];
+									if (net_link[j].type == NET_LINK_ACK && type == NET_LINK_BLOCK) net_link[j].type = NET_LINK_BLOCK_ACK;
+									else if (net_link[j].type == NET_LINK_SIMPLE) net_link[j].type = type;
 									already_add = 1;
 									break;
 								}
@@ -324,11 +324,11 @@ void enet_manager(ENetHost *server)
 
 							if (already_add != 1)
 							{
-								strcpy(scripts_links[nb_script_link].name, link_name);
-								scripts_links[nb_script_link].next = malloc(sizeof(group));
-								scripts_links[nb_script_link].next = &scr[script_id].groups[nextNb];
-								scripts_links[nb_script_link].type = type;
-								nb_script_link++;
+								strcpy(net_link[nb_net_link].name, link_name);
+								net_link[nb_net_link].next = malloc(sizeof(group));
+								net_link[nb_net_link].next = &scr[script_id].groups[nextNb];
+								net_link[nb_net_link].type = type;
+								nb_net_link++;
 							}
 						}
 
@@ -423,6 +423,20 @@ void enet_manager(ENetHost *server)
 
 						allocatedNeurons = scr[script_id].groups[neuronGroupId].allocatedNeurons;
 						newNeuron(&scr[script_id].groups[neuronGroupId].neurons[allocatedNeurons], &scr[script_id].groups[neuronGroupId], s, s1, s2, 0, neuronX, neuronY);
+					}
+					for(i = 0; i < nbScripts; i++)
+					{
+						for(j = 0; j < scr[i].nbGroups; j++)
+						{
+							scr[i].groups[j].knownX = FALSE;
+							scr[i].groups[j].x = 1;
+							scr[i].groups[j].knownY = FALSE;
+							scr[i].groups[j].y = 1;
+						}
+					}
+					for (i=0; i<nbScripts;i++)
+					{
+						update_positions(i);
 					}
 					update_script_display(script_id);
 					scr[script_id].autorize_neurons_update = 1;
