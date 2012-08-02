@@ -73,8 +73,8 @@
 
 //Échelles par défaut
 #define REFRESHSCALE_DEFAULT 5
-#define XSCALE_DEFAULT 150
-#define YSCALE_DEFAULT 150
+#define XSCALE_DEFAULT 64
+#define YSCALE_DEFAULT 32
 #define XGAP_DEFAULT 30
 #define YGAP_DEFAULT 20
 #define DIGITS_DEFAULT 4 //Nombre de caractères pour afficher les valeurs d'un neurone
@@ -134,7 +134,7 @@ typedef struct script
     char *name;//[SCRIPT_NAME_MAX];
     char *machine;//[IP_LENGTH_MAX];
     int autorize_neurons_update;
-    int z;
+    int color, y_offset, height, z;
     int nbGroups;
     group *groups; //Tableau des groupes du script
     gboolean displayed; //TRUE s'il faut afficher le script
@@ -237,7 +237,7 @@ void askForScripts(GtkWidget *pWidget, gpointer pData);
 void expose_neurons(GtkWidget *zone2D, gpointer pData);
 
 //"Constructeurs"
-void newScript(script *s, char *name, char *machine, int z, int nbGroups);
+void newScript(script *s, char *name, char *machine, int z, int nbGroups, int id);
 void destroyScript(int script_id);
 void destroyAllScripts();
 void newGroup(group *g, script *myScript, char *name, char *function, float learningSpeed, int nbNeurons, int rows, int columns, int y, int nbLinksTo, int firstNeuron);
@@ -252,9 +252,6 @@ gboolean refresh_display();
 const char* tcolor(script S);
 void color(cairo_t *cr, group g);
 void clearColor(cairo_t *cr, group g);
-void dessinGroupe (cairo_t *cr, int a, int b, int c, int d, group *g, int z, int zMax);
-void findX(group *g);
-void findY(group *g);
 void newWindow(group *g, float pos_x, float pos_y);
 gfloat niveauDeGris(float val, float valMin, float valMax);
 void resizeNeurons();

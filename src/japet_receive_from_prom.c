@@ -206,9 +206,8 @@ void enet_manager(ENetHost *server)
 					{
 						//Création du script
 						number_of_groups = (event.packet->dataLength) / sizeof(type_com_groupe);
-						newScript(&scr[script_id], scriptsNames[script_id], ip, script_id, number_of_groups);
+						newScript(&scr[script_id], scriptsNames[script_id], ip, script_id, number_of_groups, script_id);
 						received_groups_packet = (type_com_groupe*) event.packet->data;
-						printf("Réception des %d groupes du script %s\n", number_of_groups, scr[script_id].name);
 
 						//Création des groupes
 						for (i = 0; i < number_of_groups; i++)
@@ -232,7 +231,6 @@ void enet_manager(ENetHost *server)
 
 				case ENET_DEF_LINK_CHANNEL:
 					number_of_links = (event.packet->dataLength) / sizeof(type_liaison);
-					printf("Réception des %d liaisons du script %s\n", number_of_links, scr[script_id].name);
 					received_links_packet = (type_liaison*) event.packet->data;
 
 					nbCreatedLinksForThisScript = 0;
@@ -336,7 +334,6 @@ void enet_manager(ENetHost *server)
 					}
 
 					//Allocation mémoire et initialisation des group.previous[] maintenant qu'on sait combien chaque groupe a de prédécesseurs
-					printf("Allocation mémoire des liaisons\n");
 					for (i = 0; i < scr[script_id].nbGroups; i++)
 					{
 						scr[script_id].groups[i].previous = malloc(scr[script_id].groups[i].nbLinksTo * sizeof(group*));
@@ -345,7 +342,6 @@ void enet_manager(ENetHost *server)
 					}
 
 					//Création des liaisons
-					printf("On va créer les liaisons\n");
 					for (i = 0; i < number_of_links; i++)
 					{
 						linkSecondary = received_links_packet[i].secondaire;
@@ -381,14 +377,10 @@ void enet_manager(ENetHost *server)
 							}
 							if (linkCreated == 0) printf("La liaison de %d vers %d a été ignorée car l'un des deux n'existe pas\n", previousNb, nextNb);
 						}
-						else printf("La liaison de %d vers %d a été ignorée car secondaire\n", previousNb, nextNb);
 					}
-					printf("%d liaisons ont été créées pour le script %s\n", nbCreatedLinksForThisScript, scr[script_id].name);
-
 					break;
 
 				case ENET_DEF_NEURON_CHANNEL:
-					printf("Réception des neurones du script %s\n", scr[script_id].name);
 					number_of_neurons = (event.packet->dataLength) / sizeof(type_neurone);
 					received_neurons_packet = (type_neurone*) event.packet->data;
 

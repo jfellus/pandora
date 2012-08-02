@@ -7,7 +7,7 @@ CC:=colorgcc
 
 
 GTK_FLAGS:= `pkg-config --cflags gtk+-2.0`
-SOURCES:=japet.c japet_receive_from_prom.c
+SOURCES:=japet.c japet_receive_from_prom.c graphic_gtk.c
 OBJECTS:=$(patsubst %.c,%.o,$(SOURCES))
 INCLUDES:=-I../shared/include  -I../enet/include  -I..
 LIBS:= -L../lib/Linux/enet/lib -lenet -L../lib/Linux/ivy -lglibivy -L../lib/Linux/script -lscript -lmxml `pkg-config --libs gtk+-2.0`

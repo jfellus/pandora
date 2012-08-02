@@ -8,8 +8,11 @@
  * 
  */
 #include "japet.h"
+#include "graphic.h"
 
 #define DIGITS_MAX 32
+#define NB_DIGITS 7
+#define COLOR_MAX 7
 
 /*--------------------------------------------------1. VARIABLES GLOBALES----------------------------------------------------*/
 
@@ -18,7 +21,7 @@ GtkWidget *hide_see_scales_button; //Boutton permettant de cacher le menu de dro
 GtkWidget *pPane; //Panneau latéral
 GtkWidget *pVBoxScripts; //Panneau des scripts
 GtkWidget *zone3D; //La grande zone de dessin des liaisons entre groupes
-GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale, *digitsScale; //Échelles
+GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale; //Échelles
 GtkWidget *check_button_draw_connections, *check_button_draw_net_connections;
 /*Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshots)*/
 const char *displayMode;
@@ -66,7 +69,6 @@ guint refresh_timer_id; //id du timer actualement utiliser pour le rafraichissem
 
 type_script_link net_link[SCRIPT_LINKS_MAX];
 int nb_net_link = 0;
-//--------------------------------------------------2. MAIN-------------------------------------------------------------
 
 void on_signal_interupt(int signal)
 {
@@ -87,292 +89,79 @@ void on_signal_interupt(int signal)
 	}
 }
 
+
 /**
  *
- * name: Programme Principale (Main)
+ * Calcule la coordonnée x d'un groupe en fonction de ses prédécesseurs
  *
- * @param argv, argc
- * @see enet_initialize()
- * @see server_for_promethes()
- * @return EXIT_SUCCESS
  */
-int main(int argc, char** argv)
+void findX(group *group)
 {
-	GtkWidget *h_box_main, *v_box_main, *vpaned,  *pFrameEchelles, *pVBoxEchelles, *refreshSetting, *refreshLabel, *xSetting, *xLabel;
-	GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *scrollbars, *zySetting, *zyLabel, *digits, *digitsLabel;
-	GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault;
-	GtkWidget *pFrameScripts, *askButton,  *scrollbars2;
+	int i;
 
-	int option;
-	struct sigaction action;
-
-
-
-	sigfillset(&action.sa_mask);
-	action.sa_handler = on_signal_interupt;
-	action.sa_flags = 0;
-	if (sigaction(SIGINT, &action, NULL) != 0)
+	if (group->previous == NULL)
 	{
-		printf("Signal SIGINT not catched.");
-		exit(EXIT_FAILURE);
+		group->x = 1;
 	}
-	if (sigaction(SIGSEGV, &action, NULL) != 0)
+	else
 	{
-		printf("Signal SIGSEGV not catched.");
-		exit(EXIT_FAILURE);
-	}
-
-	g_thread_init(NULL);
-	gdk_threads_init();
-
-	// Initialisation de GTK+
-	gtk_init(&argc, &argv);
-
-	init_japet(argc, argv);
-
-	id[0] = 0;
-	file_preferences[0] = 0;
-
-	//On regarde les fichier passés en ligne de commande
-	if (optind < argc)
-	{
-		// fichier des préférences (*.jap)
-		if (strstr(argv[optind], ".jap"))
+		for (i = 0; i < group->nbLinksTo; i++)
 		{
-			FILE *file = fopen(argv[optind], "r");
-			//si le fichier existe
-			if (file != NULL)
+			if (group->previous[i]->knownX == FALSE) findX(group->previous[i]);
+			if (group->previous[i]->x >= group->x) group->x = group->previous[i]->x + 1;
+		}
+
+		for (i = 0; i < nb_net_link; i++)
+		{
+			if (net_link[i].next == group && net_link[i].previous != NULL)
 			{
-				fclose(file);
-				strncpy(file_preferences, argv[optind], PATH_MAX);
-			}
-			//s'il n'existe pas
-			else
-			{
-				fprintf(stderr, "%s : file not found", argv[optind]);
-				exit(EXIT_FAILURE);
+				if (net_link[i].type == NET_LINK_BLOCK || net_link[i].type == NET_LINK_BLOCK_ACK)
+				{
+					if (!net_link[i].previous->knownX) findX(net_link[i].previous);
+					if (net_link[i].next->x < net_link[i].previous->x) net_link[i].next->x = net_link[i].previous->x + 1;
+				}
 			}
 		}
+
+		//	group->x = Max + 1;
 	}
 
-	//La fenêtre principale
-	pWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	/* Positionne la GTK_WINDOW "pWindow" au centre de l'écran */
-	gtk_window_set_position(GTK_WINDOW(pWindow), GTK_WIN_POS_CENTER);
-	/* Taille de la fenêtre */
-	gtk_window_set_default_size(GTK_WINDOW(pWindow), 1200, 800);
-	/* Titre de la fenêtre */
-	gtk_window_set_title(GTK_WINDOW(pWindow), "Japet");
-	//Le signal de fermeture de la fenêtre est connecté à la fenêtre (petite croix)
-	g_signal_connect(G_OBJECT(pWindow), "destroy", G_CALLBACK(Close), (GtkWidget*) pWindow);
-
-	/*Création d'une VBox (boîte de widgets disposés verticalement) */
-	v_box_main = gtk_vbox_new(FALSE, 0);
-	/*ajout de v_box_main dans pWindow, qui est alors vu comme un GTK_CONTAINER*/
-	gtk_container_add(GTK_CONTAINER(pWindow), v_box_main);
-
-	hide_see_scales_button = gtk_toggle_button_new_with_label("Hide scales");
-	g_signal_connect(G_OBJECT(hide_see_scales_button), "toggled", (GtkSignalFunc) on_hide_see_scales_button_active, NULL);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hide_see_scales_button), FALSE);
-	gtk_widget_set_size_request(hide_see_scales_button, 150, 30);
-	gtk_box_pack_start(GTK_BOX(v_box_main), hide_see_scales_button, FALSE, FALSE, 0);
-
-	/*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
-	h_box_main = gtk_hbox_new(FALSE, 0);
-	vpaned = gtk_vpaned_new();
-	gtk_paned_set_position(GTK_PANED(vpaned), 600);
-	neurons_frame = gtk_frame_new("Neurons' frame");
-	gtk_box_pack_start(GTK_BOX(v_box_main), h_box_main, TRUE, TRUE, 0);
-
-	/*Panneau latéral*/
-	pPane = gtk_vbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(h_box_main), pPane, FALSE, TRUE, 0);
-
-	//Les échelles
-	pFrameEchelles = gtk_frame_new("Scales");
-	gtk_container_add(GTK_CONTAINER(pPane), pFrameEchelles);
-	pVBoxEchelles = gtk_vbox_new(FALSE, 0);
-	gtk_container_add(GTK_CONTAINER(pFrameEchelles), pVBoxEchelles);
-
-	//Fréquence de réactualisation de l'affichage, quand on est en mode échantillonné (Sampled)
-	refreshSetting = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshSetting, FALSE, TRUE, 0);
-	refreshLabel = gtk_label_new("Refresh (Hz):");
-	refreshScale = gtk_hscale_new_with_range(1, 24, 1); //Ce widget est déjà déclaré comme variable globale
-	//On choisit le nombre de réactualisations de l'affichage par seconde, entre 1 et 24
-	gtk_box_pack_start(GTK_BOX(refreshSetting), refreshLabel, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(refreshSetting), refreshScale, TRUE, TRUE, 0);
-	gtk_range_set_value(GTK_RANGE(refreshScale), REFRESHSCALE_DEFAULT);
-	gtk_signal_connect(GTK_OBJECT(refreshScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
-
-	//Echelle de l'axe des x
-	xSetting = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), xSetting, FALSE, TRUE, 0);
-	xLabel = gtk_label_new("x scale:");
-	xScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
-	gtk_box_pack_start(GTK_BOX(xSetting), xLabel, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(xSetting), xScale, TRUE, TRUE, 0);
-	gtk_range_set_value(GTK_RANGE(xScale), XSCALE_DEFAULT);
-	gtk_signal_connect(GTK_OBJECT(xScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
-
-	//Echelle de l'axe des y
-	ySetting = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), ySetting, FALSE, TRUE, 0);
-	yLabel = gtk_label_new("y scale:");
-	yScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
-	gtk_box_pack_start(GTK_BOX(ySetting), yLabel, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(ySetting), yScale, TRUE, TRUE, 0);
-	gtk_range_set_value(GTK_RANGE(yScale), YSCALE_DEFAULT);
-	gtk_signal_connect(GTK_OBJECT(yScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
-
-	//Décalage des plans selon x
-	zxSetting = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zxSetting, FALSE, TRUE, 0);
-	zxLabel = gtk_label_new("x gap:");
-	zxScale = gtk_hscale_new_with_range(0, 200, 1); //Ce widget est déjà déclaré comme variable globale
-	gtk_box_pack_start(GTK_BOX(zxSetting), zxLabel, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(zxSetting), zxScale, TRUE, TRUE, 0);
-	gtk_range_set_value(GTK_RANGE(zxScale), XGAP_DEFAULT);
-	gtk_signal_connect(GTK_OBJECT(zxScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
-
-	//Décalage des plans selon y
-	zySetting = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zySetting, FALSE, TRUE, 0);
-	zyLabel = gtk_label_new("y gap:");
-	zyScale = gtk_hscale_new_with_range(0, 2000, 1); //Ce widget est déjà déclaré comme variable globale
-	gtk_box_pack_start(GTK_BOX(zySetting), zyLabel, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(zySetting), zyScale, TRUE, TRUE, 0);
-	gtk_range_set_value(GTK_RANGE(zyScale), YGAP_DEFAULT);
-	gtk_signal_connect(GTK_OBJECT(zyScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
-
-	//Nombre digits pour afficher les valeurs des neurones
-	digits = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), digits, FALSE, TRUE, 0);
-	digitsLabel = gtk_label_new("Neuron digits:");
-	digitsScale = gtk_hscale_new_with_range(1, 10, 1); //Ce widget est déjà déclaré comme variable globale
-	gtk_box_pack_start(GTK_BOX(digits), digitsLabel, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(digits), digitsScale, TRUE, TRUE, 0);
-	gtk_range_set_value(GTK_RANGE(digitsScale), DIGITS_DEFAULT);
-	gtk_signal_connect(GTK_OBJECT(digitsScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
-
-	//3 boutons
-	pBoutons = gtk_hbox_new(TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), pBoutons, FALSE, TRUE, 0);
-	boutonSave = gtk_button_new_with_label("Save");
-	gtk_box_pack_start(GTK_BOX(pBoutons), boutonSave, TRUE, TRUE, 0);
-	g_signal_connect(G_OBJECT(boutonSave), "clicked", G_CALLBACK(japet_save_preferences), NULL);
-	boutonLoad = gtk_button_new_with_label("Load");
-	gtk_box_pack_start(GTK_BOX(pBoutons), boutonLoad, TRUE, TRUE, 0);
-	g_signal_connect(G_OBJECT(boutonLoad), "clicked", G_CALLBACK(japet_load_preferences), NULL);
-	boutonDefault = gtk_button_new_with_label("Default");
-	gtk_box_pack_start(GTK_BOX(pBoutons), boutonDefault, TRUE, TRUE, 0);
-	g_signal_connect(G_OBJECT(boutonDefault), "clicked", G_CALLBACK(defaultScale), NULL);
-
-	check_button_draw_connections = gtk_check_button_new_with_label("draw connections");
-	check_button_draw_net_connections = gtk_check_button_new_with_label("draw net connections");
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button_draw_connections), TRUE);
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections), TRUE);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), check_button_draw_connections, FALSE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), check_button_draw_net_connections, FALSE, TRUE, 0);
-	gtk_signal_connect(GTK_OBJECT(check_button_draw_connections), "toggled", (GtkSignalFunc) on_check_button_draw_active, NULL);
-	gtk_signal_connect(GTK_OBJECT(check_button_draw_net_connections), "toggled", (GtkSignalFunc) on_check_button_draw_active, NULL);
-
-	displayMode = "Sampled mode";
-
-	modeLabel = gtk_label_new(displayMode);
-	gtk_container_add(GTK_CONTAINER(pPane), modeLabel);
-
-	//Les scripts
-	pFrameScripts = gtk_frame_new("Open scripts");
-	gtk_container_add(GTK_CONTAINER(pPane), pFrameScripts);
-	pVBoxScripts = gtk_vbox_new(FALSE, 0);
-	gtk_container_add(GTK_CONTAINER(pFrameScripts), pVBoxScripts);
-	askButton = gtk_button_new_with_label("Ask for scripts");
-	gtk_box_pack_start(GTK_BOX(pVBoxScripts), askButton, FALSE, TRUE, 0);
-	g_signal_connect(G_OBJECT(askButton), "clicked", G_CALLBACK(askForScripts), NULL);
-
-	openScripts = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //Il y aura autant de lignes que de scripts ouverts.
-	scriptCheck = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //Sur chacune de ces lignes, il y a une case à cocher...
-	scriptLabel = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //suivie d'un label...
-	zChooser = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); // d'un "spinbutton",
-	searchButton = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*));// et d'un boutton "recherche"
-
-	//La zone principale
-	pFrameGroupes = gtk_frame_new("Neural groups");
-	gtk_container_add(GTK_CONTAINER(vpaned), pFrameGroupes);
-	scrollbars = gtk_scrolled_window_new(NULL, NULL);
-	gtk_container_add(GTK_CONTAINER(pFrameGroupes), scrollbars);
-	zone3D = gtk_drawing_area_new(); //Déjà déclarée comme variable globale
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars), zone3D);
-	gtk_drawing_area_size(GTK_DRAWING_AREA(zone3D), 10000, 10000);
-	gtk_signal_connect(GTK_OBJECT(zone3D), "expose_event", (GtkSignalFunc) expose_event, NULL);
-	gtk_widget_set_events(zone3D, GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK); //Détecte quand on appuie OU quand on relache un bouton de la souris alors que le curseur est dans la zone3D
-	gtk_signal_connect(GTK_OBJECT(zone3D), "button_press_event", (GtkSignalFunc) button_press_event, NULL);
-	gtk_signal_connect(GTK_OBJECT(pWindow), "key_press_event", (GtkSignalFunc) key_press_event, NULL);
-
-	//la zone des groupes de neurones
-	gtk_container_add(GTK_CONTAINER(vpaned), neurons_frame);
-	scrollbars2 = gtk_scrolled_window_new(NULL, NULL);
-	gtk_container_add(GTK_CONTAINER(neurons_frame), scrollbars2);
-	zone_neurons = gtk_layout_new(NULL, NULL);
-	gtk_widget_set_size_request(GTK_WIDGET(zone_neurons), 3000, 3000);
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars2), zone_neurons);
-	gtk_widget_add_events(zone_neurons, GDK_ALL_EVENTS_MASK);
-	g_signal_connect(GTK_OBJECT(zone_neurons), "button-release-event", (GtkSignalFunc) drag_drop_neuron_frame, NULL);
-
-	gtk_box_pack_start(GTK_BOX(h_box_main), vpaned, TRUE, TRUE, 0);
-
-	//Appelle la fonction refresh_display à intervalles réguliers si on est en mode échantillonné ('a' est la deuxième lettre de "Sampled mode")
-	if (displayMode[1] == 'a') refresh_timer_id = g_timeout_add((guint)(1000 / (int) gtk_range_get_value(GTK_RANGE(refreshScale))), refresh_display, NULL);
-	gtk_widget_show_all(pWindow); //Affichage du widget pWindow et de tous ceux qui sont dedans
-
-	prom_bus_init(BROADCAST_IP);
-
-	//si un fichier des preférences (*.jap) à été passé en ligne de commande on le charge
-	if (file_preferences[0] != 0) loadJapetConfigToFile(file_preferences);
-
-	//On regarde les options passées en ligne de commande
-	while ((option = getopt(argc, argv, "i:")) != -1)
-	{
-		switch (option)
-		{
-		// -i "bus_id"
-		case 'i':
-			strncpy(id, optarg, BUS_ID_MAX);
-			break;
-			// autres options : erreur
-		default:
-			fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	//si après chargement il n'y a pas de bus_id
-	if (id[0] == 0)
-	{
-		fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
-		exit(EXIT_FAILURE);
-	}
-
-	for (option = 0; option < SCRIPT_LINKS_MAX; option++)
-	{
-		net_link[option].previous = NULL;
-		net_link[option].next = NULL;
-		net_link[option].type = -1;
-	}
-
-	gdk_threads_enter();
-	gtk_main(); //Boucle infinie : attente des événements
-	gdk_threads_leave();
-
-	return EXIT_SUCCESS;
+	group->knownX = TRUE;
 }
 
-//-------------------------------------------------3. INITIALISATION-----------------------------------------------
-//
 /**
  *
+ * Calcule la coordonnée y d'un groupe
  *
+ */
+void findY(group *group)
+{
+	int freeY;
+	int i, j;
+
+	freeY = 1;
+
+	for (i = 0; i < nbScripts; i++)
+	{
+		if (scr[i].z == group->myScript->z)
+		{
+			for (j = 0; j < scr[i].nbGroups; j++)
+			{
+				if (scr[i].groups[j].knownY == TRUE && scr[i].groups[j].x == group->x)
+				{
+					freeY++;
+				}
+			}
+		}
+	}
+	group->y = freeY;
+	if (group->myScript->height < group->y) group->myScript->height = group->y;
+
+	group->knownY = TRUE;
+}
+
+
+/**
  * Initialise les bibliothèques GTK et ENet, ainsi que quelques tableaux
  * @param argv, argc
  */
@@ -448,17 +237,33 @@ void Close(GtkWidget *pWidget, gpointer pData) //Fonction de fermeture de Japet
 void changePlan(GtkWidget *pWidget, gpointer pData) //Un script change de plan
 {
 
-	int i;
-	int n = *((int*) pData);
-	int l = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(pWidget));
-	scr[n].z = l;
-	gtk_label_set_text(GTK_LABEL(scriptLabel[n]), g_strconcat("<span foreground=\"", tcolor(scr[n]), "\"><b>", scr[n].name, "</b></span>", NULL));
-	gtk_label_set_use_markup(GTK_LABEL(scriptLabel[n]), TRUE);
+	int i, y_min = 0;
+	int script_id = *((int*) pData);
+	int z_index = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(pWidget));
+
+	scr[script_id].z = z_index;
+
+	for (i=0; i< nbScripts; i++)
+	{
+		if (script_id != i)
+		{
+			if (scr[script_id].z == scr[i].z)
+			{
+				if (y_min < scr[i].y_offset + scr[i].height) y_min = scr[i].y_offset + scr[i].height;
+			}
+		}
+	}
+
+	scr[script_id].y_offset = y_min;
+
+
+	gtk_label_set_text(GTK_LABEL(scriptLabel[script_id]), g_strconcat("<span foreground=\"", tcolor(scr[script_id]), "\"><b>", scr[script_id].name, "</b></span>", NULL));
+	gtk_label_set_use_markup(GTK_LABEL(scriptLabel[script_id]), TRUE);
 
 	expose_event(zone3D, NULL);//On redessine la grille avec la nouvelle valeur de z
 
 	for (i = 0; i < NB_WINDOWS_MAX; i++)
-		if (windowGroup[i] != NULL) if (windowGroup[i]->myScript == &scr[n]) expose_neurons(zoneNeurones[i], NULL);
+		if (windowGroup[i] != NULL) if (windowGroup[i]->myScript == &scr[script_id]) expose_neurons(zoneNeurones[i], NULL);
 	//Réaffiche le contenu des petites fenêtres montrant des groupes de ce script
 }
 
@@ -469,18 +274,10 @@ void changePlan(GtkWidget *pWidget, gpointer pData) //Un script change de plan
  */
 void changeValue(GtkWidget *pWidget, gpointer pData) //Modification d'une échelle
 {
-	int i;
-
 	(void) pData;
 
-	//Si le changement concerne les digits
-	if (pWidget == digitsScale)
-	{
-		for (i = 0; i < NB_WINDOWS_MAX; i++)
-			if (windowGroup[i] != NULL) expose_neurons(zoneNeurones[i], NULL);
-	}
 	//Si il concerne le rafraîchissement
-	else if (pWidget == refreshScale)
+	if (pWidget == refreshScale)
 	{
 		//on détruit le timer
 		g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
@@ -776,6 +573,9 @@ void expose_event(GtkWidget *zone3D, gpointer pData)
 
 	(void) pData;
 
+	graphic.draw_links = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_connections));
+	graphic.draw_net_links = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections));
+
 	//On commence par dessiner un grand rectangle blanc
 	cairo_set_source_rgb(cr, WHITE);
 	cairo_rectangle(cr, 0, 0, zone3D->allocation.width, zone3D->allocation.height);
@@ -802,7 +602,7 @@ void expose_event(GtkWidget *zone3D, gpointer pData)
 			{
 				for (j = 0; j < scr[i].nbGroups; j++)
 				{
-					dessinGroupe(cr, a, b, c, d, &scr[i].groups[j], scr[i].z, zMax);
+					dessinGroupe(cr, a, b, c, d, &scr[i].groups[j], scr[i].y_offset, scr[i].z, zMax);
 				}
 			}
 		}
@@ -961,7 +761,6 @@ void defaultScale(GtkWidget *pWidget, gpointer pData)
 	gtk_range_set_value(GTK_RANGE(yScale), YSCALE_DEFAULT);
 	gtk_range_set_value(GTK_RANGE(zxScale), XGAP_DEFAULT);
 	gtk_range_set_value(GTK_RANGE(zyScale), YGAP_DEFAULT);
-	gtk_range_set_value(GTK_RANGE(digitsScale), DIGITS_DEFAULT);
 
 	expose_event(zone3D, NULL); //On redessine la grille avec la nouvelle échelle
 }
@@ -978,6 +777,9 @@ void askForScripts(GtkWidget *pWidget, gpointer pData)
 {
 	(void) pWidget;
 	(void) pData;
+
+	printf("\nRefresh scripts\n");
+
 
 	if (nbScripts > 0) destroyAllScripts();//Supprime tous les scripts précédents
 
@@ -1144,7 +946,6 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 	float largeurNeuron, hauteurNeuron;
 	int i, j, currentWindow=-1;
 	int wV,  incrementation;
-	int nbDigits;
 	int x = 0, y = 0;
 	group* g;
 
@@ -1180,9 +981,6 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 	//Début du dessin
 	cr = gdk_cairo_create(zone2D->window); //Crée un contexte Cairo associé à la drawing_area "zone"
 
-	//Affichage des neurones
-	nbDigits = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(digitsScale));
-
 	for (i = 0; i < g->nbNeurons; i += incrementation)
 	{
 		ndg = niveauDeGris(g->neurons[i].s[wV], valMin, valMax);
@@ -1204,11 +1002,11 @@ void expose_neurons(GtkWidget *zone2D, gpointer pData)
 		}
 
 		//S'il y a assez de place sur le neurone pour afficher sa valeur avec le nombre de digits demandé
-		if (largeurNeuron - 1 > 4 * (nbDigits + 1) && hauteurNeuron > 16)
+		if (largeurNeuron - 1 > 4 * (NB_DIGITS + 1) && hauteurNeuron > 16)
 		{
 			sprintf(valeurNeurone, "%f", (g->neurons[i].s[wV] / 100));
-			valeurNeurone[nbDigits] = '\0';
-			if (g->neurons[i].s[wV] >= pow(10, nbDigits) || g->neurons[i].s[wV] <= -pow(10, nbDigits - 1)) for (j = 0; j < nbDigits; j++)
+			valeurNeurone[NB_DIGITS] = '\0';
+			if (g->neurons[i].s[wV] >= pow(10, NB_DIGITS) || g->neurons[i].s[wV] <= -pow(10, NB_DIGITS - 1)) for (j = 0; j < NB_DIGITS; j++)
 				valeurNeurone[j] = '#';
 			//Si le nombre de digits demandé est insuffisant pour afficher entièrement la partie entière d'une valeur, des # s'affichent à la place de cette valeur
 			cairo_show_text(cr, valeurNeurone);
@@ -1329,7 +1127,7 @@ void drag_drop_neuron_frame(GtkWidget *zone_neurons, GdkEventButton *event, gpoi
 
 //--------------------------------------------------5. "CONSTRUCTEURS"---------------------------------------------
 
-void newScript(script *script, char *name, char *machine, int z, int nbGroups)
+void newScript(script *script, char *name, char *machine, int z, int nbGroups, int id)
 {
 	int tailleName, tailleMachine;
 
@@ -1343,6 +1141,9 @@ void newScript(script *script, char *name, char *machine, int z, int nbGroups)
 	strncpy(script->machine, machine, tailleMachine);
 	script->machine[tailleMachine] = '\0';
 
+	script->color = id % COLOR_MAX;
+	script->y_offset = 0;
+	script->height = 0;
 	script->z = z;
 	script->nbGroups = nbGroups;
 	script->groups = malloc(nbGroups * sizeof(group));
@@ -1499,8 +1300,6 @@ void updateNeuron(neuron *neuron, float s, float s1, float s2, float pic)
 	neuron->s[2] = s2;
 	neuron->s[3] = pic;
 
-
-
 	//Mise en mémoire
 	if (displayMode[1] == 'a') //Si on est en mode échantillonné ('a' est la deuxième lettre de "Sampled mode")
 	{
@@ -1549,7 +1348,7 @@ gboolean refresh_display()
 
 const char* tcolor(script script)
 {
-	switch (script.z)
+	switch (script.color)
 	{
 	case 0:
 		return TDARKGREEN;
@@ -1577,7 +1376,7 @@ const char* tcolor(script script)
  */
 void color(cairo_t *cr, group group)
 {
-	switch (group.myScript->z)
+	switch (group.myScript->color)
 	//La couleur d'un groupe ou d'une liaison dépend du plan dans lequel il/elle se trouve
 	{
 	case 0:
@@ -1638,151 +1437,9 @@ void clearColor(cairo_t *cr, group group)
 	}
 }
 
-void dessinGroupe(cairo_t *cr, int a, int b, int c, int d, group *g, int z, int zMax)
-{
-	int i;
-	int x = g->x, y = g->y;
-
-	if (g == selectedGroup) cairo_set_source_rgb(cr, RED);
-	else color(cr, *g);
-	cairo_rectangle(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z - HAUTEUR_GROUPE / 2, LARGEUR_GROUPE, HAUTEUR_GROUPE);
-	cairo_fill(cr);
-
-	cairo_set_source_rgb(cr, WHITE);
-	cairo_set_font_size(cr, 8);
-	cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z);
-	cairo_show_text(cr, g->name);
-	cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z + HAUTEUR_GROUPE / 2);
-
-	cairo_show_text(cr, g->function);
 
 
-	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_connections)))
-	{
-		//Dessin des liaisons aboutissant à ce groupe
-		for (i = 0; i < g->nbLinksTo; i++)
-			if (g->previous[i]->myScript->displayed == TRUE)
-			{
-				int x1 = g->previous[i]->x, y1 = g->previous[i]->y, z1 = g->previous[i]->myScript->z; //Coordonnées du groupe situé avant la liaison
 
-				if (g->previous[i]->myScript == g->myScript) color(cr, *g);
-
-				cairo_set_line_width(cr, 0.8); //Trait épais représentant une liaison entre groupes
-
-				cairo_move_to(cr, a * x1 + c * (zMax - z1) + LARGEUR_GROUPE / 2, b * y1 + d * z1); //Début de la liaison (à droite du groupe prédécesseur)
-				cairo_line_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z); //Fin de la liaison (à gauche du groupe courant)
-
-				cairo_stroke(cr);
-			}
-	}
-
-	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections)))
-	{
-		for (i = 0; i < nb_net_link; i++)
-		{
-			if (net_link[i].previous == g)
-			{
-				cairo_set_source_rgb(cr, GREY);
-				cairo_set_line_width(cr, 3);
-				cairo_move_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2, b * y + d * z - 10);
-				cairo_line_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2 + 10, b * y + d * z - 10);
-
-				if (net_link[i].type == NET_LINK_ACK || net_link[i].type == NET_LINK_BLOCK_ACK)
-				{
-					cairo_move_to(cr, a * x + c * (zMax - z) + LARGEUR_GROUPE / 2, b * y + d * z);
-					cairo_set_source_rgb(cr, INDIGO);
-					cairo_show_text(cr, "ack");
-				}
-				cairo_stroke(cr);
-			}
-			else if (net_link[i].next == g)
-			{
-				cairo_set_source_rgb(cr, GREY);
-				cairo_set_line_width(cr, 3);
-				cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2 - 10, b * y + d * z - 10);
-				cairo_line_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2, b * y + d * z - 10);
-
-				if (net_link[i].type == NET_LINK_BLOCK || net_link[i].type == NET_LINK_BLOCK_ACK)
-				{
-					cairo_move_to(cr, a * x + c * (zMax - z) - LARGEUR_GROUPE / 2 - 25, b * y + d * z);
-					cairo_set_source_rgb(cr, RED);
-					cairo_show_text(cr, "block");
-				}
-				cairo_stroke(cr);
-			}
-		}
-	}
-
-}
-
-/**
- *
- * Calcule la coordonnée x d'un groupe en fonction de ses prédécesseurs
- *
- */
-void findX(group *group)
-{
-	int i;
-
-	if (group->previous == NULL)
-	{
-		group->x = 1;
-	}
-	else
-	{
-		for (i = 0; i < group->nbLinksTo; i++)
-		{
-			if (group->previous[i]->knownX == FALSE) findX(group->previous[i]);
-			if (group->previous[i]->x >= group->x) group->x = group->previous[i]->x + 1;
-		}
-
-		for (i = 0; i < nb_net_link; i++)
-		{
-			if (net_link[i].next == group && net_link[i].previous != NULL)
-			{
-				if (net_link[i].type == NET_LINK_BLOCK || net_link[i].type == NET_LINK_BLOCK_ACK)
-				{
-					if (!net_link[i].previous->knownX) findX(net_link[i].previous);
-					if (net_link[i].next->x < net_link[i].previous->x) net_link[i].next->x = net_link[i].previous->x + 1;
-				}
-			}
-		}
-
-		//	group->x = Max + 1;
-	}
-
-	group->knownX = TRUE;
-}
-
-/**
- *
- * Calcule la coordonnée y d'un groupe
- *
- */
-void findY(group *group)
-{
-	int freeY;
-	int i, j;
-
-	freeY = 2;
-
-	for (i = 0; i < nbScripts; i++)
-	{
-		if (scr[i].z == group->myScript->z)
-		{
-			for (j = 0; j < scr[i].nbGroups; j++)
-			{
-				if (scr[i].groups[j].knownY == TRUE && scr[i].groups[j].x == group->x)
-				{
-					freeY++;
-				}
-			}
-		}
-	}
-	group->y = freeY;
-
-	group->knownY = TRUE;
-}
 
 void newWindow(group *g, float pos_x, float pos_y)
 {
@@ -1886,16 +1543,10 @@ void saveJapetConfigToFile(char *filename)
 
 	properties = mxmlNewElement(tree, "properties");
 	xml_set_int(properties, "refresh", gtk_range_get_value(GTK_RANGE(refreshScale)));
-
 	xml_set_int(properties, "x_scale", gtk_range_get_value(GTK_RANGE(xScale)));
-
 	xml_set_int(properties, "y_scale", gtk_range_get_value(GTK_RANGE(yScale)));
-
 	xml_set_int(properties, "z_x_scale", gtk_range_get_value(GTK_RANGE(zxScale)));
-
 	xml_set_int(properties, "z_y_scale", gtk_range_get_value(GTK_RANGE(zyScale)));
-
-	xml_set_int(properties, "digits", gtk_range_get_value(GTK_RANGE(digitsScale)));
 
 	for (script_id = 0; script_id < nbScripts; script_id++)
 	{
@@ -1934,14 +1585,10 @@ void loadJapetConfigToFile(char *filename)
 	gtk_range_set_value(GTK_RANGE(refreshScale), xml_get_int(loading_node, "refresh"));
 
 	gtk_range_set_value(GTK_RANGE(xScale), (double) xml_get_int(loading_node, "x_scale"));
-
 	gtk_range_set_value(GTK_RANGE(yScale), xml_get_int(loading_node, "y_scale"));
-
 	gtk_range_set_value(GTK_RANGE(zxScale), xml_get_int(loading_node, "z_x_scale"));
-
 	gtk_range_set_value(GTK_RANGE(zyScale), xml_get_int(loading_node, "z_y_scale"));
 
-	gtk_range_set_value(GTK_RANGE(digitsScale), xml_get_int(loading_node, "digits"));
 
 	for (script_id = 0; script_id < nbScripts; script_id++)
 		if (xml_get_number_of_childs(tree) > 2)
@@ -1988,9 +1635,9 @@ void loadJapetConfigToFile(char *filename)
 void fatal_error(const char *name_of_file, const char *name_of_function, int numero_of_line, const char *message, ...)
 {
 	char total_message[MESSAGE_MAX];
-
 	GtkWidget *dialog;
 	va_list arguments;
+
 	va_start(arguments, message);
 	vsnprintf(total_message, MESSAGE_MAX, message, arguments);
 	va_end(arguments);
@@ -2000,3 +1647,277 @@ void fatal_error(const char *name_of_file, const char *name_of_function, int num
 	gtk_widget_destroy(dialog);
 	exit(EXIT_FAILURE);
 }
+
+
+
+//--------------------------------------------------2. MAIN-------------------------------------------------------------
+
+/**
+ *
+ * name: Programme Principale (Main)
+ *
+ * @param argv, argc
+ * @see enet_initialize()
+ * @see server_for_promethes()
+ * @return EXIT_SUCCESS
+ */
+int main(int argc, char** argv)
+{
+	GtkWidget *h_box_main, *v_box_main, *vpaned,  *pFrameEchelles, *pVBoxEchelles, *refreshSetting, *refreshLabel, *xSetting, *xLabel;
+	GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *scrollbars, *zySetting, *zyLabel;
+	GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault;
+	GtkWidget *pFrameScripts, *askButton,  *scrollbars2;
+
+	int option;
+	struct sigaction action;
+
+	sigfillset(&action.sa_mask);
+	action.sa_handler = on_signal_interupt;
+	action.sa_flags = 0;
+	if (sigaction(SIGINT, &action, NULL) != 0)
+	{
+		printf("Signal SIGINT not catched.");
+		exit(EXIT_FAILURE);
+	}
+	if (sigaction(SIGSEGV, &action, NULL) != 0)
+	{
+		printf("Signal SIGSEGV not catched.");
+		exit(EXIT_FAILURE);
+	}
+
+	g_thread_init(NULL);
+	gdk_threads_init();
+
+	// Initialisation de GTK+
+	gtk_init(&argc, &argv);
+
+	init_japet(argc, argv);
+
+	id[0] = 0;
+	file_preferences[0] = 0;
+
+	//On regarde les fichier passés en ligne de commande
+	if (optind < argc)
+	{
+		// fichier des préférences (*.jap)
+		if (strstr(argv[optind], ".jap"))
+		{
+			FILE *file = fopen(argv[optind], "r");
+			//si le fichier existe
+			if (file != NULL)
+			{
+				fclose(file);
+				strncpy(file_preferences, argv[optind], PATH_MAX);
+			}
+			//s'il n'existe pas
+			else
+			{
+				fprintf(stderr, "%s : file not found", argv[optind]);
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+
+	//La fenêtre principale
+	pWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	/* Positionne la GTK_WINDOW "pWindow" au centre de l'écran */
+	gtk_window_set_position(GTK_WINDOW(pWindow), GTK_WIN_POS_CENTER);
+	/* Taille de la fenêtre */
+	gtk_window_set_default_size(GTK_WINDOW(pWindow), 1200, 800);
+	/* Titre de la fenêtre */
+	gtk_window_set_title(GTK_WINDOW(pWindow), "Japet");
+	//Le signal de fermeture de la fenêtre est connecté à la fenêtre (petite croix)
+	g_signal_connect(G_OBJECT(pWindow), "destroy", G_CALLBACK(Close), (GtkWidget*) pWindow);
+
+	/*Création d'une VBox (boîte de widgets disposés verticalement) */
+	v_box_main = gtk_vbox_new(FALSE, 0);
+	/*ajout de v_box_main dans pWindow, qui est alors vu comme un GTK_CONTAINER*/
+	gtk_container_add(GTK_CONTAINER(pWindow), v_box_main);
+
+	hide_see_scales_button = gtk_toggle_button_new_with_label("Hide scales");
+	g_signal_connect(G_OBJECT(hide_see_scales_button), "toggled", (GtkSignalFunc) on_hide_see_scales_button_active, NULL);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hide_see_scales_button), FALSE);
+	gtk_widget_set_size_request(hide_see_scales_button, 150, 30);
+	gtk_box_pack_start(GTK_BOX(v_box_main), hide_see_scales_button, FALSE, FALSE, 0);
+
+	/*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
+	h_box_main = gtk_hbox_new(FALSE, 0);
+	vpaned = gtk_vpaned_new();
+	gtk_paned_set_position(GTK_PANED(vpaned), 600);
+	neurons_frame = gtk_frame_new("Neurons' frame");
+	gtk_box_pack_start(GTK_BOX(v_box_main), h_box_main, TRUE, TRUE, 0);
+
+	/*Panneau latéral*/
+	pPane = gtk_vbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(h_box_main), pPane, FALSE, TRUE, 0);
+
+	//Les échelles
+	pFrameEchelles = gtk_frame_new("Scales");
+	gtk_container_add(GTK_CONTAINER(pPane), pFrameEchelles);
+	pVBoxEchelles = gtk_vbox_new(FALSE, 0);
+	gtk_container_add(GTK_CONTAINER(pFrameEchelles), pVBoxEchelles);
+
+	//Fréquence de réactualisation de l'affichage, quand on est en mode échantillonné (Sampled)
+	refreshSetting = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshSetting, FALSE, TRUE, 0);
+	refreshLabel = gtk_label_new("Refresh (Hz):");
+	refreshScale = gtk_hscale_new_with_range(1, 24, 1); //Ce widget est déjà déclaré comme variable globale
+	//On choisit le nombre de réactualisations de l'affichage par seconde, entre 1 et 24
+	gtk_box_pack_start(GTK_BOX(refreshSetting), refreshLabel, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(refreshSetting), refreshScale, TRUE, TRUE, 0);
+	gtk_range_set_value(GTK_RANGE(refreshScale), REFRESHSCALE_DEFAULT);
+	gtk_signal_connect(GTK_OBJECT(refreshScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
+
+	//Echelle de l'axe des x
+	xSetting = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), xSetting, FALSE, TRUE, 0);
+	xLabel = gtk_label_new("x scale:");
+	xScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
+	gtk_box_pack_start(GTK_BOX(xSetting), xLabel, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(xSetting), xScale, TRUE, TRUE, 0);
+	gtk_range_set_value(GTK_RANGE(xScale), XSCALE_DEFAULT);
+	gtk_signal_connect(GTK_OBJECT(xScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
+
+	//Echelle de l'axe des y
+	ySetting = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), ySetting, FALSE, TRUE, 0);
+	yLabel = gtk_label_new("y scale:");
+	yScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
+	gtk_box_pack_start(GTK_BOX(ySetting), yLabel, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(ySetting), yScale, TRUE, TRUE, 0);
+	gtk_range_set_value(GTK_RANGE(yScale), YSCALE_DEFAULT);
+	gtk_signal_connect(GTK_OBJECT(yScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
+
+	//Décalage des plans selon x
+	zxSetting = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zxSetting, FALSE, TRUE, 0);
+	zxLabel = gtk_label_new("x gap:");
+	zxScale = gtk_hscale_new_with_range(0, 200, 1); //Ce widget est déjà déclaré comme variable globale
+	gtk_box_pack_start(GTK_BOX(zxSetting), zxLabel, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(zxSetting), zxScale, TRUE, TRUE, 0);
+	gtk_range_set_value(GTK_RANGE(zxScale), XGAP_DEFAULT);
+	gtk_signal_connect(GTK_OBJECT(zxScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
+
+	//Décalage des plans selon y
+	zySetting = gtk_hbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), zySetting, FALSE, TRUE, 0);
+	zyLabel = gtk_label_new("y gap:");
+	zyScale = gtk_hscale_new_with_range(0, 2000, 1); //Ce widget est déjà déclaré comme variable globale
+	gtk_box_pack_start(GTK_BOX(zySetting), zyLabel, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(zySetting), zyScale, TRUE, TRUE, 0);
+	gtk_range_set_value(GTK_RANGE(zyScale), YGAP_DEFAULT);
+	gtk_signal_connect(GTK_OBJECT(zyScale), "value-changed", (GtkSignalFunc) changeValue, NULL);
+
+	//3 boutons
+	pBoutons = gtk_hbox_new(TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), pBoutons, FALSE, TRUE, 0);
+	boutonSave = gtk_button_new_with_label("Save");
+	gtk_box_pack_start(GTK_BOX(pBoutons), boutonSave, TRUE, TRUE, 0);
+	g_signal_connect(G_OBJECT(boutonSave), "clicked", G_CALLBACK(japet_save_preferences), NULL);
+	boutonLoad = gtk_button_new_with_label("Load");
+	gtk_box_pack_start(GTK_BOX(pBoutons), boutonLoad, TRUE, TRUE, 0);
+	g_signal_connect(G_OBJECT(boutonLoad), "clicked", G_CALLBACK(japet_load_preferences), NULL);
+	boutonDefault = gtk_button_new_with_label("Default");
+	gtk_box_pack_start(GTK_BOX(pBoutons), boutonDefault, TRUE, TRUE, 0);
+	g_signal_connect(G_OBJECT(boutonDefault), "clicked", G_CALLBACK(defaultScale), NULL);
+
+	check_button_draw_connections = gtk_check_button_new_with_label("draw connections");
+	check_button_draw_net_connections = gtk_check_button_new_with_label("draw net connections");
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button_draw_connections), TRUE);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections), TRUE);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), check_button_draw_connections, FALSE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(pVBoxEchelles), check_button_draw_net_connections, FALSE, TRUE, 0);
+	gtk_signal_connect(GTK_OBJECT(check_button_draw_connections), "toggled", (GtkSignalFunc) on_check_button_draw_active, NULL);
+	gtk_signal_connect(GTK_OBJECT(check_button_draw_net_connections), "toggled", (GtkSignalFunc) on_check_button_draw_active, NULL);
+
+	displayMode = "Sampled mode";
+
+	modeLabel = gtk_label_new(displayMode);
+	gtk_container_add(GTK_CONTAINER(pPane), modeLabel);
+
+	//Les scripts
+	pFrameScripts = gtk_frame_new("Open scripts");
+	gtk_container_add(GTK_CONTAINER(pPane), pFrameScripts);
+	pVBoxScripts = gtk_vbox_new(FALSE, 0);
+	gtk_container_add(GTK_CONTAINER(pFrameScripts), pVBoxScripts);
+	askButton = gtk_button_new_with_label("Refresh scripts");
+	gtk_box_pack_start(GTK_BOX(pVBoxScripts), askButton, FALSE, TRUE, 0);
+	g_signal_connect(G_OBJECT(askButton), "clicked", G_CALLBACK(askForScripts), NULL);
+
+	openScripts = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //Il y aura autant de lignes que de scripts ouverts.
+	scriptCheck = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //Sur chacune de ces lignes, il y a une case à cocher...
+	scriptLabel = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); //suivie d'un label...
+	zChooser = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*)); // d'un "spinbutton",
+	searchButton = malloc(NB_SCRIPTS_MAX * sizeof(GtkWidget*));// et d'un boutton "recherche"
+
+	//La zone principale
+	pFrameGroupes = gtk_frame_new("Neural groups");
+	gtk_container_add(GTK_CONTAINER(vpaned), pFrameGroupes);
+	scrollbars = gtk_scrolled_window_new(NULL, NULL);
+	gtk_container_add(GTK_CONTAINER(pFrameGroupes), scrollbars);
+	zone3D = gtk_drawing_area_new(); //Déjà déclarée comme variable globale
+	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars), zone3D);
+	gtk_drawing_area_size(GTK_DRAWING_AREA(zone3D), 10000, 10000);
+	gtk_signal_connect(GTK_OBJECT(zone3D), "expose_event", (GtkSignalFunc) expose_event, NULL);
+	gtk_widget_set_events(zone3D, GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK); //Détecte quand on appuie OU quand on relache un bouton de la souris alors que le curseur est dans la zone3D
+	gtk_signal_connect(GTK_OBJECT(zone3D), "button_press_event", (GtkSignalFunc) button_press_event, NULL);
+	gtk_signal_connect(GTK_OBJECT(pWindow), "key_press_event", (GtkSignalFunc) key_press_event, NULL);
+
+	//la zone des groupes de neurones
+	gtk_container_add(GTK_CONTAINER(vpaned), neurons_frame);
+	scrollbars2 = gtk_scrolled_window_new(NULL, NULL);
+	gtk_container_add(GTK_CONTAINER(neurons_frame), scrollbars2);
+	zone_neurons = gtk_layout_new(NULL, NULL);
+	gtk_widget_set_size_request(GTK_WIDGET(zone_neurons), 3000, 3000);
+	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars2), zone_neurons);
+	gtk_widget_add_events(zone_neurons, GDK_ALL_EVENTS_MASK);
+	g_signal_connect(GTK_OBJECT(zone_neurons), "button-release-event", (GtkSignalFunc) drag_drop_neuron_frame, NULL);
+
+	gtk_box_pack_start(GTK_BOX(h_box_main), vpaned, TRUE, TRUE, 0);
+
+	//Appelle la fonction refresh_display à intervalles réguliers si on est en mode échantillonné ('a' est la deuxième lettre de "Sampled mode")
+	if (displayMode[1] == 'a') refresh_timer_id = g_timeout_add((guint)(1000 / (int) gtk_range_get_value(GTK_RANGE(refreshScale))), refresh_display, NULL);
+	gtk_widget_show_all(pWindow); //Affichage du widget pWindow et de tous ceux qui sont dedans
+
+	prom_bus_init(BROADCAST_IP);
+
+	//si un fichier des preférences (*.jap) à été passé en ligne de commande on le charge
+	if (file_preferences[0] != 0) loadJapetConfigToFile(file_preferences);
+
+	//On regarde les options passées en ligne de commande
+	while ((option = getopt(argc, argv, "i:")) != -1)
+	{
+		switch (option)
+		{
+		// -i "bus_id"
+		case 'i':
+			strncpy(id, optarg, BUS_ID_MAX);
+			break;
+			// autres options : erreur
+		default:
+			fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	//si après chargement il n'y a pas de bus_id
+	if (id[0] == 0)
+	{
+		fprintf(stderr, "\tUsage: %s [-i bus_id] \n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
+	for (option = 0; option < SCRIPT_LINKS_MAX; option++)
+	{
+		net_link[option].previous = NULL;
+		net_link[option].next = NULL;
+		net_link[option].type = -1;
+	}
+
+	gdk_threads_enter();
+	gtk_main(); //Boucle infinie : attente des événements
+	gdk_threads_leave();
+
+	return EXIT_SUCCESS;
+}
+
