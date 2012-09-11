@@ -7,30 +7,30 @@
 	Sommaire
 	--------
 
-1. Lancement de Japet
+1. Lancement de Pandora
 
-2. Utilisation de Japet
+2. Utilisation de Pandora
 
 
 
 	
-	1. Lancement de Japet
+	1. Lancement de Pandora
 	---------------------
 
-Pour démarer Japet il faut lui donner un "-i" (bus id).
+Pour démarer Pandora il faut lui donner un "-i" (bus id).
 Ce "-i" correspond au "-i" utilisé par les prométhés que l'on souhaite écouter.
-utilisation : japet -inom_du_bus_id
+utilisation : pandora -inom_du_bus_id
 
 Il est aussi possible de passer en argument un fichier de type (*.jap) qui permet de charger vos préférences. (bus id, échelles, groupes observés, ...).
-utilisation : japet nom_du_fichier.jap
+utilisation : pandora nom_du_fichier.jap
 
 Si je combine les deux, le bus id passé en option sera prioritaire.
-utilisation : japet nom_du_fichier.jap -inom_du_bus_id_qui_sera_utilisé
+utilisation : pandora nom_du_fichier.jap -inom_du_bus_id_qui_sera_utilisé
 
 
 
 
-	2. Utilisation de Japet
+	2. Utilisation de Pandora
 	-----------------------
 
 Pour rechercher les prométhés il faut appuyer sur le bouton "Ask for scripts".

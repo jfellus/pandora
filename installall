@@ -18,15 +18,15 @@ done
 source ../scripts/COMPILE_FLAG
 
 echo 
-echo "Install japet"
+echo "Install pandora"
 echo "============="
 
 make reset --silent 
 if make --silent
 then	
-	echo -e "\nSuccess compiling japet\n"
+	echo -e "\nSuccess compiling pandora\n"
 	exit 0
 else 
-	echo -e "\nFail to compile japet\n"
+	echo -e "\nFail to compile pandora\n"
 	exit 1
 fi

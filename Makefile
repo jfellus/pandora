@@ -1,16 +1,16 @@
 default:
 	$(MAKE) install --jobs=$(NUMBER_OF_CORES)
--include ../scripts/variables.mk
 
+include ../scripts/variables.mk
 #As we use silent we do not need promcolor_gcc
 CC:=colorgcc
 
-
-GTK_FLAGS:= `pkg-config --cflags gtk+-2.0`
-SOURCES:=japet.c japet_receive_from_prom.c graphic_gtk.c
+PACKAGES:= gtk+-2.0 gmodule-2.0
+GTK_FLAGS:= `pkg-config --cflags $(PACKAGES)`
+SOURCES:=pandora.c pandora_receive_from_prom.c graphic_gtk.c pandora_ivy.c
 OBJECTS:=$(patsubst %.c,%.o,$(SOURCES))
 INCLUDES:=-I../shared/include  -I../enet/include  -I..
-LIBS:= -L../lib/Linux/enet/lib -lenet -L../lib/Linux/ivy -lglibivy -L../lib/Linux/script -lscript -lmxml `pkg-config --libs gtk+-2.0`
+LIBS:= -L../lib/$(system)/enet/lib -lenet -L../lib/$(system)/ivy -lglibivy -L../lib/$(system)/script -lscript -L../lib/$(system)/graphique -lgraphique -lmxml `pkg-config --libs $(PACKAGES)`
 
 $(objdir)/debug:
 	mkdir -p $@
@@ -18,24 +18,29 @@ $(objdir)/debug:
 $(objdir)/release:
 	mkdir -p $@
 
-	
 $(objdir)/debug/%.o:src/%.c | $(objdir)/debug
-	$(CC) -c $(CFLAGS) $(FLAGS_DEBUG) $(GTK_FLAGS) $(INCLUDES) $< -o $@ 
+	$(CC) -c $(CFLAGS) $(FLAGS_DEBUG) $(GTK_FLAGS) $(INCLUDES) $< -o $@  
 
 $(objdir)/release/%.o:src/%.c | $(objdir)/release
 	$(CC) -c $(CFLAGS) $(FLAGS_OPTIM) $(GTK_FLAGS) $(INCLUDES) $< -o $@
 
-japet_debug: $(foreach object, $(OBJECTS), $(objdir)/debug/$(object))
-	$(CC) $(CFLAGS) $(FLAGS_DEBUG)  $^ -o $@ $(LIBS)
+pandora_debug: $(foreach object, $(OBJECTS), $(objdir)/debug/$(object)) 
+	$(CC) $(CFLAGS) $(FLAGS_DEBUG)  $^ -o $@ $(LIBS) 
 
-japet:$(foreach object, $(OBJECTS), $(objdir)/release/$(object))
+pandora:$(foreach object, $(OBJECTS), $(objdir)/release/$(object))
 	$(CC) $(CFLAGS) $(FLAGS_OPTIM) $^ -o $@ $(LIBS)
 
-install:japet_debug japet
-	mv $^ $(bindir)/.
+$(rsrcdir)/%: resources/%
+	cp $^ $@
+
+$(bindir)/%: %
+	cp $^ $@
+
+install:$(bindir)/pandora_debug $(bindir)/pandora $(rsrcdir)/pandora_icon.png $(rsrcdir)/pandora_group_display_properties.glade
+
 	
 clean:
 	rm -f $(objdir)/debug/*.o $(objdir)/release/*.o 
 
 reset:clean
-	rm -f $(bindir)/japet_debug $(bindir)/japet 
+	rm -f $(bindir)/pandora_debug $(bindir)/pandora 

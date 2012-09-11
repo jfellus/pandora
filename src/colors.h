@@ -24,7 +24,7 @@
 #define	DARKYELLOW	0.5, 0.5, 0	//Plan z = 2
 #define YELLOW 		1, 1, 0 	//Plan z = 2 actualisé
 
-#define DARKBLUE	0, 0, 0.5 	//Plan z = 3
+#define DARKBLUE	0.1, 0.1, 0.6 	//Plan z = 3
 #define BLUE 		0, 0, 1 	//Plan z = 3 actualisé
 
 #define DARKCYAN	0, 0.5, 0.5	//Plan z = 4
