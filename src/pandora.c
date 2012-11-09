@@ -63,17 +63,22 @@ char bus_ip[HOST_NAME_MAX];
 
 void group_display_destroy(type_group *group);
 
+void pandora_quit()
+{
+  pandora_bus_send_message(bus_id, "pandora(%d,0)", PANDORA_STOP);
+  enet_deinitialize();
+  gtk_main_quit();
+}
+
 void on_signal_interupt(int signal)
 {
   switch (signal)
   {
   case SIGINT:
-    pandora_bus_send_message(bus_id, "pandora(%d,0)", PANDORA_STOP);
     exit(EXIT_SUCCESS);
     break;
   case SIGSEGV:
     printf("SEGFAULT\n");
-    pandora_bus_send_message(bus_id, "pandora(%d,0)", PANDORA_STOP);
     exit(EXIT_FAILURE);
     break;
   default:
@@ -188,13 +193,10 @@ void window_title_update()
  *
  * @return EXIT_SUCCESS
  */
-void Close(GtkWidget *pWidget, gpointer pData) //Fonction de fermeture de Pandora
+void window_close(GtkWidget *pWidget, gpointer pData) //Fonction de fermeture de Pandora
 {
   (void) pWidget;
   (void) pData;
-
-  //On indique aux prométhés qu'ils doivent arreter d'envoyer des données à Pandora
-  pandora_bus_send_message(bus_id, "pandora(%d,0)", PANDORA_STOP);
 
   exit(EXIT_SUCCESS);
 }
@@ -204,7 +206,6 @@ void Close(GtkWidget *pWidget, gpointer pData) //Fonction de fermeture de Pandor
  * Un script change de plan
  *
  */
-
 
 void change_plan(GtkWidget *pWidget, gpointer data) //Un script change de plan
 {
@@ -448,22 +449,23 @@ void save_preferences(GtkWidget *pWidget, gpointer pData)
 
   if (preferences_filename[0] == 0)
   {
-    dialog = gtk_file_chooser_dialog_new("Save your scales", GTK_WINDOW(window), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
+    dialog = gtk_file_chooser_dialog_new("Save perspective", GTK_WINDOW(window), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
     gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+
+    file_filter = gtk_file_filter_new();
+    generic_file_filter = gtk_file_filter_new();
+
+    gtk_file_filter_add_pattern(file_filter, "*.pandora");
+    gtk_file_filter_add_pattern(generic_file_filter, "*");
+
+    gtk_file_filter_set_name(file_filter, "pandora (.pandora)");
+    gtk_file_filter_set_name(generic_file_filter, "all types");
+
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), file_filter);
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), generic_file_filter);
 
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
     {
-      file_filter = gtk_file_filter_new();
-      generic_file_filter = gtk_file_filter_new();
-
-      gtk_file_filter_add_pattern(file_filter, "*.pandora");
-      gtk_file_filter_add_pattern(generic_file_filter, "*");
-
-      gtk_file_filter_set_name(file_filter, "pandora (.pandora)");
-      gtk_file_filter_set_name(generic_file_filter, "all types");
-
-      gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), file_filter);
-      gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), generic_file_filter);
 
       filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
       strcpy(preferences_filename, filename);
@@ -482,29 +484,30 @@ void save_preferences(GtkWidget *pWidget, gpointer pData)
  */
 void pandora_load_preferences(GtkWidget *pWidget, gpointer pData)
 {
+  char* filename;
   GtkFileFilter *file_filter, *generic_file_filter;
-  GtkWidget *dialog = gtk_file_chooser_dialog_new("Open scales file", GTK_WINDOW(window), GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
+  GtkWidget *dialog;
 
   (void) pWidget;
   (void) pData;
 
+  dialog = gtk_file_chooser_dialog_new("Load perspective", GTK_WINDOW(window), GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT, NULL);
+
+  file_filter = gtk_file_filter_new();
+  generic_file_filter = gtk_file_filter_new();
+
+  gtk_file_filter_add_pattern(file_filter, "*.pandora");
+  gtk_file_filter_add_pattern(generic_file_filter, "*");
+
+  gtk_file_filter_set_name(file_filter, "pandora (.pandora)");
+  gtk_file_filter_set_name(generic_file_filter, "all types");
+
+  gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), file_filter);
+  gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), generic_file_filter);
+
   if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
   {
-    char* filename;
     filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-
-    file_filter = gtk_file_filter_new();
-    generic_file_filter = gtk_file_filter_new();
-
-    gtk_file_filter_add_pattern(file_filter, "*.net");
-    gtk_file_filter_add_pattern(generic_file_filter, "*");
-
-    gtk_file_filter_set_name(file_filter, "coeos/themis (.net)");
-    gtk_file_filter_set_name(generic_file_filter, "all types");
-
-    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), file_filter);
-    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), generic_file_filter);
-
     strncpy(preferences_filename, filename, PATH_MAX);
     window_title_update();
     pandora_file_load(filename);
@@ -636,7 +639,7 @@ void group_display_new(type_group *group, float pos_x, float pos_y)
   gtk_frame_set_label_widget(GTK_FRAME(group->widget), hbox);
 
   group->drawing_area = gtk_drawing_area_new();
-  gtk_container_add(GTK_CONTAINER( group->widget), group->drawing_area);
+  gtk_container_add(GTK_CONTAINER(group->widget), group->drawing_area);
   gtk_widget_add_events(group->drawing_area, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(GTK_OBJECT(group->drawing_area), "button_press_event", (GtkSignalFunc) button_press_neurons, group);
 
@@ -700,18 +703,18 @@ void script_update_positions(type_script *script)
   }
 
   for (i = 0; i < number_of_scripts; i++)
-   {
-     other_script = scripts[i];
-     if (script != other_script)
-     {
-       if (script->z == other_script->z)
-       {
-         if (y_min < other_script->y_offset + other_script->height) y_min = other_script->y_offset + other_script->height;
-       }
-     }
-   }
+  {
+    other_script = scripts[i];
+    if (script != other_script)
+    {
+      if (script->z == other_script->z)
+      {
+        if (y_min < other_script->y_offset + other_script->height) y_min = other_script->y_offset + other_script->height;
+      }
+    }
+  }
 
-   script->y_offset = y_min + 1;
+  script->y_offset = y_min + 1;
 
 }
 
@@ -1133,7 +1136,7 @@ void pandora_window_new()
   gtk_window_set_icon_from_file(GTK_WINDOW(window), path, NULL);
 
 //Le signal de fermeture de la fenêtre est connecté à la fenêtre (petite croix)
-  g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(Close), (GtkWidget*) window);
+  g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(window_close), (GtkWidget*) window);
 
   /*Création d'une VBox (boîte de widgets disposés verticalement) */
   v_box_main = gtk_vbox_new(FALSE, 0);
@@ -1320,7 +1323,7 @@ int main(int argc, char** argv)
     printf("An error occurred while initializing ENet.\n");
     exit(EXIT_FAILURE);
   }
-  atexit(enet_deinitialize);
+  atexit(pandora_quit);
   server_for_promethes();
 
   bus_ip[0] = 0;
@@ -1361,7 +1364,7 @@ int main(int argc, char** argv)
 //si après chargement il n'y a pas de bus_id
   if ((bus_id[0] == 0) || (bus_ip[0] == 0))
   {
-    EXIT_ON_ERROR("You miss bus_ip or bus_ip \n\tUsage: %s [-b bus_ip -i bus_id] \n", argv[0]);
+    EXIT_ON_ERROR("You miss bus_ip or bus_id \n\tUsage: %s [-b bus_ip -i bus_id] \n", argv[0]);
   }
 
   if (access(preferences_filename, R_OK) == 0) pandora_file_load(preferences_filename);
