@@ -29,7 +29,6 @@ void server_for_promethes()
 {
   char host_name[HOST_NAME_MAX];
   ENetAddress address;
-  int error;
   pthread_t enet_thread;
 
   enet_time_set(0);
@@ -42,7 +41,7 @@ void server_for_promethes()
   if (enet_server != NULL)
   {
     gethostname(host_name, HOST_NAME_MAX);
-    error = pthread_create(&enet_thread, NULL, (void*(*)(void*)) enet_manager, enet_server);
+    pthread_create(&enet_thread, NULL, (void*(*)(void*)) enet_manager, enet_server);
   }
   else EXIT_ON_ERROR("Fail to create a enet server for pandora !\n\tCheck that there is no other pandora running.");
 }
