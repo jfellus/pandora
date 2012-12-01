@@ -3,7 +3,7 @@ default:
 
 include ../scripts/variables.mk
 #As we use silent we do not need promcolor_gcc
-CC:=colorgcc
+CC:=prom_colorgcc
 
 PACKAGES:= gtk+-2.0 gmodule-2.0
 GTK_FLAGS:= `pkg-config --cflags $(PACKAGES)`
@@ -38,7 +38,7 @@ $(bindir)/%: %
 
 install:$(bindir)/pandora_debug $(bindir)/pandora $(rsrcdir)/pandora_icon.png $(rsrcdir)/pandora_group_display_properties.glade
 
-	
+
 clean:
 	rm -f $(objdir)/debug/*.o $(objdir)/release/*.o 
 
