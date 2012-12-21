@@ -1311,6 +1311,7 @@ int main(int argc, char** argv)
     exit(EXIT_FAILURE);
   }
 
+  g_thread_init(NULL);	
   gdk_threads_init();
 
 // Initialisation de GTK+
