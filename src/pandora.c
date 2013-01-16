@@ -1310,7 +1310,7 @@ int main(int argc, char** argv)
     printf("Signal SIGSEGV not catched.");
     exit(EXIT_FAILURE);
   }
-
+  g_thread_init(NULL);
   g_thread_init(NULL);	
   gdk_threads_init();
 
