@@ -1311,6 +1311,7 @@ int main(int argc, char** argv)
     exit(EXIT_FAILURE);
   }
 
+  g_thread_init(NULL); /* useless since glib 2.32 */
   gdk_threads_init();
 
 // Initialisation de GTK+

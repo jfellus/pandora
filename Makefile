@@ -5,7 +5,7 @@ include ../scripts/variables.mk
 #As we use silent we do not need promcolor_gcc
 CC:=prom_colorgcc
 
-PACKAGES:= gtk+-2.0 gmodule-2.0
+PACKAGES:= gtk+-2.0 gmodule-2.0 gthread-2.0
 GTK_FLAGS:= `pkg-config --cflags $(PACKAGES)`
 SOURCES:=pandora.c pandora_receive_from_prom.c graphic_gtk.c pandora_ivy.c
 OBJECTS:=$(patsubst %.c,%.o,$(SOURCES))
