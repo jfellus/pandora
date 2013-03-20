@@ -92,6 +92,7 @@ void enet_manager(ENetHost *server)
         script->height = 0;
         script->displayed = 0;
         script->peer = event.peer;
+        script->groups = NULL;
         sem_init(&script->sem_groups_defined, 0, 0);
         scripts[number_of_scripts] = script;
         number_of_scripts++;
@@ -236,7 +237,7 @@ void enet_manager(ENetHost *server)
           script->y_offset= 0;
           for (script_id = 0; script_id < number_of_scripts; script_id++)
           {
-            script_update_positions(scripts[script_id]);
+            if (scripts[script_id]->groups != NULL) script_update_positions(scripts[script_id]);
           }
           script_update_display(script);
 
