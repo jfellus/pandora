@@ -1,7 +1,7 @@
 /**  pandora_receive_from_prom.c
- *  
+ *
  *  @Author Arnaud Blanchard et Brice Errandonea
- * 
+ *
  */
 
 #include "pandora.h"
@@ -23,7 +23,7 @@ int freePeer = 0; //Utilisé pour numéroter les peers (donc les promethes, donc
 /**
  *
  * Crée dans Pandora un serveur, qui va écouter le réseau et accepter les connexions des Prométhés
- * 
+ *
  */
 void server_for_promethes()
 {
@@ -147,6 +147,10 @@ void enet_manager(ENetHost *server)
             group->previous = NULL;
             group->widget = NULL;
             group->ext = NULL;
+
+            group->tabValues = NULL;
+            group->indexAncien = NULL;
+            group->indexDernier = NULL;
           }
 
           current_data=&current_data[groups_size];

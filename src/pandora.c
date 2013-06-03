@@ -1,11 +1,11 @@
 /* pandora.c
- * 
+ *
  *
  * Auteurs : Brice Errandonea et Manuel De Palma
- * 
+ *
  * Pour compiler : make
- * 
- * 
+ *
+ *
  */
 #include "pandora.h"
 #include "pandora_ivy.h"
@@ -62,6 +62,42 @@ char bus_id[BUS_ID_MAX];
 char bus_ip[HOST_NAME_MAX];
 
 void group_display_destroy(type_group *group);
+
+
+float**** createTab4(int nbRows, int nbColumns)
+{
+    float **** tab = malloc(nbRows * sizeof(float ***));
+    int i, j, k, l;
+    for(i=0; i<nbRows; i++)
+    {
+        tab[i] = malloc(nbColumns * sizeof(float **));
+        for(j=0; j<nbColumns; j++)
+        {
+            tab[i][j] = malloc(3 * sizeof(float *));
+            for(k=0; k<3; k++)
+            {
+                tab[i][j][k] = malloc(NB_Max_VALEURS_ENREGISTREES * sizeof(float));
+                for(l=0; l<NB_Max_VALEURS_ENREGISTREES; l++)
+                    tab[i][j][k][l] = 0.0;
+            }
+        }
+    }
+    return tab;
+}
+
+int** createTab2(int nbRows, int nbColumns)
+{
+    int **tab = malloc(nbRows * sizeof(int *));
+    int i, j;
+    for(i=0; i<nbRows; i++)
+    {
+        tab[i] = malloc(nbColumns * sizeof(int));
+        for(j=0; j<nbColumns; j++)
+            tab[i][j] = -1;
+    }
+    return tab;
+}
+
 
 void pandora_quit()
 {
@@ -472,9 +508,67 @@ void save_preferences(GtkWidget *pWidget, gpointer pData)
       g_free(filename);
       gtk_widget_destroy(dialog);
     }
-    else return;
+    else
+    {
+        gtk_widget_destroy(dialog);
+        return;
+    }
+  }
+  else
+  {
+    GtkWidget *confirmation = gtk_message_dialog_new(GTK_WINDOW(pData), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO, "File \"%s\" already exists.\nDo you really want to save?", preferences_filename);
+    switch(gtk_dialog_run(GTK_DIALOG(confirmation)))
+    {
+        case GTK_RESPONSE_YES :
+            gtk_widget_destroy(confirmation);
+        break;
+        default :
+            gtk_widget_destroy(confirmation);
+            return;
+        break;
+    }
   }
   pandora_file_save(preferences_filename);
+}
+
+void save_preferences_as(GtkWidget *pWidget, gpointer pData)
+{
+    char* filename;
+    GtkFileFilter *file_filter, *generic_file_filter;
+
+    GtkWidget *dialog;
+    (void) pWidget;
+    (void) pData;
+
+    dialog = gtk_file_chooser_dialog_new("Save perspective", GTK_WINDOW(window), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
+    gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+
+    file_filter = gtk_file_filter_new();
+    generic_file_filter = gtk_file_filter_new();
+
+    gtk_file_filter_add_pattern(file_filter, "*.pandora");
+    gtk_file_filter_add_pattern(generic_file_filter, "*");
+
+    gtk_file_filter_set_name(file_filter, "pandora (.pandora)");
+    gtk_file_filter_set_name(generic_file_filter, "all types");
+
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), file_filter);
+    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), generic_file_filter);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+      strcpy(preferences_filename, filename);
+      g_free(filename);
+      gtk_widget_destroy(dialog);
+    }
+    else
+    {
+        gtk_widget_destroy(dialog);
+        return;
+    }
+
+    pandora_file_save(preferences_filename);
 }
 
 /**
@@ -625,15 +719,32 @@ void group_display_new(type_group *group, float pos_x, float pos_y)
 
   group->label = gtk_label_new("0 Hz");
 
+  //initialisation
+  group->frequence = 0.0;
+  group->nb_affiche = 0;
+  if(group->tabValues == NULL)
+  {
+    group->tabValues = createTab4(group->rows, group->columns);
+    group->indexAncien = createTab2(group->rows, group->columns);
+    group->indexDernier = createTab2(group->rows, group->columns);
+  }
+  else
+  {
+    int i, j;
+    for(i=0; i<group->rows; i++)
+        for(j=0; j<group->columns; j++)
+            group->indexAncien[i][j] = group->indexDernier[i][j] = -1;
+  }
+
 //Création de la petite fenêtre
   group->widget = gtk_frame_new("");
   hbox = gtk_hbox_new(FALSE, 0);
 
   gtk_layout_put(GTK_LAYOUT(zone_neurons), group->widget, pos_x, pos_y);
 
-  button_frame = gtk_toggle_button_new_with_label(group->name);
+  //button_frame = gtk_toggle_button_new_with_label(group->name);
 
-  gtk_box_pack_start(GTK_BOX(hbox), button_frame, TRUE, FALSE, 0);
+  //gtk_box_pack_start(GTK_BOX(hbox), button_frame, TRUE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(hbox), group->label, TRUE, FALSE, 0);
 
   gtk_frame_set_label_widget(GTK_FRAME(group->widget), hbox);
@@ -1138,6 +1249,35 @@ void pandora_window_new()
 //Le signal de fermeture de la fenêtre est connecté à la fenêtre (petite croix)
   g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(window_close), (GtkWidget*) window);
 
+
+
+  GtkWidget* menuBar = gtk_menu_bar_new();
+
+  GtkWidget* fileMenu = gtk_menu_new();
+
+  GtkWidget* load = gtk_menu_item_new_with_label(g_locale_to_utf8("Load", -1, NULL, NULL, NULL));
+  gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), load);
+  g_signal_connect(G_OBJECT(load), "activate", G_CALLBACK(pandora_load_preferences), NULL);
+
+  GtkWidget* save = gtk_menu_item_new_with_label(g_locale_to_utf8("Save", -1, NULL, NULL, NULL));
+  gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), save);
+  g_signal_connect(G_OBJECT(save), "activate", G_CALLBACK(save_preferences), NULL);
+
+  GtkWidget* saveAs = gtk_menu_item_new_with_label(g_locale_to_utf8("Save as", -1, NULL, NULL, NULL));
+  gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), saveAs);
+  g_signal_connect(G_OBJECT(saveAs), "activate", G_CALLBACK(save_preferences_as), NULL);
+
+  GtkWidget* quit = gtk_menu_item_new_with_label(g_locale_to_utf8("Quit", -1, NULL, NULL, NULL));
+  gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), quit);
+  g_signal_connect(G_OBJECT(quit), "activate", G_CALLBACK(window_close), (GtkWidget*) window);
+
+
+  GtkWidget* itemFile = gtk_menu_item_new_with_label("File");
+  gtk_menu_item_set_submenu(GTK_MENU_ITEM(itemFile), fileMenu);
+
+  gtk_menu_append(menuBar, itemFile);
+
+
   /*Création d'une VBox (boîte de widgets disposés verticalement) */
   v_box_main = gtk_vbox_new(FALSE, 0);
   /*ajout de v_box_main dans pWindow, qui est alors vu comme un GTK_CONTAINER*/
@@ -1147,6 +1287,7 @@ void pandora_window_new()
   g_signal_connect(G_OBJECT(hide_see_scales_button), "toggled", (GtkSignalFunc) on_hide_see_scales_button_active, NULL);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hide_see_scales_button), FALSE);
   gtk_widget_set_size_request(hide_see_scales_button, 150, 30);
+  gtk_box_pack_start(GTK_BOX(v_box_main), menuBar, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(v_box_main), hide_see_scales_button, FALSE, FALSE, 0);
 
   /*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/

@@ -1,9 +1,9 @@
 /* pandora.h
  *
  * Auteurs : Brice Errandonea et Manuel De Palma
- * 
+ *
  * Pour compiler : make
- * 
+ *
  */
 
 #ifndef PANDORA_H
@@ -45,7 +45,7 @@
 
 #define NB_PLANES_MAX 7
 //Le nombre maximal de plans affichables simultanément dans la zone 3D est limité à 7. Cette limite là est un peu plus
-//compliquée à modifier car il faudrait définir de nouvelles couleurs pour chaque valeur de z > 6. 
+//compliquée à modifier car il faudrait définir de nouvelles couleurs pour chaque valeur de z > 6.
 //De toute façon, 8 plans superposés seraient difficilement lisibles (7, déjà...).
 
 #define SCRIPT_NAME_MAX 30 //Longueur maximale (en caractères) du nom d'un script
@@ -73,6 +73,8 @@
 #define DIGITS_DEFAULT 4 //Nombre de caractères pour afficher les valeurs d'un neurone
 #define LABEL_MAX 128
 
+#define NB_Max_VALEURS_ENREGISTREES 50
+
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 
 enum {
@@ -85,7 +87,8 @@ enum{
   DISPLAY_MODE_SQUARE = 0,
   DISPLAY_MODE_INTENSITY,
   DISPLAY_MODE_BAR_GRAPH,
-  DISPLAY_MODE_TEXT
+  DISPLAY_MODE_TEXT,
+  DISPLAY_MODE_GRAPH
 };
 
 //------------------------------------------------STRUCTURES---------------------------------------------------------
@@ -131,6 +134,14 @@ typedef struct group {
   void *path;
   int output_display, display_mode;
   int normalized;
+
+  /// enregistrement des valeurs S, S1 et S2, utilisées pour tracer le graphe. [ligne][colonne][s(0), s1(1) ou s2(2)][numValeur]
+  float ****tabValues;
+  int **indexDernier, **indexAncien;
+
+  /// variables utilisées pour la fréquence moyenne
+  float frequence;
+  int nb_affiche;
 
   sem_t sem_update_neurons;
   int counter;
@@ -213,6 +224,7 @@ void on_check_button_draw_active(GtkWidget *check_button, gpointer data);
 void button_press_event(GtkWidget *pWidget, GdkEventButton *event);
 void key_press_event(GtkWidget *pWidget, GdkEventKey *event);
 void save_preferences(GtkWidget *pWidget, gpointer pData);
+void save_preferences_as(GtkWidget *pWidget, gpointer pData);
 void pandora_load_preferences(GtkWidget *pWidget, gpointer pData);
 void defaultScale(GtkWidget *pWidget, gpointer pData);
 void askForScripts(GtkWidget *pWidget, gpointer pData);
