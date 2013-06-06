@@ -16,7 +16,7 @@ char label_text[LABEL_MAX];
 
 GtkWidget *window; //La fenêtre de l'application Pandora
 GtkWidget *selected_group_dialog;
-GtkWidget *vpaned;
+GtkWidget *vpaned, *scrollbars;
 GtkWidget *hide_see_scales_button; //Boutton permettant de cacher le menu de droite
 GtkWidget *pPane; //Panneau latéral
 GtkWidget *pVBoxScripts; //Panneau des scripts
@@ -63,6 +63,8 @@ char bus_ip[HOST_NAME_MAX];
 
 void group_display_destroy(type_group *group);
 
+void on_search_group(int index);
+
 
 float**** createTab4(int nbRows, int nbColumns)
 {
@@ -85,6 +87,23 @@ float**** createTab4(int nbRows, int nbColumns)
     return tab;
 }
 
+void destroy_tab_4(float **** tab, int nbColumns, int nbRows)
+{
+    int i, j, k;
+    for(i=0; i<nbRows; i++)
+    {
+        for(j=0; j<nbColumns; j++)
+        {
+            for(k=0; k<3; k++)
+                free(tab[i][j][k]);
+
+            free(tab[i][j]);
+        }
+        free(tab[i]);
+    }
+    free(tab);
+}
+
 int** createTab2(int nbRows, int nbColumns)
 {
     int **tab = malloc(nbRows * sizeof(int *));
@@ -97,6 +116,17 @@ int** createTab2(int nbRows, int nbColumns)
     }
     return tab;
 }
+
+void destroy_tab_2(int **tab, int nbRows)
+{
+    int i;
+    for(i=0; i<nbRows; i++)
+    {
+        free(tab[i]);
+    }
+    free(tab);
+}
+
 
 
 void pandora_quit()
@@ -281,30 +311,87 @@ gboolean refresh_scale_change_value(GtkWidget *pWidget, GtkScrollType scroll, gd
   return FALSE;
 }
 
+void validate_gtk_entry_text(GtkEntry *pWidget, gpointer data)
+{
+    (void) pWidget;
+    gtk_dialog_response(GTK_DIALOG(data), GTK_RESPONSE_OK);
+}
+
+void show_or_mask_default_text(GtkEntry *pWidget, gpointer data)
+{
+    (void) data;
+    gtk_entry_set_text(pWidget, "");
+}
+
 void on_search_group_button_active(GtkWidget *pWidget, type_script *script)
 {
-  GtkWidget *search_dialog, *search_entry, *h_box, *name_radio_button_search, *function_radio_button_search;
-  int i, last_occurence = 0, stop = 0;
-  (void) pWidget;
+    int i, index = 0;
+    (void) pWidget;
+
+    for(i=0; i<number_of_scripts && scripts[i] != script; i++);
+
+    index = (i==number_of_scripts ? 0 : i);
+
+    on_search_group(index);
+}
+
+void on_search_group(int index)
+{
+  static int index_script = 0;
+
+  float x = 0.0, y = 0.0;
+  GtkWidget *search_dialog, *search_entry, *h_box, *scripts_h_box, *name_radio_button_search, *function_radio_button_search, *scripts_combo_box, *scripts_label, *search_label, *search_h_box;
+  int i, last_occurence = 0, stop = 0, previous_index = -1;
+  type_script *selected_script = NULL;
+  char previous_research[TAILLE_CHAINE];
+
+  if(number_of_scripts <= 0)
+    return;
+
+  if(index >= 0 && index < number_of_scripts)
+    index_script = index;
+
+  previous_research[0] = '\0';
 
 //On crée une fenêtre de dialogue
   search_dialog = gtk_dialog_new_with_buttons("Recherche d'un groupe", GTK_WINDOW(window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_STOCK_OK, GTK_RESPONSE_OK, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, NULL);
   gtk_window_set_default_size(GTK_WINDOW(search_dialog), 300, 75);
 
-  name_radio_button_search = gtk_radio_button_new_with_label_from_widget(NULL, "par nom");
-  function_radio_button_search = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(name_radio_button_search), "par fonction");
+  name_radio_button_search = gtk_radio_button_new_with_label_from_widget(NULL, "by name");
+  function_radio_button_search = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(name_radio_button_search), "by function");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(name_radio_button_search), TRUE);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(function_radio_button_search), FALSE);
+
 
   h_box = gtk_hbox_new(TRUE, 0);
   gtk_box_pack_start(GTK_BOX(h_box), name_radio_button_search, TRUE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(h_box), function_radio_button_search, TRUE, FALSE, 0);
 
+  scripts_label = gtk_label_new("script : ");
+
+  scripts_combo_box = gtk_combo_box_new_text();
+  for(i=0; i< number_of_scripts; i++)
+    gtk_combo_box_append_text(GTK_COMBO_BOX(scripts_combo_box), scripts[i]->name);
+  gtk_combo_box_set_active(GTK_COMBO_BOX(scripts_combo_box), index_script);
+
+  scripts_h_box = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(scripts_h_box), scripts_label, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(scripts_h_box), scripts_combo_box, TRUE, TRUE, 0);
+
+
+  search_label = gtk_label_new("");
 //On lui ajoute une entrée de saisie de texte
   search_entry = gtk_entry_new();
-  gtk_entry_set_text(GTK_ENTRY(search_entry), "nom/fonction du groupe recherché");
+  gtk_entry_set_text(GTK_ENTRY(search_entry), "");
+  g_signal_connect(G_OBJECT(search_entry), "activate", G_CALLBACK(validate_gtk_entry_text), search_dialog);
+  //g_signal_connect(G_OBJECT(search_entry), "clicked", G_CALLBACK(show_or_mask_default_text), search_dialog);
+  search_h_box = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(search_h_box), search_label, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(search_h_box), search_entry, TRUE, TRUE, 0);
+
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(search_dialog)->vbox), h_box, TRUE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(search_dialog)->vbox), search_entry, TRUE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(search_dialog)->vbox), scripts_h_box, TRUE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(search_dialog)->vbox), search_h_box, TRUE, FALSE, 0);
 
   gtk_widget_show_all(GTK_DIALOG(search_dialog)->vbox);
 
@@ -317,14 +404,25 @@ void on_search_group_button_active(GtkWidget *pWidget, type_script *script)
     {
     //Si la réponse est OK
     case GTK_RESPONSE_OK:
+      index_script = gtk_combo_box_get_active(GTK_COMBO_BOX(scripts_combo_box));
+      selected_script = scripts[gtk_combo_box_get_active(GTK_COMBO_BOX(scripts_combo_box))];
+      if(previous_index != gtk_combo_box_get_active(GTK_COMBO_BOX(scripts_combo_box)))
+      {
+          last_occurence = 0;
+          previous_index = gtk_combo_box_get_active(GTK_COMBO_BOX(scripts_combo_box));
+      }
+
       if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(name_radio_button_search)))
       {
-        for (i = 0; i < script->number_of_groups; i++)
+        last_occurence = 0;
+        for (i = 0; i < selected_script->number_of_groups; i++)
         {
-          if (strcmp(gtk_entry_get_text(GTK_ENTRY(search_entry)), script->groups[i].name) == 0)
+          if (strcmp(gtk_entry_get_text(GTK_ENTRY(search_entry)), selected_script->groups[i].name) == 0)
           {
             //Le groupe correspondant est séléctionné
-            selected_group = &script->groups[i];
+            selected_group = &selected_script->groups[i];
+            architecture_get_group_position(selected_group, &x, &y);
+            architecture_set_view_point(scrollbars, x, y);
             break;
           }
         }
@@ -332,12 +430,23 @@ void on_search_group_button_active(GtkWidget *pWidget, type_script *script)
       }
       else
       {
-        for (i = last_occurence; i < script->number_of_groups; i++)
+        if(strcmp(previous_research, gtk_entry_get_text(GTK_ENTRY(search_entry))))
+          {last_occurence = 0; strcpy(previous_research, gtk_entry_get_text(GTK_ENTRY(search_entry)));}
+
+        for (i = last_occurence; i < selected_script->number_of_groups; i++)
         {
-          if (strcmp(gtk_entry_get_text(GTK_ENTRY(search_entry)), script->groups[i].function) == 0)
+          if (strcmp(gtk_entry_get_text(GTK_ENTRY(search_entry)), selected_script->groups[i].function) == 0)
           {
             //Le groupe correspondant est séléctionné
-            selected_group = &script->groups[i];
+            selected_group = &selected_script->groups[i];
+            // les coordonnées de ce groupe sont récupérées et le groupe est placé au centre de l'affichage.
+            architecture_get_group_position(selected_group, &x, &y);
+            x -= (scrollbars->allocation.width - LARGEUR_GROUPE)/2;
+            if(x < 0.0) x = 0.0;
+            y -= (scrollbars->allocation.height - HAUTEUR_GROUPE)/2;
+            if(y < 0.0) y = 0.0;
+
+            architecture_set_view_point(scrollbars, x, y);
             last_occurence = i + 1;
             break;
           }
@@ -357,6 +466,7 @@ void on_search_group_button_active(GtkWidget *pWidget, type_script *script)
     architecture_display_update(architecture_display, NULL);
   } while (stop != 1);
 
+  index_script = gtk_combo_box_get_active(GTK_COMBO_BOX(scripts_combo_box));
   gtk_widget_destroy(search_dialog);
 }
 
@@ -463,6 +573,9 @@ void key_press_event(GtkWidget *pWidget, GdkEventKey *event)
       architecture_display_update(architecture_display, NULL);
     }
     break;
+
+  case GDK_f : if(event->state & GDK_CONTROL_MASK) on_search_group(-1);
+  break;
 
   default:
     break; //Appui sur une autre touche. On ne fait rien.
@@ -622,7 +735,13 @@ void defaultScale(GtkWidget *pWidget, gpointer pData)
   gtk_range_set_value(GTK_RANGE(zxScale), XGAP_DEFAULT);
   gtk_range_set_value(GTK_RANGE(zyScale), YGAP_DEFAULT);
 
-  architecture_display_update(architecture_display, NULL); //On redessine la grille avec la nouvelle échelle
+  graphic.x_scale = XSCALE_DEFAULT;
+  graphic.y_scale = YSCALE_DEFAULT;
+  graphic.zx_scale = XGAP_DEFAULT;
+  graphic.zy_scale = YGAP_DEFAULT;
+
+  architecture_display_update(architecture_display, NULL); //On redessine la grille avec la nouvelle échelle.
+  refresh_scale_change_value(NULL, GTK_SCROLL_NONE, (gdouble) REFRESHSCALE_DEFAULT, NULL); // modifie la fréquence de rafraichissement.
 }
 
 void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer data)
@@ -634,6 +753,7 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
 void on_group_display_mode_combobox_changed(GtkComboBox *combo_box, gpointer data)
 {
   type_group *group = data;
+  group->previous_display_mode = group->display_mode;
   group->display_mode = gtk_combo_box_get_active(combo_box);
 }
 
@@ -713,15 +833,14 @@ int button_press_neurons(GtkWidget *zone2D, GdkEventButton *event, type_group *g
 
 void group_display_new(type_group *group, float pos_x, float pos_y)
 {
-  GtkWidget *button_frame, *hbox;
+  GtkWidget *hbox;
+  int i, j;
 
   if (group->widget != NULL) return;
 
   group->label = gtk_label_new("0 Hz");
 
   //initialisation
-  group->frequence = 0.0;
-  group->nb_affiche = 0;
   if(group->tabValues == NULL)
   {
     group->tabValues = createTab4(group->rows, group->columns);
@@ -730,14 +849,18 @@ void group_display_new(type_group *group, float pos_x, float pos_y)
   }
   else
   {
-    int i, j;
     for(i=0; i<group->rows; i++)
         for(j=0; j<group->columns; j++)
             group->indexAncien[i][j] = group->indexDernier[i][j] = -1;
   }
+  group->previous_display_mode = DISPLAY_MODE_INTENSITY;
+  group->frequence_index_last = -1;
+  for(i=0; i<FREQUENCE_MAX_VALUES_NUMBER; i++)
+    group->frequence_values[i] = -1;
 
 //Création de la petite fenêtre
   group->widget = gtk_frame_new("");
+  gtk_widget_set_double_buffered(group->widget, TRUE);
   hbox = gtk_hbox_new(FALSE, 0);
 
   gtk_layout_put(GTK_LAYOUT(zone_neurons), group->widget, pos_x, pos_y);
@@ -781,6 +904,7 @@ void group_display_destroy(type_group *group)
       break;
     }
   }
+  gtk_label_set_text(GTK_LABEL(group->label), "");
   gtk_widget_destroy(group->widget);
   group->widget = NULL;
 }
@@ -791,7 +915,6 @@ void script_widget_update(type_script *script)
   sprintf(label_text, "<span foreground=\"%s\"><b>%s</b></span>", tcolor(script), script->name);
   gtk_label_set_markup(GTK_LABEL(script->label), label_text);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(script->z_spinnner), script->z);
-
 }
 
 void script_update_positions(type_script *script)
@@ -905,6 +1028,12 @@ void script_destroy(type_script *script)
     if (group->script == script)
     {
       gtk_widget_destroy(groups_to_display[i]->widget);
+      destroy_tab_2(group->indexAncien, group->rows);
+      group->indexAncien = NULL;
+      destroy_tab_2(group->indexDernier, group->rows);
+      group->indexDernier = NULL;
+      destroy_tab_4(group->tabValues, group->columns, group->rows);
+      group->tabValues = NULL;
       number_of_groups_to_display--;
       groups_to_display[i] = groups_to_display[number_of_groups_to_display];
       i--;
@@ -1220,7 +1349,7 @@ void fatal_error(const char *name_of_file, const char *name_of_function, int num
   vsnprintf(total_message, MESSAGE_MAX, message, arguments);
   va_end(arguments);
 
-  dialog = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE, "%s \t %s \t %i :\n \t Error: %s \n", name_of_file, name_of_function, numero_of_line, total_message);
+  dialog = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_MODAL|GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE, "%s \t %s \t %i :\n \t Error: %s \n", name_of_file, name_of_function, numero_of_line, total_message);
   gtk_dialog_run(GTK_DIALOG(dialog));
   gtk_widget_destroy(dialog);
   exit(EXIT_FAILURE);
@@ -1230,13 +1359,15 @@ void pandora_window_new()
 {
 
   char path[PATH_MAX];
-  GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *refreshSetting, *refreshLabel, *xSetting, *xLabel;
-  GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *scrollbars, *zySetting, *zyLabel;
+  GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu;
+  GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *zySetting, *zyLabel;
   GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault;
   GtkWidget *pFrameScripts, *scrollbars2;
+  GtkWidget *load, *save, *saveAs, *quit, *itemFile;
 //La fenêtre principale
 
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_widget_set_double_buffered(window, TRUE);
   /* Positionne la GTK_WINDOW "pWindow" au centre de l'écran */
   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   /* Taille de la fenêtre */
@@ -1251,28 +1382,28 @@ void pandora_window_new()
 
 
 
-  GtkWidget* menuBar = gtk_menu_bar_new();
+  menuBar = gtk_menu_bar_new();
 
-  GtkWidget* fileMenu = gtk_menu_new();
+  fileMenu = gtk_menu_new();
 
-  GtkWidget* load = gtk_menu_item_new_with_label(g_locale_to_utf8("Load", -1, NULL, NULL, NULL));
+  load = gtk_menu_item_new_with_label(g_locale_to_utf8("Load", -1, NULL, NULL, NULL));
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), load);
   g_signal_connect(G_OBJECT(load), "activate", G_CALLBACK(pandora_load_preferences), NULL);
 
-  GtkWidget* save = gtk_menu_item_new_with_label(g_locale_to_utf8("Save", -1, NULL, NULL, NULL));
+  save = gtk_menu_item_new_with_label(g_locale_to_utf8("Save", -1, NULL, NULL, NULL));
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), save);
   g_signal_connect(G_OBJECT(save), "activate", G_CALLBACK(save_preferences), NULL);
 
-  GtkWidget* saveAs = gtk_menu_item_new_with_label(g_locale_to_utf8("Save as", -1, NULL, NULL, NULL));
+  saveAs = gtk_menu_item_new_with_label(g_locale_to_utf8("Save as", -1, NULL, NULL, NULL));
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), saveAs);
   g_signal_connect(G_OBJECT(saveAs), "activate", G_CALLBACK(save_preferences_as), NULL);
 
-  GtkWidget* quit = gtk_menu_item_new_with_label(g_locale_to_utf8("Quit", -1, NULL, NULL, NULL));
+  quit = gtk_menu_item_new_with_label(g_locale_to_utf8("Quit", -1, NULL, NULL, NULL));
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), quit);
   g_signal_connect(G_OBJECT(quit), "activate", G_CALLBACK(window_close), (GtkWidget*) window);
 
 
-  GtkWidget* itemFile = gtk_menu_item_new_with_label("File");
+  itemFile = gtk_menu_item_new_with_label("File");
   gtk_menu_item_set_submenu(GTK_MENU_ITEM(itemFile), fileMenu);
 
   gtk_menu_append(menuBar, itemFile);
@@ -1367,7 +1498,7 @@ void pandora_window_new()
   boutonLoad = gtk_button_new_with_label("Load");
   gtk_box_pack_start(GTK_BOX(pBoutons), boutonLoad, TRUE, TRUE, 0);
   g_signal_connect(G_OBJECT(boutonLoad), "clicked", G_CALLBACK(pandora_load_preferences), NULL);
-  boutonDefault = gtk_button_new_with_label("Default");
+  boutonDefault = gtk_button_new_with_label("Default scales");
   gtk_box_pack_start(GTK_BOX(pBoutons), boutonDefault, TRUE, TRUE, 0);
   g_signal_connect(G_OBJECT(boutonDefault), "clicked", G_CALLBACK(defaultScale), NULL);
 

@@ -73,7 +73,10 @@
 #define DIGITS_DEFAULT 4 //Nombre de caractères pour afficher les valeurs d'un neurone
 #define LABEL_MAX 128
 
-#define NB_Max_VALEURS_ENREGISTREES 50
+#define GRAPH_HEIGHT 160
+#define GRAPH_WIDTH 300
+#define NB_Max_VALEURS_ENREGISTREES 300
+#define FREQUENCE_MAX_VALUES_NUMBER 30
 
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 
@@ -88,7 +91,8 @@ enum{
   DISPLAY_MODE_INTENSITY,
   DISPLAY_MODE_BAR_GRAPH,
   DISPLAY_MODE_TEXT,
-  DISPLAY_MODE_GRAPH
+  DISPLAY_MODE_GRAPH,
+  DISPLAY_MODE_BIG_GRAPH
 };
 
 //------------------------------------------------STRUCTURES---------------------------------------------------------
@@ -132,16 +136,17 @@ typedef struct group {
   void *entry_val_min, *entry_val_max;
   void *ext, *dialog;
   void *path;
-  int output_display, display_mode;
+  int output_display, display_mode, previous_display_mode;
   int normalized;
 
   /// enregistrement des valeurs S, S1 et S2, utilisées pour tracer le graphe. [ligne][colonne][s(0), s1(1) ou s2(2)][numValeur]
   float ****tabValues;
   int **indexDernier, **indexAncien;
 
+
   /// variables utilisées pour la fréquence moyenne
-  float frequence;
-  int nb_affiche;
+  float frequence_values[FREQUENCE_MAX_VALUES_NUMBER];
+  int frequence_index_last, frequence_index_older;
 
   sem_t sem_update_neurons;
   int counter;
@@ -252,6 +257,7 @@ void clearColor(cairo_t *cr, type_group g);
 void group_new_display(type_group *g, float pos_x, float pos_y);
 gfloat niveauDeGris(float val, float valMin, float valMax);
 void resizeNeurons();
+int get_width_height(int nb_row_column);
 void pandora_file_save(char *filename);
 void pandora_file_load(char *filename);
 
