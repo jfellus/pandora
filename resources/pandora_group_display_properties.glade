@@ -189,6 +189,10 @@
         <col id="0">2</col>
         <col id="1" translatable="yes">s2</col>
       </row>
+      <row>
+        <col id="0">3</col>
+        <col id="1" translatable="yes">ext</col>
+      </row>
     </data>
   </object>
   <object class="GtkListStore" id="liststore_display">

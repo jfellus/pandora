@@ -48,6 +48,7 @@ void server_for_promethes()
 
 void enet_manager(ENetHost *server)
 {
+  static int first_call = 1;
   char ip[HOST_NAME_MAX];
   int running = 1;
   int i;
@@ -69,12 +70,14 @@ void enet_manager(ENetHost *server)
   enet_uint8 *current_data;
 
   size_t name_size, groups_size, links_size;
-  type_script *script;
+  type_script *script = NULL;
   type_group *group, *input_group;
   type_neurone *neurons;
 
+
   while (running)
   {
+  first_call++;
     /* Wait up to 2000 milliseconds for an event. */
     while (enet_host_service(server, &event, 2000) > 0)
     {
@@ -151,6 +154,7 @@ void enet_manager(ENetHost *server)
             group->tabValues = NULL;
             group->indexAncien = NULL;
             group->indexDernier = NULL;
+            group->afficher = NULL;
           }
 
           current_data=&current_data[groups_size];
@@ -245,6 +249,11 @@ void enet_manager(ENetHost *server)
           }
           script_update_display(script);
 
+          if((first_call<3) && load_temporary_save == TRUE && (access("./pandora.pandora", R_OK) == 0))
+            pandora_file_load_script("./pandora.pandora", script);
+          else if((first_call<3) && (access(preferences_filename, R_OK) == 0))
+            pandora_file_load_script(preferences_filename, script);
+            script_caracteristics(script, APPLY_SCRIPT_GROUPS_CARACTERISTICS);
           break;
 
         case ENET_UPDATE_NEURON_CHANNEL:
@@ -262,7 +271,8 @@ void enet_manager(ENetHost *server)
           break;
 
         case ENET_UPDATE_EXT_CHANNEL:
-          group_id = *current_data;
+        	printf("images reçues");
+          group_id = *((int*)current_data);
           current_data = &current_data[sizeof(int)];
 
           group = &script->groups[group_id];
@@ -270,8 +280,9 @@ void enet_manager(ENetHost *server)
           if (group->ext == NULL) /*Th first time we allocate the data to receive images */
           {
             prom_images = ALLOCATION(prom_images_struct);
-            memcpy(prom_images, &current_data, sizeof(prom_images_struct));
+            memcpy(prom_images, current_data, sizeof(prom_images_struct));
             image_size = prom_images->sx * prom_images->sy * prom_images->nb_band * sizeof(unsigned char);
+            printf("\n     taille : %lu --- %u\n", image_size, prom_images->sy);
             for (i = 0; (unsigned int) i < prom_images->image_number; i++)
             {
               prom_images->images_table[i] = MANY_ALLOCATIONS(image_size, unsigned char);
@@ -281,7 +292,7 @@ void enet_manager(ENetHost *server)
           else
           {
             prom_images = (prom_images_struct*) group->ext;
-            image_size = prom_images->sx * prom_images->sy * prom_images->nb_band * sizeof(unsigned char);
+            image_size = ((size_t)prom_images->sx * prom_images->sy * prom_images->nb_band) * sizeof(unsigned char);
           }
           current_data = &current_data[sizeof(prom_images_struct)];
 
@@ -292,6 +303,7 @@ void enet_manager(ENetHost *server)
           }
 
           /* Clean up the packet now that we're done using it. */
+          group->counter++;
           enet_packet_destroy(event.packet);
           break;
         }

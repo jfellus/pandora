@@ -12,9 +12,13 @@
 #include "graphic.h"
 #include "basic_tools.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 char label_text[LABEL_MAX];
 
-GtkWidget *window; //La fenêtre de l'application Pandora
+GtkWidget *window = NULL; //La fenêtre de l'application Pandora
 GtkWidget *selected_group_dialog;
 GtkWidget *vpaned, *scrollbars;
 GtkWidget *hide_see_scales_button; //Boutton permettant de cacher le menu de droite
@@ -44,7 +48,6 @@ GtkWidget *neurons_frame, *zone_neurons; //Panneau des neurones
 int nbColonnesTotal = 0; //Nombre total de colonnes de neurones dans les fenêtres du bandeau du bas
 int nbLignesMax = 0; //Nombre maximal de lignes de neurones à afficher dans l'une des fenêtres du bandeau du bas
 
-char preferences_filename[PATH_MAX]; //fichier de préférences (*.jap)
 
 int move_neurons_old_x, move_neurons_old_y, move_neurons_start = 0;
 type_group *move_neurons_group = NULL; //Pour bouger un frame_neuron
@@ -61,9 +64,10 @@ int number_of_groups_to_display = 0;
 char bus_id[BUS_ID_MAX];
 char bus_ip[HOST_NAME_MAX];
 
-void group_display_destroy(type_group *group);
 
 void on_search_group(int index);
+void group_display_new(type_group *group, float pos_x, float pos_y);
+void group_display_destroy(type_group *group);
 
 
 float**** createTab4(int nbRows, int nbColumns)
@@ -80,7 +84,7 @@ float**** createTab4(int nbRows, int nbColumns)
             {
                 tab[i][j][k] = malloc(NB_Max_VALEURS_ENREGISTREES * sizeof(float));
                 for(l=0; l<NB_Max_VALEURS_ENREGISTREES; l++)
-                    tab[i][j][k][l] = 0.0;
+                    tab[i][j][k][l] = 0.0;// initialisation du tableau multi-dimensionnel.
             }
         }
     }
@@ -104,7 +108,7 @@ void destroy_tab_4(float **** tab, int nbColumns, int nbRows)
     free(tab);
 }
 
-int** createTab2(int nbRows, int nbColumns)
+int** createTab2(int nbRows, int nbColumns, int init_value)
 {
     int **tab = malloc(nbRows * sizeof(int *));
     int i, j;
@@ -112,7 +116,7 @@ int** createTab2(int nbRows, int nbColumns)
     {
         tab[i] = malloc(nbColumns * sizeof(int));
         for(j=0; j<nbColumns; j++)
-            tab[i][j] = -1;
+            tab[i][j] = init_value;
     }
     return tab;
 }
@@ -134,6 +138,7 @@ void pandora_quit()
   pandora_bus_send_message(bus_id, "pandora(%d,0)", PANDORA_STOP);
   enet_deinitialize();
   gtk_main_quit();
+  gtk_widget_destroy(window);
 }
 
 void on_signal_interupt(int signal)
@@ -153,6 +158,7 @@ void on_signal_interupt(int signal)
   }
 }
 
+// retour la largeur (resp. la hauteur) de la zone d'affichage d'un groupe en fonction de son nombre de colonnes (resp. de lignes).
 int get_width_height(int nb_row_column)
 {
   if (nb_row_column == 1) return 100;
@@ -259,12 +265,15 @@ void window_title_update()
  *
  * @return EXIT_SUCCESS
  */
-void window_close(GtkWidget *pWidget, gpointer pData) //Fonction de fermeture de Pandora
+gboolean window_close(GtkWidget *pWidget, GdkEvent *event, gpointer pData) //Fonction de fermeture de Pandora
 {
   (void) pWidget;
+  (void) event;
   (void) pData;
 
-  exit(EXIT_SUCCESS);
+  pandora_file_save("./pandora.pandora"); // enregistrement de l'état actuel. cet état sera appliqué au prochain démarrage de pandora.
+  gtk_main_quit();
+  return FALSE;
 }
 
 /**
@@ -275,11 +284,12 @@ void window_close(GtkWidget *pWidget, gpointer pData) //Fonction de fermeture de
 
 void change_plan(GtkWidget *pWidget, gpointer data) //Un script change de plan
 {
-
+  int i;
   type_script *script = data;
   script->z = (int) gtk_spin_button_get_value(GTK_SPIN_BUTTON(pWidget));
 
-  script_update_positions(script);
+  for(i=0; i<number_of_scripts; i++)
+	  script_update_positions(scripts[i]);
 
   architecture_display_update(architecture_display, NULL); //On redessine avec la nouvelle valeur de z
 }
@@ -323,6 +333,125 @@ void show_or_mask_default_text(GtkEntry *pWidget, gpointer data)
     gtk_entry_set_text(pWidget, "");
 }
 
+// zoom avant sur la zone "architecture_display".
+void zoom_in()
+{
+    int i, j, x_rel, y_rel;
+    float x, y, previous_xscale = graphic.x_scale, previous_yscale = graphic.y_scale;
+
+    gtk_widget_get_pointer(scrollbars, &x_rel, &y_rel); // permet de savoir les coordonnées du pointeur de la souris.
+
+    x = (float) gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value + x_rel; // scrollbars->allocation.width/2;
+    y = (float) gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value + y_rel; //scrollbars->allocation.height/2;
+
+    // calcul des coordonnées du nouveau point pointé par la souris avec les nouvelles échelles.
+
+    for(i=0; (i+1) * (LARGEUR_GROUPE + graphic.x_scale) < x;i++);
+    for(j=0; (j+1) * (HAUTEUR_GROUPE + graphic.y_scale) < y; j++);
+    x -= i * (LARGEUR_GROUPE + previous_xscale);
+    y -= j * (HAUTEUR_GROUPE + previous_yscale);
+
+    graphic.x_scale += ZOOM_GAP;
+    if(graphic.x_scale > XSCALE_MAX)
+        graphic.x_scale = XSCALE_MAX;
+
+    graphic.y_scale += ZOOM_GAP;
+    if(graphic.y_scale > YSCALE_MAX)
+        graphic.y_scale = YSCALE_MAX;
+
+    x = i * (LARGEUR_GROUPE + graphic.x_scale) + x * graphic.x_scale / previous_xscale - x_rel;
+    y = j * (HAUTEUR_GROUPE + graphic.y_scale) + y * graphic.y_scale / previous_yscale - y_rel;
+
+    // application des nouvelles coordonnées du point en haut à gauche de la zone à afficher et propagation du changement de ces valeurs.
+    gtk_range_set_value(GTK_RANGE(xScale), graphic.x_scale);
+    gtk_range_set_value(GTK_RANGE(yScale), graphic.y_scale);
+    architecture_set_view_point(scrollbars, x, y);
+    architecture_display_update(architecture_display, NULL); //On redessine la grille avec la nouvelle échelle.
+}
+
+// zoom arrière sur la zone "architecture_display".
+void zoom_out()
+{
+    int i, j, x_rel, y_rel;
+    float x, y, previous_xscale = graphic.x_scale, previous_yscale = graphic.y_scale;
+
+    gtk_widget_get_pointer(scrollbars, &x_rel, &y_rel);
+
+    x = (float) gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value + x_rel; // scrollbars->allocation.width/2;
+    y = (float) gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value + y_rel; //scrollbars->allocation.height/2;
+
+    for(i=0; (i+1) * (LARGEUR_GROUPE + graphic.x_scale) < x;i++);
+    for(j=0; (j+1) * (HAUTEUR_GROUPE + graphic.y_scale) < y; j++);
+    x -= i * (LARGEUR_GROUPE + previous_xscale);
+    y -= j * (HAUTEUR_GROUPE + previous_yscale);
+
+    graphic.x_scale -= ZOOM_GAP;
+    if(graphic.x_scale < XSCALE_MIN)
+        graphic.x_scale = XSCALE_MIN;
+
+    graphic.y_scale -= ZOOM_GAP;
+    if(graphic.y_scale < YSCALE_MIN)
+        graphic.y_scale = YSCALE_MIN;
+
+
+
+    x = i * (LARGEUR_GROUPE + graphic.x_scale) + x * graphic.x_scale / previous_xscale - x_rel; // scrollbars->allocation.width/2;
+    y = j * (HAUTEUR_GROUPE + graphic.y_scale) + y * graphic.y_scale / previous_yscale - y_rel; //scrollbars->allocation.height/2;scrollbars->allocation.height/2;
+
+    gtk_range_set_value(GTK_RANGE(xScale), graphic.x_scale);
+    gtk_range_set_value(GTK_RANGE(yScale), graphic.y_scale);
+    architecture_set_view_point(scrollbars, x, y);
+    architecture_display_update(architecture_display, NULL); //On redessine la grille avec la nouvelle échelle.
+}
+
+void architecture_display_button_pressed(GtkWidget *pWidget, GdkEventButton *event, gpointer pdata)
+{
+    (void) pWidget;
+    (void) pdata;
+
+    if(event->button == 2)   // boutton molette
+        architecture_display_dragging_currently = TRUE;
+
+    architecture_display_cursor_x = (float) event->x;
+    architecture_display_cursor_y = (float) event->y;
+    new_x = ((float) gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value);
+    new_y = ((float) gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value);
+}
+
+void architecture_display_button_released(GtkWidget *pWidget, GdkEventButton *event, gpointer pdata)
+{
+    (void) pWidget;
+    (void) pdata;
+
+    if(event->button == 2)   // boutton molette
+        architecture_display_dragging_currently = FALSE;
+
+    architecture_display_cursor_x = (float) event->x;
+    architecture_display_cursor_y = (float) event->y;
+}
+
+// permet de déplacer la zone à afficher s'active en appuyant sur la molette.
+void architecture_display_drag_motion(GtkWidget *pWidget, GdkEventMotion *event, gpointer pdata)
+{
+    (void) pWidget;
+    (void) pdata;
+
+    if(architecture_display_dragging_currently == FALSE)
+      return;
+
+    new_x = new_x - ((float) event->x) + architecture_display_cursor_x;
+    if(new_x < 0) new_x = 0.0;
+    else if(new_x > 10000 - scrollbars->allocation.width) new_x = (float) 10000 - scrollbars->allocation.width;
+    new_y = new_y - ((float) event->y) + architecture_display_cursor_y;
+    if(new_y < 0) new_y = 0.0;
+    else if(new_y > 10000 - scrollbars->allocation.height) new_y = (float) 10000 - scrollbars->allocation.height;
+
+    architecture_set_view_point(scrollbars, new_x, new_y);
+    architecture_display_cursor_x = (float) event->x;
+    architecture_display_cursor_y = (float) event->y;
+}
+
+// ouvre la fenetre de recherche en sélectionnant par défaut le script passé en paramètre.
 void on_search_group_button_active(GtkWidget *pWidget, type_script *script)
 {
     int i, index = 0;
@@ -335,8 +464,10 @@ void on_search_group_button_active(GtkWidget *pWidget, type_script *script)
     on_search_group(index);
 }
 
+//
 void on_search_group(int index)
 {
+  static type_script *script = NULL;
   static int index_script = 0;
 
   float x = 0.0, y = 0.0;
@@ -350,6 +481,10 @@ void on_search_group(int index)
 
   if(index >= 0 && index < number_of_scripts)
     index_script = index;
+  else
+    for(i=0; i < number_of_scripts; i++)
+      if(scripts[i] == script)
+        index_script = i;
 
   previous_research[0] = '\0';
 
@@ -422,6 +557,10 @@ void on_search_group(int index)
             //Le groupe correspondant est séléctionné
             selected_group = &selected_script->groups[i];
             architecture_get_group_position(selected_group, &x, &y);
+            x -= (scrollbars->allocation.width - LARGEUR_GROUPE)/2;
+            if(x < 0.0) x = 0.0;
+            y -= (scrollbars->allocation.height - HAUTEUR_GROUPE)/2;
+            if(y < 0.0) y = 0.0;
             architecture_set_view_point(scrollbars, x, y);
             break;
           }
@@ -518,7 +657,35 @@ void button_press_event(GtkWidget *pWidget, GdkEventButton *event)
     open_neurons_start = 1;
     move_neurons_start = 0;
     open_group = selected_group;
+
+    if(open_group != NULL)
+      group_display_new(open_group, 25, 25);
   }
+  else
+      move_neurons_start = open_neurons_start = 0;
+}
+
+// permet la gestion du zoom avec CTRL + molette. Molette vers le haut pour le zoom avant et vers le bas pour le zoom arrière.
+gboolean architecture_display_scroll_event(GtkWidget *pWidget, GdkEventScroll *event, gpointer pdata)
+{
+    (void) pWidget;
+    (void) pdata;
+
+    if(event->device->source != GDK_SOURCE_MOUSE)
+      return FALSE;
+
+    if(event->direction == GDK_SCROLL_UP && event->state & GDK_CONTROL_MASK)
+    {
+        zoom_in();
+        return TRUE;
+    }
+
+    if(event->direction == GDK_SCROLL_DOWN && event->state & GDK_CONTROL_MASK)
+    {
+        zoom_out();
+        return TRUE;
+    }
+    return FALSE;
 }
 
 /**
@@ -554,7 +721,6 @@ void key_press_event(GtkWidget *pWidget, GdkEventKey *event)
       architecture_display_update(architecture_display, NULL);
     }
     break;
-
   case GDK_Down: //Touche "Page down", on augmente le y du groupe sélectionné pour le faire descendre
     if (selected_group != NULL)
     {
@@ -576,7 +742,16 @@ void key_press_event(GtkWidget *pWidget, GdkEventKey *event)
 
   case GDK_f : if(event->state & GDK_CONTROL_MASK) on_search_group(-1);
   break;
-
+  case GDK_s : if(event->state & GDK_CONTROL_MASK) save_preferences(NULL, NULL);
+  break;
+  case GDK_S : if(event->state & GDK_CONTROL_MASK) save_preferences_as(NULL, NULL);
+  break;
+  case GDK_KP_Add :
+  case GDK_plus : if(event->state & GDK_CONTROL_MASK) zoom_in();
+  break;
+  case GDK_minus :
+  case GDK_KP_Subtract : if(event->state & GDK_CONTROL_MASK) zoom_out();
+  break;
   default:
     break; //Appui sur une autre touche. On ne fait rien.
   }
@@ -629,7 +804,7 @@ void save_preferences(GtkWidget *pWidget, gpointer pData)
   }
   else
   {
-    GtkWidget *confirmation = gtk_message_dialog_new(GTK_WINDOW(pData), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO, "File \"%s\" already exists.\nDo you really want to save?", preferences_filename);
+    GtkWidget *confirmation = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO, "File \"%s\" already exists.\nDo you really want to save?", preferences_filename);
     switch(gtk_dialog_run(GTK_DIALOG(confirmation)))
     {
         case GTK_RESPONSE_YES :
@@ -747,6 +922,18 @@ void defaultScale(GtkWidget *pWidget, gpointer pData)
 void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer data)
 {
   type_group *group = data;
+  int new_output = gtk_combo_box_get_active(combo_box);
+  if(new_output == 3 && group->output_display != 3)
+  {
+	  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name);
+	  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name);
+  }
+  else if(new_output != 3 && group->output_display == 3)
+  {
+
+	  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, group->script->name);
+	  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name);
+  }
   group->output_display = gtk_combo_box_get_active(combo_box);
 }
 
@@ -831,32 +1018,48 @@ int button_press_neurons(GtkWidget *zone2D, GdkEventButton *event, type_group *g
   return TRUE;
 }
 
+
+void graph_stop_or_not(GtkWidget *pWidget, gpointer pData)
+{
+    (void) pData;
+    stop = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pWidget));
+    if(stop == TRUE)
+        gtk_button_set_label(GTK_BUTTON(pWidget), "Record graphs");
+    else
+        gtk_button_set_label(GTK_BUTTON(pWidget), "Stop graphs");
+}
+
+void on_group_display_show_or_mask_neuron(GtkWidget *pWidget, gpointer pData)
+{
+    int *data = pData;
+    *data = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pWidget));
+}
+
 void group_display_new(type_group *group, float pos_x, float pos_y)
 {
-  GtkWidget *hbox;
+  GtkWidget *hbox, *principal_hbox, *button, *button_label;
   int i, j;
-
+  float r, g, b;
+  char p_legende_texte[100];
   if (group->widget != NULL) return;
 
-  group->label = gtk_label_new("0 Hz");
+  group->label = gtk_label_new("");
 
   //initialisation
-  if(group->tabValues == NULL)
+  if(group->rows < 10 && group->columns < 10)
   {
     group->tabValues = createTab4(group->rows, group->columns);
-    group->indexAncien = createTab2(group->rows, group->columns);
-    group->indexDernier = createTab2(group->rows, group->columns);
+    group->indexAncien = createTab2(group->rows, group->columns, -1);
+    group->indexDernier = createTab2(group->rows, group->columns, -1);
+    if(group->rows * group->columns <= BIG_GRAPH_MAX_NEURONS_NUMBER)
+        group->afficher = createTab2(group->rows, group->columns, TRUE);
   }
-  else
-  {
-    for(i=0; i<group->rows; i++)
-        for(j=0; j<group->columns; j++)
-            group->indexAncien[i][j] = group->indexDernier[i][j] = -1;
-  }
+
   group->previous_display_mode = DISPLAY_MODE_INTENSITY;
   group->frequence_index_last = -1;
   for(i=0; i<FREQUENCE_MAX_VALUES_NUMBER; i++)
     group->frequence_values[i] = -1;
+
 
 //Création de la petite fenêtre
   group->widget = gtk_frame_new("");
@@ -865,15 +1068,38 @@ void group_display_new(type_group *group, float pos_x, float pos_y)
 
   gtk_layout_put(GTK_LAYOUT(zone_neurons), group->widget, pos_x, pos_y);
 
-  //button_frame = gtk_toggle_button_new_with_label(group->name);
-
-  //gtk_box_pack_start(GTK_BOX(hbox), button_frame, TRUE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(hbox), group->label, TRUE, FALSE, 0);
 
   gtk_frame_set_label_widget(GTK_FRAME(group->widget), hbox);
 
+  group->button_vbox = gtk_vbox_new(TRUE, 0);
+
+  if(group->rows * group->columns <= BIG_GRAPH_MAX_NEURONS_NUMBER)
+    for (j = 0; j < group->rows; j++)
+    {
+        for (i = 0; i < group->columns; i++)
+        {
+            graph_get_line_color(j*group->columns + i, &r, &g, &b);
+            sprintf(p_legende_texte, "<b><span foreground=\"#%02X%02X%02X\"> %dx%d</span></b>\n", (int) (r*255), (int) (g*255), (int) (b*255), i, j);
+            button_label = gtk_label_new("");
+            gtk_label_set_markup(GTK_LABEL(button_label), p_legende_texte);
+            button = gtk_check_button_new();
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), group->afficher[j][i]);
+            gtk_container_add(GTK_CONTAINER(button), button_label);
+            gtk_widget_set_size_request(button, BUTTON_WIDTH, BUTTON_HEIGHT);
+            gtk_box_pack_start(GTK_BOX(group->button_vbox), button, TRUE, FALSE, 0);
+            g_signal_connect(GTK_OBJECT(button), "toggled", G_CALLBACK(on_group_display_show_or_mask_neuron), &(group->afficher[j][i]));
+        }
+    }
+
   group->drawing_area = gtk_drawing_area_new();
-  gtk_container_add(GTK_CONTAINER(group->widget), group->drawing_area);
+  gtk_widget_set_double_buffered(group->drawing_area, TRUE);
+  principal_hbox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(principal_hbox), group->drawing_area, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(principal_hbox), group->button_vbox , FALSE, FALSE, 0);
+
+
+  gtk_container_add(GTK_CONTAINER(group->widget), principal_hbox);
   gtk_widget_add_events(group->drawing_area, GDK_BUTTON_PRESS_MASK);
   g_signal_connect(GTK_OBJECT(group->drawing_area), "button_press_event", (GtkSignalFunc) button_press_neurons, group);
 
@@ -881,10 +1107,14 @@ void group_display_new(type_group *group, float pos_x, float pos_y)
   group->counter = 0;
   group->timer = g_timer_new();
 
+  gtk_widget_show_all(group->widget);
+  gtk_widget_hide_all(group->button_vbox);
+  if(group->output_display == 3)
+	  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name);
+  else
+	  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name);
   groups_to_display[number_of_groups_to_display] = group;
   number_of_groups_to_display++;
-  gtk_widget_show_all(group->widget);
-  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name);
 }
 
 void group_display_destroy(type_group *group)
@@ -892,7 +1122,10 @@ void group_display_destroy(type_group *group)
 
   int i;
 
-  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name);
+  if(group->output_display == 3)
+	  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, group->script->name);
+  else
+	  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name);
 
   for (i = 0; i < number_of_groups_to_display; i++)
   {
@@ -904,6 +1137,16 @@ void group_display_destroy(type_group *group)
       break;
     }
   }
+  if(group->indexAncien != NULL)
+	  destroy_tab_2(group->indexAncien, group->rows);
+  group->indexAncien = NULL;
+  if(group->indexDernier != NULL)
+	  destroy_tab_2(group->indexDernier, group->rows);
+  group->indexDernier = NULL;
+  if(group->tabValues != NULL)
+	  destroy_tab_4(group->tabValues, group->columns, group->rows);
+  group->tabValues = NULL;
+
   gtk_label_set_text(GTK_LABEL(group->label), "");
   gtk_widget_destroy(group->widget);
   group->widget = NULL;
@@ -946,6 +1189,8 @@ void script_update_positions(type_script *script)
         if (y_min < other_script->y_offset + other_script->height) y_min = other_script->y_offset + other_script->height;
       }
     }
+    else
+    	break;
   }
 
   script->y_offset = y_min + 1;
@@ -1011,10 +1256,148 @@ void drag_drop_neuron_frame(GtkWidget *zone_neurons, GdkEventButton *event, gpoi
   }
   else if (open_group != NULL && open_neurons_start == 1)
   {
-    group_display_new(open_group, ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
+    gtk_layout_move(GTK_LAYOUT(zone_neurons), open_group->widget, ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
+    //group_display_new(open_group, ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
     open_neurons_start = 0;
 
   }
+}
+
+void neurons_frame_drag_group(GtkWidget *pWidget, GdkEventButton *event, gpointer pdata)
+{
+    (void) pWidget;
+    (void) pdata;
+
+    if (move_neurons_group != NULL && move_neurons_start == 1)
+    {
+        gtk_layout_move(GTK_LAYOUT(zone_neurons), move_neurons_group->widget, ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
+    }
+    else if (open_group != NULL && open_neurons_start == 1)
+    {
+        gtk_layout_move(GTK_LAYOUT(zone_neurons), open_group->widget, ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
+    }
+}
+
+gboolean script_caracteristics(type_script *script, int action)
+{
+    static type_script_display_save *saves[NB_SCRIPTS_MAX];
+    static int number_of_saves = 0;
+    static int wait = 0;
+
+    type_group *group;
+    int i, j, save_id=0, number_of_group_displayed = 0;
+    type_script_display_save *save = NULL;
+
+    /// return FALSE;// permet d'inhiber la fonction.
+
+    if(action < 3)
+        printf("\n                   debut de la fonction script_caracteristics\n");
+
+    if(action == UNLOCK_SCRIPT_CARACTERISTICS_FUNCTION)
+    {
+        wait = 0;
+        return TRUE;
+    }
+
+    while(wait){for(i=0; i < 200; i++);}
+    wait = 1;
+
+    if(action == LOCK_SCRIPT_CARACTERISTICS_FUNCTION)
+       {return TRUE;}
+
+    printf("\n                   suite 1 de la fonction script_caracteristics\n");
+
+    if(script == NULL)
+        {wait = 0; printf("\n            aucune sauvegarde trouvée   -   fin de la fonction script_caracteristics\n"); return FALSE;}
+
+    if(action == APPLY_SCRIPT_GROUPS_CARACTERISTICS)
+    {
+    printf("\n                   appliquer caracs de la fonction script_caracteristics\n");
+        for(i=0; i<number_of_saves; i++)
+            if(strcmp(saves[i]->name, script->name) == 0)
+                {save = saves[i]; save_id = i;}
+        if(save == NULL)
+            {wait = 0; printf("\n                fin de la fonction script_caracteristics\n"); return FALSE;}
+
+        group = script->groups;
+        number_of_group_displayed = script->number_of_groups;
+        for(i=0; i < number_of_group_displayed; i++)
+            for(j=0; j < save->number_of_groups; j++)
+                if(strcmp(group[i].name, save->groups[j].name) == 0)
+                {
+                    printf("\n disposition du groupe \"%s\" %d     ", group[i].name, i);
+                    group[i].display_mode = save->groups[j].display_mode;
+                    group[i].normalized = save->groups[j].normalized;
+                    group[i].output_display = save->groups[j].output_display;
+                    group[i].val_min = save->groups[j].val_min;
+                    group[i].val_max = save->groups[j].val_max;
+                    gdk_threads_enter();
+                    group_display_new(&(group[i]), save->groups[j].x, save->groups[j].y);
+                    gdk_threads_leave();
+                    printf("-     réussie \n");
+                }
+        number_of_saves--;
+        free(save->groups);
+        free(save);
+        if(number_of_saves > 0)
+            saves[save_id] = saves[number_of_saves];
+
+        wait = 0;
+        printf("\n                fin de la fonction script_caracteristics\n");
+        return TRUE;
+    }
+    else if(action == SAVE_SCRIPT_GROUPS_CARACTERISTICS && number_of_saves < NB_SCRIPTS_MAX)
+    {
+        printf("\n                   sauver caracs de la fonction script_caracteristics\n");
+        for (i = 0; i < number_of_groups_to_display; i++)
+            if (groups_to_display[i]->script == script)
+                number_of_group_displayed++;
+
+        if(number_of_group_displayed == 0)
+            {wait = 0; printf("\n                fin de la fonction script_caracteristics\n"); return TRUE;}
+
+        for(j=0; j < number_of_saves; j++)
+            if(strcmp(saves[j]->name, script->name) == 0)
+                save = saves[j];
+
+        printf("\n                   sauver caracs p2 de la fonction script_caracteristics\n");
+        if(save == NULL)
+        {
+            save = malloc(sizeof(type_script_display_save));
+            saves[number_of_saves] = save;
+            number_of_saves++;
+        }
+        save->groups = malloc(number_of_group_displayed * sizeof(type_group_display_save));
+        save->number_of_groups = number_of_group_displayed;
+        strcpy(save->name, script->name);
+        printf("\n                   sauver caracs p3 de la fonction script_caracteristics\n");
+
+        j=0;
+        for (i = 0; i < number_of_groups_to_display; i++)
+        {
+            group = groups_to_display[i];
+            if (group->script == script)
+            {
+                strcpy(save->groups[j].name, group->name);
+                save->groups[j].display_mode = group->display_mode;
+                save->groups[j].output_display = group->output_display;
+                save->groups[j].val_min = group->val_min;
+                save->groups[j].val_max = group->val_max;
+                save->groups[j].normalized = group->normalized;
+                save->groups[j].x = GTK_WIDGET(group->widget)->allocation.x;
+                save->groups[j].y = GTK_WIDGET(group->widget)->allocation.y;
+                j++;
+            }
+        }
+
+        wait = 0;
+        printf("\n                fin de la fonction script_caracteristics\n");
+        return TRUE;
+    }
+
+    wait = 0;
+    printf("\n        f       fin de la fonction script_caracteristics\n");
+    return FALSE;
 }
 
 void script_destroy(type_script *script)
@@ -1022,18 +1405,25 @@ void script_destroy(type_script *script)
   int i;
   type_group *group;
 
+  script_caracteristics(script, SAVE_SCRIPT_GROUPS_CARACTERISTICS);
+
   for (i = 0; i < number_of_groups_to_display; i++)
   {
     group = groups_to_display[i];
     if (group->script == script)
     {
+      gtk_label_set_text(GTK_LABEL(group->label), "");
       gtk_widget_destroy(groups_to_display[i]->widget);
-      destroy_tab_2(group->indexAncien, group->rows);
+      if(group->indexAncien != NULL)
+    	  destroy_tab_2(group->indexAncien, group->rows);
       group->indexAncien = NULL;
-      destroy_tab_2(group->indexDernier, group->rows);
+      if(group->indexDernier != NULL)
+    	  destroy_tab_2(group->indexDernier, group->rows);
       group->indexDernier = NULL;
-      destroy_tab_4(group->tabValues, group->columns, group->rows);
+      if(group->tabValues != NULL)
+    	  destroy_tab_4(group->tabValues, group->columns, group->rows);
       group->tabValues = NULL;
+
       number_of_groups_to_display--;
       groups_to_display[i] = groups_to_display[number_of_groups_to_display];
       i--;
@@ -1061,6 +1451,7 @@ void script_destroy(type_script *script)
     {
       number_of_net_links--;
       net_links[i] = net_links[number_of_net_links];
+
       i--; /* il faudra tester le lien qui a pris la place */
     }
   }
@@ -1074,10 +1465,21 @@ void script_destroy(type_script *script)
   gtk_widget_destroy(script->widget);
 
   number_of_scripts--;
-  scripts[script->id] = scripts[number_of_scripts];
-  scripts[script->id]->id = script->id;
-  scripts[script->id]->color = script->id % COLOR_MAX;
-  scripts[script->id]->z = script->id;
+  for(i=script->id; i<number_of_scripts; i++)
+  {
+	  scripts[i] = scripts[i+1];
+	  scripts[i]->id = i;
+	  scripts[i]->color = i % COLOR_MAX;
+  }
+  // scripts[script->id]->z = script->id;
+
+  // mise à jour des coordonnées des scripts
+
+  for(i=script->id; i<number_of_scripts; i++)
+  {
+	  script_update_positions(scripts[i]);
+	  script_widget_update(scripts[i]);
+  }
 
   script_widget_update(scripts[script->id]);
   architecture_display_update(architecture_display, NULL);
@@ -1090,10 +1492,12 @@ void script_destroy(type_script *script)
 gboolean neurons_refresh_display()
 {
   int i;
+  script_caracteristics(NULL, LOCK_SCRIPT_CARACTERISTICS_FUNCTION);
   for (i = 0; i < number_of_groups_to_display; i++)
   {
     group_expose_neurons(groups_to_display[i]);
   }
+  script_caracteristics(NULL, UNLOCK_SCRIPT_CARACTERISTICS_FUNCTION);
   return TRUE;
 }
 
@@ -1223,7 +1627,8 @@ const char* whitespace_callback_pandora(mxml_node_t *node, int where)
 
   return (NULL);
 }
-void pandora_file_save(char *filename)
+
+void pandora_file_save(const char *filename)
 {
   int script_id, i, width, height;
   GtkWidget *widget;
@@ -1274,10 +1679,10 @@ void pandora_file_save(char *filename)
     }
   }
 
-  xml_save_file(filename, tree, whitespace_callback_pandora);
+  xml_save_file((char *) filename, tree, whitespace_callback_pandora);
 }
 
-void pandora_file_load(char *filename)
+void pandora_file_load(const char *filename)
 {
   int script_id, group_id;
   Node *tree, *script_node, *group_node, *preferences_node;
@@ -1289,7 +1694,7 @@ void pandora_file_load(char *filename)
     group_display_destroy(groups_to_display[0]);
   }
 
-  tree = xml_load_file(filename);
+  tree = xml_load_file((char *) filename);
 
   preferences_node = xml_get_first_child_with_node_name(tree, "preferences");
   /* On change le bus id s'il n'a pas été mis en paramètre */
@@ -1339,6 +1744,51 @@ void pandora_file_load(char *filename)
   }
 }
 
+void pandora_file_load_script(const char *filename, type_script *script)
+{
+  int group_id;
+  Node *tree, *script_node, *group_node, *preferences_node;
+  type_group *group;
+
+  tree = xml_load_file((char *) filename);
+
+  preferences_node = xml_get_first_child_with_node_name(tree, "preferences");
+  /* On change le bus id s'il n'a pas été mis en paramètre */
+  if (bus_id[0] == 0) strcpy(bus_id, xml_get_string(preferences_node, "bus_id"));
+  if (bus_ip[0] == 0) strcpy(bus_id, xml_get_string(preferences_node, "bus_ip"));
+
+    for (script_node = xml_get_first_child_with_node_name(preferences_node, "script"); script_node; script_node = xml_get_next_homonymous_sibling(script_node))
+    {
+      if (!strcmp(script->name, xml_get_string(script_node, "name")))
+      {
+        script->displayed = xml_get_int(script_node, "visibility");
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(script->checkbox), script->displayed);
+
+        if (xml_get_number_of_childs(script_node) > 0)
+        {
+          for (group_id = 0; group_id < script->number_of_groups; group_id++)
+          {
+            group = &script->groups[group_id];
+            for (group_node = xml_get_first_child_with_node_name(script_node, "group"); group_node; group_node = xml_get_next_homonymous_sibling(group_node))
+            {
+              if (!strcmp(group->name, xml_get_string(group_node, "name")))
+              {
+                group->output_display = xml_get_int(group_node, "output_display");
+                group->display_mode = xml_get_int(group_node, "display_mode");
+                group->val_min = xml_get_float(group_node, "min");
+                group->val_max = xml_get_float(group_node, "max");
+                group->normalized = xml_get_int(group_node, "normalized");
+                group_display_new(group, xml_get_float(group_node, "x"), xml_get_float(group_node, "y"));
+
+              }
+            }
+          }
+        }
+      }
+    }
+
+}
+
 void fatal_error(const char *name_of_file, const char *name_of_function, int numero_of_line, const char *message, ...)
 {
   char total_message[MESSAGE_MAX];
@@ -1348,20 +1798,23 @@ void fatal_error(const char *name_of_file, const char *name_of_function, int num
   va_start(arguments, message);
   vsnprintf(total_message, MESSAGE_MAX, message, arguments);
   va_end(arguments);
-
-  dialog = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_MODAL|GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE, "%s \t %s \t %i :\n \t Error: %s \n", name_of_file, name_of_function, numero_of_line, total_message);
+  printf("\n            erreur !!!!!!!!!!!!!!\n");
+  dialog = gtk_message_dialog_new(GTK_WINDOW(window), (window == NULL ? 0 : GTK_DIALOG_MODAL|GTK_DIALOG_DESTROY_WITH_PARENT), GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s \t %s \t %i :\n \t Error: %s \n", name_of_file, name_of_function, numero_of_line, total_message);
   gtk_dialog_run(GTK_DIALOG(dialog));
-  gtk_widget_destroy(dialog);
+  if(window != NULL)
+  {
+  	  gtk_widget_destroy(window);
+	  gtk_main_quit();
+  }
   exit(EXIT_FAILURE);
 }
 
 void pandora_window_new()
 {
-
   char path[PATH_MAX];
-  GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu;
+  GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons, *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu;
   GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *zySetting, *zyLabel;
-  GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault;
+  GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault, *boutonPause;
   GtkWidget *pFrameScripts, *scrollbars2;
   GtkWidget *load, *save, *saveAs, *quit, *itemFile;
 //La fenêtre principale
@@ -1378,10 +1831,10 @@ void pandora_window_new()
   gtk_window_set_icon_from_file(GTK_WINDOW(window), path, NULL);
 
 //Le signal de fermeture de la fenêtre est connecté à la fenêtre (petite croix)
-  g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(window_close), (GtkWidget*) window);
+  g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(window_close), (GtkWidget*) window);
 
 
-
+// création de la barre de menus.
   menuBar = gtk_menu_bar_new();
 
   fileMenu = gtk_menu_new();
@@ -1418,7 +1871,7 @@ void pandora_window_new()
   g_signal_connect(G_OBJECT(hide_see_scales_button), "toggled", (GtkSignalFunc) on_hide_see_scales_button_active, NULL);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hide_see_scales_button), FALSE);
   gtk_widget_set_size_request(hide_see_scales_button, 150, 30);
-  gtk_box_pack_start(GTK_BOX(v_box_main), menuBar, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(v_box_main), menuBar, FALSE, FALSE, 0); // ajout de la barre de menus.
   gtk_box_pack_start(GTK_BOX(v_box_main), hide_see_scales_button, FALSE, FALSE, 0);
 
   /*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
@@ -1453,7 +1906,7 @@ void pandora_window_new()
   xSetting = gtk_hbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), xSetting, FALSE, TRUE, 0);
   xLabel = gtk_label_new("x scale:");
-  xScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
+  xScale = gtk_hscale_new_with_range(XSCALE_MIN, XSCALE_MAX, 1); //Ce widget est déjà déclaré comme variable globale
   gtk_box_pack_start(GTK_BOX(xSetting), xLabel, TRUE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(xSetting), xScale, TRUE, TRUE, 0);
   gtk_range_set_value(GTK_RANGE(xScale), graphic.x_scale);
@@ -1463,7 +1916,7 @@ void pandora_window_new()
   ySetting = gtk_hbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), ySetting, FALSE, TRUE, 0);
   yLabel = gtk_label_new("y scale:");
-  yScale = gtk_hscale_new_with_range(10, 350, 1); //Ce widget est déjà déclaré comme variable globale
+  yScale = gtk_hscale_new_with_range(YSCALE_MIN, YSCALE_MAX, 1); //Ce widget est déjà déclaré comme variable globale
   gtk_box_pack_start(GTK_BOX(ySetting), yLabel, TRUE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(ySetting), yScale, TRUE, TRUE, 0);
   gtk_range_set_value(GTK_RANGE(yScale), graphic.y_scale);
@@ -1489,6 +1942,18 @@ void pandora_window_new()
   gtk_range_set_value(GTK_RANGE(zyScale), graphic.zy_scale);
   g_signal_connect(GTK_OBJECT(zyScale), "change-value", (GCallback) on_scale_change_value, &graphic.zy_scale);
 
+  hbox_buttons = gtk_hbox_new(TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(pVBoxEchelles), hbox_buttons, FALSE, TRUE, 12);
+
+  boutonPause = gtk_toggle_button_new_with_label("Stop graphs");
+  gtk_box_pack_start(GTK_BOX(hbox_buttons), boutonPause, TRUE, TRUE, 0);
+  g_signal_connect(G_OBJECT(boutonPause), "toggled", G_CALLBACK(graph_stop_or_not), NULL);
+
+  boutonDefault = gtk_button_new_with_label("Default scales");
+  gtk_box_pack_start(GTK_BOX(hbox_buttons), boutonDefault, TRUE, TRUE, 0);
+  g_signal_connect(G_OBJECT(boutonDefault), "clicked", G_CALLBACK(defaultScale), NULL);
+
+
 //3 boutons
   pBoutons = gtk_hbox_new(TRUE, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), pBoutons, FALSE, TRUE, 0);
@@ -1498,9 +1963,6 @@ void pandora_window_new()
   boutonLoad = gtk_button_new_with_label("Load");
   gtk_box_pack_start(GTK_BOX(pBoutons), boutonLoad, TRUE, TRUE, 0);
   g_signal_connect(G_OBJECT(boutonLoad), "clicked", G_CALLBACK(pandora_load_preferences), NULL);
-  boutonDefault = gtk_button_new_with_label("Default scales");
-  gtk_box_pack_start(GTK_BOX(pBoutons), boutonDefault, TRUE, TRUE, 0);
-  g_signal_connect(G_OBJECT(boutonDefault), "clicked", G_CALLBACK(defaultScale), NULL);
 
   check_button_draw_connections = gtk_check_button_new_with_label("draw connections");
   check_button_draw_net_connections = gtk_check_button_new_with_label("draw net connections");
@@ -1530,9 +1992,13 @@ void pandora_window_new()
   architecture_display = gtk_drawing_area_new();
   gtk_drawing_area_size(GTK_DRAWING_AREA(architecture_display), 10000, 10000);
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars), architecture_display);
+  gtk_signal_connect(GTK_OBJECT(architecture_display), "scroll-event", (GtkSignalFunc) architecture_display_scroll_event, NULL);
   gtk_signal_connect(GTK_OBJECT(architecture_display), "expose_event", (GtkSignalFunc) architecture_display_update, NULL);
-  gtk_widget_set_events(architecture_display, GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK); //Détecte quand on appuie OU quand on relache un bouton de la souris alors que le curseur est dans la zone3D
+  gtk_widget_set_events(architecture_display, GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_BUTTON2_MOTION_MASK); //Détecte quand on appuie OU quand on relache un bouton de la souris alors que le curseur est dans la zone3D
   gtk_signal_connect(GTK_OBJECT(architecture_display), "button_press_event", (GtkSignalFunc) button_press_event, NULL);
+  gtk_signal_connect(GTK_OBJECT(architecture_display), "button_press_event", (GtkSignalFunc) architecture_display_button_pressed, NULL);
+  gtk_signal_connect(GTK_OBJECT(architecture_display), "button_release_event", (GtkSignalFunc) architecture_display_button_released, NULL);
+  gtk_signal_connect(GTK_OBJECT(architecture_display), "motion-notify-event", (GtkSignalFunc) architecture_display_drag_motion, NULL);
   gtk_signal_connect(GTK_OBJECT(window), "key_press_event", (GtkSignalFunc) key_press_event, NULL);
 
 //la zone des groupes de neurones
@@ -1544,6 +2010,7 @@ void pandora_window_new()
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars2), zone_neurons);
   gtk_widget_add_events(zone_neurons, GDK_ALL_EVENTS_MASK);
   g_signal_connect(GTK_OBJECT(zone_neurons), "button-release-event", (GtkSignalFunc) drag_drop_neuron_frame, NULL);
+  g_signal_connect(GTK_OBJECT(zone_neurons), "motion-notify-event", (GtkSignalFunc) neurons_frame_drag_group, NULL);
 
   gtk_box_pack_start(GTK_BOX(h_box_main), vpaned, TRUE, TRUE, 0);
 
@@ -1563,7 +2030,10 @@ int main(int argc, char** argv)
 {
   int option;
   struct sigaction action;
+  char chemin[] = "./pandora.pandora";
 
+  stop = FALSE;
+  architecture_display_dragging_currently = FALSE;
   graphic.x_scale = XSCALE_DEFAULT;
   graphic.y_scale = YSCALE_DEFAULT;
   graphic.zx_scale = XGAP_DEFAULT;
@@ -1639,7 +2109,8 @@ int main(int argc, char** argv)
     EXIT_ON_ERROR("You miss bus_ip or bus_id \n\tUsage: %s [-b bus_ip -i bus_id] \n", argv[0]);
   }
 
-  if (access(preferences_filename, R_OK) == 0) pandora_file_load(preferences_filename);
+  if (access(preferences_filename, R_OK) == 0) {pandora_file_load(preferences_filename);   load_temporary_save = FALSE;}
+  else if (access(chemin, R_OK) == 0) {pandora_file_load(chemin); load_temporary_save = TRUE;}
   prom_bus_init(bus_ip);
 
 //Appelle la fonction refresh_display à intervalles réguliers si on est en mode échantillonné ('a' est la deuxième lettre de "Sampled mode")
@@ -1648,7 +2119,5 @@ int main(int argc, char** argv)
   gdk_threads_enter();
   gtk_main(); //Boucle infinie : attente des événements
   gdk_threads_leave();
-
   return EXIT_SUCCESS;
 }
-

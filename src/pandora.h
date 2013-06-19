@@ -67,16 +67,31 @@
 //Échelles par défaut
 #define REFRESHSCALE_DEFAULT 30
 #define XSCALE_DEFAULT 128
+#define XSCALE_MIN 10
+#define XSCALE_MAX 350
 #define YSCALE_DEFAULT 58
+#define YSCALE_MIN 10
+#define YSCALE_MAX 350
 #define XGAP_DEFAULT 32
 #define YGAP_DEFAULT 24
 #define DIGITS_DEFAULT 4 //Nombre de caractères pour afficher les valeurs d'un neurone
 #define LABEL_MAX 128
 
 #define GRAPH_HEIGHT 160
-#define GRAPH_WIDTH 300
+#define GRAPH_WIDTH 330
+#define BUTTON_WIDTH 60
+#define BUTTON_HEIGHT 25
+#define BIG_GRAPH_MAX_NEURONS_NUMBER 8
 #define NB_Max_VALEURS_ENREGISTREES 300
-#define FREQUENCE_MAX_VALUES_NUMBER 30
+#define FREQUENCE_MAX_VALUES_NUMBER 20
+#define ZOOM_GAP 10
+
+#define APPLY_SCRIPT_GROUPS_CARACTERISTICS 1
+#define SAVE_SCRIPT_GROUPS_CARACTERISTICS 2
+#define LOCK_SCRIPT_CARACTERISTICS_FUNCTION 3
+#define UNLOCK_SCRIPT_CARACTERISTICS_FUNCTION 4
+
+
 
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 
@@ -113,6 +128,15 @@ typedef struct coordonnees {
  } neuron;
  */
 
+typedef struct group_display_save
+{
+  char name[SIZE_NO_NAME];
+  float x, y;
+  int output_display, display_mode;
+  float val_min, val_max;
+  int normalized;
+} type_group_display_save;
+
 
 typedef struct group {
   int id;
@@ -142,7 +166,8 @@ typedef struct group {
   /// enregistrement des valeurs S, S1 et S2, utilisées pour tracer le graphe. [ligne][colonne][s(0), s1(1) ou s2(2)][numValeur]
   float ****tabValues;
   int **indexDernier, **indexAncien;
-
+  GtkWidget *button_vbox;
+  int **afficher; // utilisé pour le mode big graph uniquement.
 
   /// variables utilisées pour la fréquence moyenne
   float frequence_values[FREQUENCE_MAX_VALUES_NUMBER];
@@ -153,6 +178,14 @@ typedef struct group {
   GTimer *timer;
   GThread *thread;
 } type_group;
+
+
+typedef struct script_display_save
+{
+  char name[LOGICAL_NAME_MAX];
+  int number_of_groups;
+  type_group_display_save *groups;
+} type_script_display_save;
 
 typedef struct script {
   int id;
@@ -176,11 +209,16 @@ typedef struct script_link {
 
 
 
+gboolean architecture_display_dragging_currently;
+float architecture_display_cursor_x;
+float architecture_display_cursor_y;
+float new_x, new_y;
 
 extern int period;
+gboolean load_temporary_save;
+char preferences_filename[PATH_MAX]; //fichier de préférences (*.jap)
 
-
-
+int stop; // continue l'enregistrement pour le graphe ou non.
 
 extern int number_of_scripts; //Nombre de scripts à afficher
 char scriptsNames[NB_SCRIPTS_MAX][SCRIPT_NAME_MAX]; //Tableau des noms des scripts
@@ -258,8 +296,10 @@ void group_new_display(type_group *g, float pos_x, float pos_y);
 gfloat niveauDeGris(float val, float valMin, float valMax);
 void resizeNeurons();
 int get_width_height(int nb_row_column);
-void pandora_file_save(char *filename);
-void pandora_file_load(char *filename);
+void pandora_file_save(const char *filename);
+void pandora_file_load(const char *filename);
+void pandora_file_load_script(const char *filename, type_script *script);
+gboolean script_caracteristics(type_script *script, int action);
 
 void fatal_error(const char *name_of_file, const char *name_of_function, int numero_of_line, const char *message, ...);
 void pandora_bus_send_message(char *id, const char *format, ...);
