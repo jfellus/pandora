@@ -68,6 +68,7 @@ char bus_ip[HOST_NAME_MAX];
 void on_search_group(int index);
 void group_display_new(type_group *group, float pos_x, float pos_y);
 void group_display_destroy(type_group *group);
+gboolean neurons_refresh_display_without_change_values();
 
 
 float**** createTab4(int nbRows, int nbColumns)
@@ -1794,12 +1795,28 @@ void fatal_error(const char *name_of_file, const char *name_of_function, int num
 
 void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
 {
+	int i;
+	static int id = 0;
+
+
 	(void) data;
 	refresh_mode = gtk_combo_box_get_active(comboBox);
 	if(refresh_mode == REFRESH_MODE_MANUAL)
+	{
+		if(!id) id = g_timeout_add((guint) 50, neurons_refresh_display_without_change_values, NULL);
+		for (i = 0; i < number_of_groups_to_display; i++)
+			pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_STOP : PANDORA_SEND_NEURONS_STOP), groups_to_display[i]->id, groups_to_display[i]->script->name);
+
 		gtk_widget_show_all(GTK_WIDGET(data));
+	}
 	else
+	{
+		 g_source_destroy(g_main_context_find_source_by_id(NULL, id));
+		for (i = 0; i < number_of_groups_to_display; i++)
+			pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name);
+
 		gtk_widget_hide_all(GTK_WIDGET(data));
+	}
 }
 
 void neurons_manual_refresh(GtkWidget *pWidget, gpointer pdata)
@@ -1812,8 +1829,26 @@ void neurons_manual_refresh(GtkWidget *pWidget, gpointer pdata)
 	for (i = 0; i < number_of_groups_to_display; i++)
 	{
 		printf("\n           traitement d'un groupe\n");
-		group_expose_neurons(groups_to_display[i], FALSE);
+		pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_ONE : PANDORA_SEND_NEURONS_ONE), groups_to_display[i]->id, groups_to_display[i]->script->name);
+		//group_expose_neurons(groups_to_display[i], FALSE);
 	}
+}
+
+
+gboolean neurons_refresh_display_without_change_values()
+{
+	int i, current_stop = stop;
+	if(refresh_mode != REFRESH_MODE_MANUAL)
+		return TRUE;
+	pthread_mutex_lock(&mutex_script_caracteristics);
+	stop = TRUE;
+	for (i = 0; i < number_of_groups_to_display; i++)
+	{
+		group_expose_neurons(groups_to_display[i], TRUE);
+	}
+	stop = current_stop;
+	pthread_mutex_unlock(&mutex_script_caracteristics);
+	return TRUE;
 }
 
 void pandora_window_new()
@@ -1905,7 +1940,7 @@ void pandora_window_new()
   refreshModeLabel = gtk_label_new("Refresh mode : ");
   refreshModeComboBox = gtk_combo_box_new_text();
   gtk_combo_box_append_text(GTK_COMBO_BOX(refreshModeComboBox), "Auto");
-  //gtk_combo_box_append_text(GTK_COMBO_BOX(refreshModeComboBox), "Semi-auto");
+  gtk_combo_box_append_text(GTK_COMBO_BOX(refreshModeComboBox), "Semi-auto");
   gtk_combo_box_append_text(GTK_COMBO_BOX(refreshModeComboBox), "Manual");
   gtk_combo_box_set_active(GTK_COMBO_BOX(refreshModeComboBox), REFRESH_MODE_AUTO);
   gtk_box_pack_start(GTK_BOX(refreshModeHBox), refreshModeLabel, TRUE, TRUE, 0);

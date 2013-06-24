@@ -271,10 +271,12 @@ void enet_manager(ENetHost *server)
           memcpy(group->neurons, event.packet->data, sizeof(type_neurone) * number_of_neurons);
           group->counter++;
           enet_packet_destroy(event.packet);
-/*
-          if(refresh_mode == REFRESH_MODE_SEMI_AUTO && group->drawing_area != NULL && group->widget != NULL)
-        	  group_expose_neurons(group, TRUE);
 
+          pthread_mutex_lock(&mutex_script_caracteristics);
+          if((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && group->drawing_area != NULL && group->widget != NULL)
+        	  group_expose_neurons(group, TRUE);
+          pthread_mutex_unlock(&mutex_script_caracteristics);
+/*
           time = g_timer_elapsed(group->timer, NULL);
           g_timer_start(group->timer);
 
@@ -307,7 +309,6 @@ void enet_manager(ENetHost *server)
           break;
 
         case ENET_UPDATE_EXT_CHANNEL:
-        	printf("images reçues");
           group_id = *((int*)current_data);
           current_data = &current_data[sizeof(int)];
 
@@ -318,7 +319,6 @@ void enet_manager(ENetHost *server)
             prom_images = ALLOCATION(prom_images_struct);
             memcpy(prom_images, current_data, sizeof(prom_images_struct));
             image_size = prom_images->sx * prom_images->sy * prom_images->nb_band * sizeof(unsigned char);
-            printf("\n     taille : %lu --- %u\n", image_size, prom_images->sy);
             for (i = 0; (unsigned int) i < prom_images->image_number; i++)
             {
               prom_images->images_table[i] = MANY_ALLOCATIONS(image_size, unsigned char);
@@ -342,8 +342,10 @@ void enet_manager(ENetHost *server)
           group->counter++;
           enet_packet_destroy(event.packet);
 
-//          if(refresh_mode == REFRESH_MODE_SEMI_AUTO)
-//        	  group_expose_neurons(group, TRUE);
+          pthread_mutex_lock(&mutex_script_caracteristics);
+          if((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && group->drawing_area != NULL && group->widget != NULL)
+        	  group_expose_neurons(group, TRUE);
+          pthread_mutex_unlock(&mutex_script_caracteristics);
 /*
           time = g_timer_elapsed(group->timer, NULL);
           g_timer_start(group->timer);
