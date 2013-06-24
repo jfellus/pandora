@@ -1046,7 +1046,7 @@ void group_display_new(type_group *group, float pos_x, float pos_y)
   group->label = gtk_label_new("");
 
   //initialisation
-  if(group->rows < 10 && group->columns < 10)
+  if(group->rows <= 10 && group->columns <= 10)
   {
     group->tabValues = createTab4(group->rows, group->columns);
     group->indexAncien = createTab2(group->rows, group->columns, -1);
@@ -1282,7 +1282,6 @@ gboolean script_caracteristics(type_script *script, int action)
 {
     static type_script_display_save *saves[NB_SCRIPTS_MAX];
     static int number_of_saves = 0;
-    static int wait = 0;
 
     type_group *group;
     int i, j, save_id=0, number_of_group_displayed = 0;
@@ -1290,34 +1289,26 @@ gboolean script_caracteristics(type_script *script, int action)
 
     /// return FALSE;// permet d'inhiber la fonction.
 
-    if(action < 3)
-        printf("\n                   debut de la fonction script_caracteristics\n");
 
     if(action == UNLOCK_SCRIPT_CARACTERISTICS_FUNCTION)
     {
-        wait = 0;
         return TRUE;
     }
-
-    while(wait){for(i=0; i < 200; i++);}
-    wait = 1;
 
     if(action == LOCK_SCRIPT_CARACTERISTICS_FUNCTION)
        {return TRUE;}
 
-    printf("\n                   suite 1 de la fonction script_caracteristics\n");
 
     if(script == NULL)
-        {wait = 0; printf("\n            aucune sauvegarde trouvée   -   fin de la fonction script_caracteristics\n"); return FALSE;}
+        return FALSE;
 
     if(action == APPLY_SCRIPT_GROUPS_CARACTERISTICS)
     {
-    printf("\n                   appliquer caracs de la fonction script_caracteristics\n");
         for(i=0; i<number_of_saves; i++)
             if(strcmp(saves[i]->name, script->name) == 0)
                 {save = saves[i]; save_id = i;}
         if(save == NULL)
-            {wait = 0; printf("\n                fin de la fonction script_caracteristics\n"); return FALSE;}
+            return FALSE;
 
         group = script->groups;
         number_of_group_displayed = script->number_of_groups;
@@ -1325,7 +1316,6 @@ gboolean script_caracteristics(type_script *script, int action)
             for(j=0; j < save->number_of_groups; j++)
                 if(strcmp(group[i].name, save->groups[j].name) == 0)
                 {
-                    printf("\n disposition du groupe \"%s\" %d     ", group[i].name, i);
                     group[i].display_mode = save->groups[j].display_mode;
                     group[i].normalized = save->groups[j].normalized;
                     group[i].output_display = save->groups[j].output_display;
@@ -1334,7 +1324,6 @@ gboolean script_caracteristics(type_script *script, int action)
                     gdk_threads_enter();
                     group_display_new(&(group[i]), save->groups[j].x, save->groups[j].y);
                     gdk_threads_leave();
-                    printf("-     réussie \n");
                 }
         number_of_saves--;
         free(save->groups);
@@ -1342,25 +1331,21 @@ gboolean script_caracteristics(type_script *script, int action)
         if(number_of_saves > 0)
             saves[save_id] = saves[number_of_saves];
 
-        wait = 0;
-        printf("\n                fin de la fonction script_caracteristics\n");
         return TRUE;
     }
     else if(action == SAVE_SCRIPT_GROUPS_CARACTERISTICS && number_of_saves < NB_SCRIPTS_MAX)
     {
-        printf("\n                   sauver caracs de la fonction script_caracteristics\n");
         for (i = 0; i < number_of_groups_to_display; i++)
             if (groups_to_display[i]->script == script)
                 number_of_group_displayed++;
 
         if(number_of_group_displayed == 0)
-            {wait = 0; printf("\n                fin de la fonction script_caracteristics\n"); return TRUE;}
+            return TRUE;
 
         for(j=0; j < number_of_saves; j++)
             if(strcmp(saves[j]->name, script->name) == 0)
                 save = saves[j];
 
-        printf("\n                   sauver caracs p2 de la fonction script_caracteristics\n");
         if(save == NULL)
         {
             save = malloc(sizeof(type_script_display_save));
@@ -1370,7 +1355,6 @@ gboolean script_caracteristics(type_script *script, int action)
         save->groups = malloc(number_of_group_displayed * sizeof(type_group_display_save));
         save->number_of_groups = number_of_group_displayed;
         strcpy(save->name, script->name);
-        printf("\n                   sauver caracs p3 de la fonction script_caracteristics\n");
 
         j=0;
         for (i = 0; i < number_of_groups_to_display; i++)
@@ -1389,14 +1373,8 @@ gboolean script_caracteristics(type_script *script, int action)
                 j++;
             }
         }
-
-        wait = 0;
-        printf("\n                fin de la fonction script_caracteristics\n");
         return TRUE;
     }
-
-    wait = 0;
-    printf("\n        f       fin de la fonction script_caracteristics\n");
     return FALSE;
 }
 
@@ -1405,7 +1383,9 @@ void script_destroy(type_script *script)
   int i;
   type_group *group;
 
+  pthread_mutex_lock(&mutex_script_caracteristics);
   script_caracteristics(script, SAVE_SCRIPT_GROUPS_CARACTERISTICS);
+  pthread_mutex_unlock(&mutex_script_caracteristics);
 
   for (i = 0; i < number_of_groups_to_display; i++)
   {
@@ -1491,14 +1471,17 @@ void script_destroy(type_script *script)
  */
 gboolean neurons_refresh_display()
 {
-  int i;
-  script_caracteristics(NULL, LOCK_SCRIPT_CARACTERISTICS_FUNCTION);
-  for (i = 0; i < number_of_groups_to_display; i++)
-  {
-    group_expose_neurons(groups_to_display[i]);
-  }
-  script_caracteristics(NULL, UNLOCK_SCRIPT_CARACTERISTICS_FUNCTION);
-  return TRUE;
+	int i;
+	if(refresh_mode != REFRESH_MODE_AUTO)
+		return TRUE;
+
+	pthread_mutex_lock(&mutex_script_caracteristics);
+	for (i = 0; i < number_of_groups_to_display; i++)
+	{
+		group_expose_neurons(groups_to_display[i], TRUE);
+	}
+	pthread_mutex_unlock(&mutex_script_caracteristics);
+	return TRUE;
 }
 
 const char* tcolor(type_script *script)
@@ -1799,7 +1782,7 @@ void fatal_error(const char *name_of_file, const char *name_of_function, int num
   vsnprintf(total_message, MESSAGE_MAX, message, arguments);
   va_end(arguments);
   printf("\n            erreur !!!!!!!!!!!!!!\n");
-  dialog = gtk_message_dialog_new(GTK_WINDOW(window), (window == NULL ? 0 : GTK_DIALOG_MODAL|GTK_DIALOG_DESTROY_WITH_PARENT), GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s \t %s \t %i :\n \t Error: %s \n", name_of_file, name_of_function, numero_of_line, total_message);
+  dialog = gtk_message_dialog_new(GTK_WINDOW(window), (window == NULL ? 0 : GTK_DIALOG_MODAL|GTK_DIALOG_DESTROY_WITH_PARENT), GTK_MESSAGE_ERROR, GTK_BUTTONS_OK, "%s \t %s \t %i :\n \t Error: %s \n", name_of_file, name_of_function, numero_of_line, total_message);
   gtk_dialog_run(GTK_DIALOG(dialog));
   if(window != NULL)
   {
@@ -1809,10 +1792,34 @@ void fatal_error(const char *name_of_file, const char *name_of_function, int num
   exit(EXIT_FAILURE);
 }
 
+void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
+{
+	(void) data;
+	refresh_mode = gtk_combo_box_get_active(comboBox);
+	if(refresh_mode == REFRESH_MODE_MANUAL)
+		gtk_widget_show_all(GTK_WIDGET(data));
+	else
+		gtk_widget_hide_all(GTK_WIDGET(data));
+}
+
+void neurons_manual_refresh(GtkWidget *pWidget, gpointer pdata)
+{
+	int i;
+
+	(void) pWidget;
+	(void) pdata;
+
+	for (i = 0; i < number_of_groups_to_display; i++)
+	{
+		printf("\n           traitement d'un groupe\n");
+		group_expose_neurons(groups_to_display[i], FALSE);
+	}
+}
+
 void pandora_window_new()
 {
   char path[PATH_MAX];
-  GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons, *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu;
+  GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons, *refreshModeHBox, *refreshModeComboBox, *refreshModeLabel, *refreshManualButton,  *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu;
   GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *zySetting, *zyLabel;
   GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault, *boutonPause;
   GtkWidget *pFrameScripts, *scrollbars2;
@@ -1891,12 +1898,33 @@ void pandora_window_new()
   pVBoxEchelles = gtk_vbox_new(FALSE, 0);
   gtk_container_add(GTK_CONTAINER(pFrameEchelles), pVBoxEchelles);
 
+
+  // Mode de réactualisation des groupes de neurones contenus dans le panneau du bas.
+  refreshModeHBox = gtk_hbox_new(FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshModeHBox, FALSE, TRUE, 0);
+  refreshModeLabel = gtk_label_new("Refresh mode : ");
+  refreshModeComboBox = gtk_combo_box_new_text();
+  gtk_combo_box_append_text(GTK_COMBO_BOX(refreshModeComboBox), "Auto");
+  //gtk_combo_box_append_text(GTK_COMBO_BOX(refreshModeComboBox), "Semi-auto");
+  gtk_combo_box_append_text(GTK_COMBO_BOX(refreshModeComboBox), "Manual");
+  gtk_combo_box_set_active(GTK_COMBO_BOX(refreshModeComboBox), REFRESH_MODE_AUTO);
+  gtk_box_pack_start(GTK_BOX(refreshModeHBox), refreshModeLabel, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(refreshModeHBox), refreshModeComboBox, TRUE, TRUE, 0);
+
+  refreshManualButton = gtk_button_new_with_label("Refresh");
+  gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshManualButton, FALSE, TRUE, 0);
+
+  g_signal_connect(G_OBJECT(refreshModeComboBox), "changed", (GCallback) refresh_mode_combo_box_value_changed, refreshManualButton);
+  g_signal_connect(G_OBJECT(refreshManualButton), "clicked", (GCallback) neurons_manual_refresh, NULL);
+
+
+
 //Fréquence de réactualisation de l'affichage, quand on est en mode échantillonné (Sampled)
   refreshSetting = gtk_hbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshSetting, FALSE, TRUE, 0);
   refreshLabel = gtk_label_new("Refresh (Hz):");
   refreshScale = gtk_hscale_new_with_range(0, 50, 1); //Ce widget est déjà déclaré comme variable globale
-//On choisit le nombre de réactualisations de l'affichage par seconde, entre 1 et 24
+//On choisit le nombre de réactualisations de l'affichage par seconde, entre 0 et 50
   gtk_box_pack_start(GTK_BOX(refreshSetting), refreshLabel, TRUE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(refreshSetting), refreshScale, TRUE, TRUE, 0);
   gtk_range_set_value(GTK_RANGE(refreshScale), REFRESHSCALE_DEFAULT);
@@ -2015,6 +2043,7 @@ void pandora_window_new()
   gtk_box_pack_start(GTK_BOX(h_box_main), vpaned, TRUE, TRUE, 0);
 
   gtk_widget_show_all(window); //Affichage du widget pWindow et de tous ceux qui sont dedans
+  gtk_widget_hide_all(refreshManualButton);
 }
 
 /**
@@ -2033,7 +2062,9 @@ int main(int argc, char** argv)
   char chemin[] = "./pandora.pandora";
 
   stop = FALSE;
+  load_temporary_save = FALSE;
   architecture_display_dragging_currently = FALSE;
+  refresh_mode = REFRESH_MODE_AUTO;
   graphic.x_scale = XSCALE_DEFAULT;
   graphic.y_scale = YSCALE_DEFAULT;
   graphic.zx_scale = XGAP_DEFAULT;
@@ -2055,6 +2086,8 @@ int main(int argc, char** argv)
 
   g_thread_init(NULL); /* useless since glib 2.32 */
   gdk_threads_init();
+
+  pthread_mutex_init(&mutex_script_caracteristics, NULL);
 
 // Initialisation de GTK+
   gtk_init(&argc, &argv);

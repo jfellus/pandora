@@ -57,6 +57,8 @@ void enet_manager(ENetHost *server)
   int number_of_groups, number_of_links, number_of_neurons;
   ENetEvent event;
 
+ // float time;
+
   //paquets reçus
   type_com_groupe* received_groups_packet;
   type_liaison* received_links_packet;
@@ -249,11 +251,13 @@ void enet_manager(ENetHost *server)
           }
           script_update_display(script);
 
+          pthread_mutex_lock(&mutex_script_caracteristics);
           if((first_call<3) && load_temporary_save == TRUE && (access("./pandora.pandora", R_OK) == 0))
             pandora_file_load_script("./pandora.pandora", script);
           else if((first_call<3) && (access(preferences_filename, R_OK) == 0))
             pandora_file_load_script(preferences_filename, script);
-            script_caracteristics(script, APPLY_SCRIPT_GROUPS_CARACTERISTICS);
+          script_caracteristics(script, APPLY_SCRIPT_GROUPS_CARACTERISTICS);
+          pthread_mutex_unlock(&mutex_script_caracteristics);
           break;
 
         case ENET_UPDATE_NEURON_CHANNEL:
@@ -267,7 +271,39 @@ void enet_manager(ENetHost *server)
           memcpy(group->neurons, event.packet->data, sizeof(type_neurone) * number_of_neurons);
           group->counter++;
           enet_packet_destroy(event.packet);
+/*
+          if(refresh_mode == REFRESH_MODE_SEMI_AUTO && group->drawing_area != NULL && group->widget != NULL)
+        	  group_expose_neurons(group, TRUE);
 
+          time = g_timer_elapsed(group->timer, NULL);
+          g_timer_start(group->timer);
+
+          // calcul de la fréquence moyenne basée sur les FREQUENCE_MAX_VALUES_NUMBER dernières itérations.
+            if(group->frequence_index_last == -1)
+            {
+                group->frequence_index_last = group->frequence_index_older = 0;
+                group->frequence_values[0] = 1/time;
+            }
+            else if(group->frequence_index_older == group->frequence_index_last+1 || (group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1 && group->frequence_index_older == 0))
+            {
+                if(group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1)
+                {
+                    group->frequence_index_last = 0;
+                    group->frequence_index_older = 1;
+                }
+                else
+                {
+                    group->frequence_index_last++;
+                    group->frequence_index_older++;
+                }
+                group->frequence_values[group->frequence_index_last] = 1/time;
+            }
+            else
+            {
+                group->frequence_index_last++;
+                group->frequence_values[group->frequence_index_last] = 1/time;
+            }
+*/
           break;
 
         case ENET_UPDATE_EXT_CHANNEL:
@@ -305,7 +341,38 @@ void enet_manager(ENetHost *server)
           /* Clean up the packet now that we're done using it. */
           group->counter++;
           enet_packet_destroy(event.packet);
-          break;
+
+//          if(refresh_mode == REFRESH_MODE_SEMI_AUTO)
+//        	  group_expose_neurons(group, TRUE);
+/*
+          time = g_timer_elapsed(group->timer, NULL);
+          g_timer_start(group->timer);
+
+            if(group->frequence_index_last == -1)
+            {
+                group->frequence_index_last = group->frequence_index_older = 0;
+                group->frequence_values[0] = 1/time;
+            }
+            else if(group->frequence_index_older == group->frequence_index_last+1 || (group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1 && group->frequence_index_older == 0))
+            {
+                if(group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1)
+                {
+                    group->frequence_index_last = 0;
+                    group->frequence_index_older = 1;
+                }
+                else
+                {
+                    group->frequence_index_last++;
+                    group->frequence_index_older++;
+                }
+                group->frequence_values[group->frequence_index_last] = 1/time;
+            }
+            else
+            {
+                group->frequence_index_last++;
+                group->frequence_values[group->frequence_index_last] = 1/time;
+            }
+*/          break;
         }
         break;
 

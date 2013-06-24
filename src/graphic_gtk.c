@@ -65,7 +65,7 @@ void graph_get_line_color(int num, float *r, float *g, float *b)
 /**
  *  Affiche les neurones d'une petite fenêtre
  */
-void group_expose_neurons(type_group *group)
+void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
 {
   cairo_t *cr;
 
@@ -110,12 +110,13 @@ void group_expose_neurons(type_group *group)
         group->display_mode = DISPLAY_MODE_GRAPH;
       group->previous_display_mode = group->display_mode;
 
-      if(group->rows > 10 && group->columns > 10 && group->display_mode == DISPLAY_MODE_GRAPH)
+      if((group->rows > 10 || group->columns > 10) && (group->display_mode == DISPLAY_MODE_GRAPH || group->display_mode == DISPLAY_MODE_BIG_GRAPH))
     	  group->display_mode = DISPLAY_MODE_BAR_GRAPH;
   }
 
   //Début du dessin
-  gdk_threads_enter();
+  if(lock_gdk_threads == TRUE)
+	  gdk_threads_enter();
 
   //Dimensions d'un neurone
   largeurNeuron = GTK_WIDGET(group->drawing_area)->allocation.width / (float) group->columns;
@@ -164,6 +165,7 @@ void group_expose_neurons(type_group *group)
 
   cr = gdk_cairo_create(GTK_WIDGET(group->drawing_area)->window); //Crée un contexte Cairo associé à la drawing_area "zone"
 
+  // si la sortie vaut 3, on affiche l'image ou un indicateur si aucune image a été reçue.
   if (group->output_display == 3)
   {
 	snprintf(label_text, LABEL_MAX, "<b>%s</b> - %s \n%.3f Hz", group->name, group->function, frequence);
@@ -247,18 +249,16 @@ void group_expose_neurons(type_group *group)
     // partie de test a supprimer. //
     else
     {
-    	format = CAIRO_FORMAT_RGB24;
-        stride = cairo_format_stride_for_width(format, 40);
-        image_data = malloc(stride * 40);
-
-        image = cairo_image_surface_create_for_data(image_data, format, 40, 40, stride);
-        if(image == NULL)
-      	  printf("\n                    impossible d'afficher l'image\n");
-        cairo_set_source_surface(cr, image, 0, 0);
+    	gtk_widget_set_size_request(group->widget, 140, 80);
+  	    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
         cairo_paint(cr);
-        cairo_surface_finish(image);
-        cairo_surface_destroy(image);
-        free(image_data);
+  	    cairo_set_source_rgb(cr, 0, 0, 0);
+//        cairo_rectangle(cr, 5, 5, largeurNeuron*group->rows - 10, hauteurNeuron*group->columns - 10);
+//        cairo_save(cr);
+//        cairo_clip(cr);
+        cairo_move_to(cr, GTK_WIDGET(group->drawing_area)->allocation.width / 2 - 45, GTK_WIDGET(group->drawing_area)->allocation.height / 2);
+        cairo_show_text(cr, "No image received");
+//        cairo_restore(cr); /* unclip */
     }
   }
   else
@@ -548,8 +548,9 @@ void group_expose_neurons(type_group *group)
     //  cairo_set_line_width(cr, GRID_WIDTH); Retour aux traits fins*/
   }
   cairo_destroy(cr); //Destruction du calque
-  gdk_threads_leave();
 
+  if(lock_gdk_threads == TRUE)
+  	  gdk_threads_leave();
 }
 
 // modifie la zone affichée. x et y représentent le point situé en haut a gauche de la zone à afficher.

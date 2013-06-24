@@ -95,6 +95,13 @@
 
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 
+enum
+{
+	REFRESH_MODE_AUTO = 0,
+//	REFRESH_MODE_SEMI_AUTO,
+	REFRESH_MODE_MANUAL
+};
+
 enum {
   NET_LINK_SIMPLE = 0,
   NET_LINK_BLOCK = 1 << 0,
@@ -208,6 +215,9 @@ typedef struct script_link {
 } type_script_link;
 
 
+int refresh_mode;
+
+pthread_mutex_t mutex_script_caracteristics;
 
 gboolean architecture_display_dragging_currently;
 float architecture_display_cursor_x;
@@ -252,6 +262,7 @@ extern int number_of_net_links;
 void init_pandora(int argc, char** argv);
 void prom_bus_init(const char *ip);
 void script_update_positions(type_script *script);
+void group_expose_neurons(type_group *group, gboolean lock_gdk_threads);
 
 //Signaux
 void drag_drop_neuron_frame(GtkWidget *zone_neurons, GdkEventButton *event, gpointer data);
@@ -270,9 +281,6 @@ void save_preferences(GtkWidget *pWidget, gpointer pData);
 void save_preferences_as(GtkWidget *pWidget, gpointer pData);
 void pandora_load_preferences(GtkWidget *pWidget, gpointer pData);
 void defaultScale(GtkWidget *pWidget, gpointer pData);
-void askForScripts(GtkWidget *pWidget, gpointer pData);
-
-void group_expose_neurons(type_group *group);
 
 //"Constructeurs"
 void init_script(type_script *s, char *name, char *machine, int z, int nbGroups, int id);

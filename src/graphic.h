@@ -29,7 +29,7 @@ type_graphic graphic;
 void expose_group_ext(type_group *group);
 
 void graph_get_line_color(int num, float *r, float *g, float *b);
-void group_expose_neurons(type_group *group);
+void group_expose_neurons(type_group *group, gboolean lock_gdk_threads);
 void group_update_display(TxGraphic *cr, int a, int b, int c, int d, type_group *g, int y_offset,  int z, int zMax);
 void architecture_set_view_point(GtkWidget *scrollbars, float x, float y);
 void architecture_get_group_position(type_group *group, float *x, float *y);
