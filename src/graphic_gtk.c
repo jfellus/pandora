@@ -65,13 +65,13 @@ void graph_get_line_color(int num, float *r, float *g, float *b)
 /**
  *  Affiche les neurones d'une petite fenêtre
  */
-void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
+void group_expose_neurons(type_group *group, gboolean lock_gdk_threads, gboolean update_frequence)
 {
   cairo_t *cr;
 
   float ndg = 0, val, tmp = 0, x, y0, yVal, min = group->val_min, max = group->val_max, frequence = 0;
   float largeurNeuron, hauteurNeuron;
-  float r, g, b;
+//  float r, g, b;
   int i, j, k = 0;
   int incrementation;
   int stride;
@@ -80,7 +80,7 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
   prom_images_struct *prom_images;
   unsigned char *image_data;
 
-  float time;
+//  float time;
   char label_text[LABEL_MAX];
 
   int sortie = group->output_display;
@@ -89,29 +89,12 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
 
   incrementation = group->number_of_neurons / (group->columns * group->rows);
 
-  // ajustement de la taille du widget en fonction du display_mode
-  if(group->output_display == 3 || group->display_mode != DISPLAY_MODE_BIG_GRAPH)
-      gtk_widget_hide_all(group->button_vbox);
-
-  if(group->output_display != 3 && group->previous_display_mode != group->display_mode)
+  // ajustement de la taille du widget en fonction du mode d'affichage et de la sortie.
+  resize_group(group);
+  if(group->previous_display_mode != group->display_mode || group->previous_output_display != group->output_display)
   {
-      if(group->previous_display_mode == DISPLAY_MODE_BIG_GRAPH)
-      {
-          gtk_widget_hide_all(group->button_vbox);
-          gtk_widget_set_size_request(group->widget, get_width_height(group->columns), get_width_height(group->rows));
-      }
-      else if(group->display_mode == DISPLAY_MODE_BIG_GRAPH && group->rows * group->columns <= BIG_GRAPH_MAX_NEURONS_NUMBER)
-      {
-        gtk_widget_show_all(group->button_vbox);
-        gtk_widget_set_size_request(group->widget, GRAPH_WIDTH, GRAPH_HEIGHT);
-        gtk_widget_set_size_request(group->drawing_area, GRAPH_WIDTH - BUTTON_WIDTH, GRAPH_HEIGHT);
-      }
-      else if(group->display_mode == DISPLAY_MODE_BIG_GRAPH)
-        group->display_mode = DISPLAY_MODE_GRAPH;
-      group->previous_display_mode = group->display_mode;
-
-      if((group->rows > 10 || group->columns > 10) && (group->display_mode == DISPLAY_MODE_GRAPH || group->display_mode == DISPLAY_MODE_BIG_GRAPH))
-    	  group->display_mode = DISPLAY_MODE_BAR_GRAPH;
+	  group->previous_display_mode = group->display_mode;
+	  group->previous_output_display = group->output_display;
   }
 
   //Début du dessin
@@ -122,44 +105,16 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
   largeurNeuron = GTK_WIDGET(group->drawing_area)->allocation.width / (float) group->columns;
   hauteurNeuron = GTK_WIDGET(group->drawing_area)->allocation.height / (float) group->rows;
 
-  time = g_timer_elapsed(group->timer, NULL);
-  g_timer_start(group->timer);
+  if(update_frequence == TRUE)
+  	  group_update_frequence_values(group);
+
+  for(i=0; i<FREQUENCE_MAX_VALUES_NUMBER; i++)
+	if(group->frequence_values[i] > -1)
+	  {k++; frequence += group->frequence_values[i];}
+  if(k > 0)
+	frequence = frequence / k;
 
 
-  // calcul de la fréquence moyenne basée sur les FREQUENCE_MAX_VALUES_NUMBER dernières itérations.
-    if(group->frequence_index_last == -1)
-    {
-        group->frequence_index_last = group->frequence_index_older = 0;
-        group->frequence_values[0] = group->counter / time;
-    }
-    else if(group->frequence_index_older == group->frequence_index_last+1 || (group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1 && group->frequence_index_older == 0))
-    {
-        if(group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1)
-        {
-            group->frequence_index_last = 0;
-            group->frequence_index_older = 1;
-        }
-        else
-        {
-            group->frequence_index_last++;
-            group->frequence_index_older++;
-        }
-        group->frequence_values[group->frequence_index_last] = group->counter / time;
-    }
-    else
-    {
-        group->frequence_index_last++;
-        group->frequence_values[group->frequence_index_last] = group->counter / time;
-    }
-    for(i=0; i<FREQUENCE_MAX_VALUES_NUMBER; i++)
-        if(group->frequence_values[i] > -1)
-            {k++; frequence += group->frequence_values[i];}
-    if(k > 0)
-        frequence = frequence / k;
-
-
-  // construction du label du groupe sous la forme :   nom_groupe - nom_fonction
-  //                                                   [min | max] - fréquence moyenne
   group->counter = 0;
 
 
@@ -175,6 +130,9 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
       prom_images = (prom_images_struct*) group->ext;
       gtk_widget_set_size_request(group->widget, (float) (((int) prom_images->sx) + GTK_WIDGET(group->widget)->allocation.width - GTK_WIDGET(group->drawing_area)->allocation.width), (float) (((int) prom_images->sy) + GTK_WIDGET(group->widget)->allocation.height - GTK_WIDGET(group->drawing_area)->allocation.height));
 
+      if(group->image_selected_index >= (int) prom_images->image_number)
+    	  group->image_selected_index = 0;
+      k = group->image_selected_index;
       switch (prom_images->nb_band)
       {
       case 1:
@@ -190,15 +148,15 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
         format = CAIRO_FORMAT_A8; /* grey with 8bits */
       }
       stride = cairo_format_stride_for_width(format, (int) prom_images->sx);
-      if(format == CAIRO_FORMAT_RGB24)
+      if(prom_images->nb_band == 3)
       {
 		  image_data = malloc(stride * (int) prom_images->sy);
 		  for(i=0; (unsigned int) i<prom_images->sx * prom_images->sy; i++)
 		  {
-			  image_data[i*4] = prom_images->images_table[0][i*3+2];
-			  image_data[i*4+1] = prom_images->images_table[0][i*3+1];
-			  image_data[i*4+2] = prom_images->images_table[0][i*3];
-			  image_data[i*4+3] = prom_images->images_table[0][i*3+2];
+			  image_data[i*4] = prom_images->images_table[k][i*3+2];
+			  image_data[i*4+1] = prom_images->images_table[k][i*3+1];
+			  image_data[i*4+2] = prom_images->images_table[k][i*3];
+			  image_data[i*4+3] = prom_images->images_table[k][i*3+2];
 		  }
 		  image = cairo_image_surface_create_for_data(image_data, format, (int) prom_images->sx, (int) prom_images->sy, stride);
 	      cairo_set_source_surface(cr, image, 0, 0);
@@ -216,7 +174,7 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
 		  {
 			  for(i=0; (unsigned int) i<prom_images->sx * prom_images->sy; i++)
 			  {
-				  image_data[i] = (unsigned char) ((float *)prom_images->images_table[0])[i] * 255;
+				  image_data[i] = (unsigned char) ((float *)prom_images->images_table[k])[i] * 255;
 			  }
 			  image = cairo_image_surface_create_for_data(image_data, format, (int) prom_images->sx, (int) prom_images->sy, stride);
 			  cairo_set_source_surface(cr, image, 0, 0);
@@ -236,7 +194,7 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
 		  {
 			  for(i=0; (unsigned int) i<prom_images->sx * prom_images->sy; i++)
 			  {
-				  image_data[i] = 255 - prom_images->images_table[0][i];
+				  image_data[i] = 255 - prom_images->images_table[k][i];
 			  }
 			  image = cairo_image_surface_create_for_data(image_data, format, (int) prom_images->sx, (int) prom_images->sy, stride);
 			  cairo_set_source_surface(cr, image, 0, 0);
@@ -246,25 +204,20 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
 		  }
       }
     }
-    // partie de test a supprimer. //
     else
     {
     	gtk_widget_set_size_request(group->widget, 140, 80);
   	    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
         cairo_paint(cr);
   	    cairo_set_source_rgb(cr, 0, 0, 0);
-//        cairo_rectangle(cr, 5, 5, largeurNeuron*group->rows - 10, hauteurNeuron*group->columns - 10);
-//        cairo_save(cr);
-//        cairo_clip(cr);
         cairo_move_to(cr, GTK_WIDGET(group->drawing_area)->allocation.width / 2 - 45, GTK_WIDGET(group->drawing_area)->allocation.height / 2);
         cairo_show_text(cr, "No image received");
-//        cairo_restore(cr); /* unclip */
     }
   }
   else
   {
 	// si le mode auto est activé, calcul du minimum et maximum instantané
-    if (group->normalized)
+    if (group->normalized && group->display_mode != DISPLAY_MODE_BIG_GRAPH && group->display_mode != DISPLAY_MODE_GRAPH)
     {
       for (i = 0; i < group->number_of_neurons * incrementation; i += incrementation)
       {
@@ -294,8 +247,8 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
           if (val > max) max = val;
         }
       }
-
     }
+
     // fond blanc si le mode est big graph
     if(group->display_mode == DISPLAY_MODE_BIG_GRAPH)
         cairo_set_source_rgb(cr, 1, 1, 1);
@@ -308,8 +261,9 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
     /// variables utilisées pour l'affichage des graphe.
     sortie = group->output_display;
 
-    // si le mode choisi est un des modes graphs et le mode auto est activé, calcul du minimum et maximum moyen (basé sur les NB_Max_VALEURS_ENREGISTREES dernières itérations).
-    if(group->normalized && (group->display_mode == DISPLAY_MODE_GRAPH || group->display_mode == DISPLAY_MODE_BIG_GRAPH))
+    update_graph_data(group);
+    // si mode graph et mode auto activé, calcul du minimum et maximum moyen (basé sur les NB_Max_VALEURS_ENREGISTREES dernières itérations).
+    if(group->normalized && group->display_mode == DISPLAY_MODE_GRAPH)
     {
       min = 0.0;
       max = -1.0;
@@ -328,7 +282,7 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
             }
         }
       }
-      // si le minimum et le maximum sont incorrect, ils sont réinitialisés.
+      // si le minimum et le maximum sont incorrects, ils sont réinitialisés.
       if(max < min)
         {min = -0.5; max = 0.5;}
     }
@@ -338,6 +292,10 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
     snprintf(label_text, LABEL_MAX, "<b>%s</b> - %s \n[%.2f | %.2f] - %.3f Hz", group->name, group->function, min, max, frequence);
     gtk_label_set_markup(group->label, label_text);
 
+	update_big_graph_data(group);
+	if(group->display_mode == DISPLAY_MODE_BIG_GRAPH)
+		draw_big_graph(group, cr, frequence);
+	else
     for (j = 0; j < group->rows; j++)
     {
       for (i = 0; i < group->columns * incrementation; i += incrementation)
@@ -359,59 +317,6 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
         }
 
         ndg = niveauDeGris(val, min, max);
-
-        if(group->rows < 10 && group->columns < 10)
-        {
-        	values = group->tabValues[j][i/incrementation];
-			indexDernier = group->indexDernier[j][i/incrementation];
-			indexAncien = group->indexAncien[j][i/incrementation];
-
-			// ajout de la dernière valeur au tableau des valeurs utilisé pour tracer le graphe.
-			if(stop == FALSE)
-			{
-				// si aucune valeur enregistrée, initialisation du tableau.
-				if(indexDernier == -1)
-				{
-					indexDernier = indexAncien = 0;
-					for(k = 0; k<NB_Max_VALEURS_ENREGISTREES; k++)
-					{
-						values[0][k] = group->neurons[i + j * group->columns * incrementation].s;
-						values[1][k] = group->neurons[i + j * group->columns * incrementation].s1;
-						values[2][k] = group->neurons[i + j * group->columns * incrementation].s2;
-					}
-				}
-				// si le tableau est plein, remplacement de la valeur la plus ancienne par la valeur à ajouter. l'enregistrement des valeurs est similaire à une file circulaire.
-				else if(indexAncien == indexDernier+1 || (indexDernier == NB_Max_VALEURS_ENREGISTREES-1 && indexAncien == 0))
-				{
-					if(indexDernier == NB_Max_VALEURS_ENREGISTREES-1)
-					{
-						indexDernier = 0;
-						indexAncien = 1;
-					}
-					else
-					{
-						indexDernier++;
-						indexAncien++;
-					}
-					values[0][indexDernier] = group->neurons[i + j * group->columns * incrementation].s;
-					values[1][indexDernier] = group->neurons[i + j * group->columns * incrementation].s1;
-					values[2][indexDernier] = group->neurons[i + j * group->columns * incrementation].s2;
-				}
-				// si le tableau n'est pas plein, ajout de la valeur à la suite des valeurs déja présentes.
-				else
-				{
-					indexDernier++;
-					values[0][indexDernier] = group->neurons[i + j * group->columns * incrementation].s;
-					values[1][indexDernier] = group->neurons[i + j * group->columns * incrementation].s1;
-					values[2][indexDernier] = group->neurons[i + j * group->columns * incrementation].s2;
-				}
-
-				// sauvegarde des indices courants.
-				group->indexDernier[j][i/incrementation] = indexDernier;
-				group->indexAncien[j][i/incrementation] = indexAncien;
-			}
-        }
-
         switch (group->display_mode)
         {
         case DISPLAY_MODE_SQUARE:
@@ -455,6 +360,9 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
           break;
 
         case DISPLAY_MODE_GRAPH :
+        	values = group->tabValues[j][i/incrementation];
+			indexDernier = group->indexDernier[j][i/incrementation];
+			indexAncien = group->indexAncien[j][i/incrementation];
 
             indexTmp = indexDernier;
             tmp = 0;
@@ -498,39 +406,6 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
                 cairo_rectangle(cr, (i/incrementation) * largeurNeuron, j*hauteurNeuron + coordonneeYZero(min, max, hauteurNeuron) + 0.5, largeurNeuron, 0.5);
             }
         break;
-        case DISPLAY_MODE_BIG_GRAPH :
-        	// trace la droite d'équation y=0.
-            cairo_set_source_rgb(cr, 0, 0, 0);
-            cairo_rectangle(cr, 1, coordonneeYZero(min, max, hauteurNeuron * group->rows) + 0.5, largeurNeuron * group->columns-2, 0.5);
-            cairo_fill(cr);
-
-            if(group->afficher[j][i/incrementation] == FALSE) // si il faut tracer la courbe pour ce neurone, l'exécution continue.
-                break;
-
-            // application de la couleur associée à la courbe.
-            graph_get_line_color(j*group->columns + i/incrementation, &r, &g, &b);
-            cairo_set_source_rgb(cr, r, g, b);
-
-            // trace la courbe (les point sont reliés).
-            indexTmp = indexDernier;
-            tmp = 0;
-            k = 0;
-            for(x = group->columns * largeurNeuron - 2.0; !(x < 1) ; x-=2.0, k=1)
-            {
-                tmp = values[sortie][indexTmp];
-                yVal = CoordonneeYPoint(tmp, min, max, hauteurNeuron * group->rows - 4.5);
-                if(k == 0)
-                    cairo_move_to(cr, x, yVal + j * hauteurNeuron + 1);
-                else
-                    cairo_line_to(cr, x, yVal + j * hauteurNeuron + 1);
-                if(indexAncien == indexTmp)
-                    break;
-                indexTmp--;
-                if(indexTmp < 0)
-                    indexTmp = NB_Max_VALEURS_ENREGISTREES-1;
-            }
-            cairo_stroke(cr); // relie les points.
-        break;
         }
       }
     }
@@ -552,6 +427,249 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads)
   if(lock_gdk_threads == TRUE)
   	  gdk_threads_leave();
 }
+
+void group_update_frequence_values(type_group *group)
+{
+	float time = g_timer_elapsed(group->timer, NULL);
+	g_timer_start(group->timer);
+
+
+	// calcul de la fréquence moyenne basée sur les FREQUENCE_MAX_VALUES_NUMBER dernières itérations.
+	if(group->frequence_index_last == -1)
+	{
+		group->frequence_index_last = group->frequence_index_older = 0;
+		group->frequence_values[0] = group->counter / time;
+	}
+	else if(group->frequence_index_older == group->frequence_index_last+1 || (group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1 && group->frequence_index_older == 0))
+	{
+		if(group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1)
+		{
+			group->frequence_index_last = 0;
+			group->frequence_index_older = 1;
+		}
+		else if(group->frequence_index_older == FREQUENCE_MAX_VALUES_NUMBER-1)
+		{
+			group->frequence_index_last++;
+			group->frequence_index_older = 0;
+		}
+		else
+		{
+			group->frequence_index_last++;
+			group->frequence_index_older++;
+		}
+		group->frequence_values[group->frequence_index_last] = group->counter / time;
+	}
+	else
+	{
+		group->frequence_index_last++;
+		group->frequence_values[group->frequence_index_last] = group->counter / time;
+	}
+}
+
+void draw_big_graph(type_group *group, cairo_t *cr, float frequence)
+{
+	int i, k, indexTmp, indexDernier, indexAncien, sortie = group->output_display;
+	float hauteur = GTK_WIDGET(group->drawing_area)->allocation.height;
+	float largeur = GTK_WIDGET(group->drawing_area)->allocation.width;
+	float min = group->val_min, max = group->val_max, tmp, r, g, b, x, yVal;
+	float **values;
+	char label_text[LABEL_MAX];
+
+	if(group->normalized)
+	{
+		min = 0.0;
+		max = -1.0;
+		for (i = 0; i < group->number_of_courbes; i++)
+		{
+			values = group->courbes[i].values;
+			if(group->courbes[i].last_index != -1)
+				for(k=0; k<NB_Max_VALEURS_ENREGISTREES; k++)
+				{
+					tmp = values[sortie][k];
+					if(max < min)   min = max = tmp;
+					else if(tmp < min)   min = tmp;
+					else if(max < tmp) max = tmp;
+				}
+		}
+	}
+
+	if(min > max)
+		min = max - 1;
+
+    snprintf(label_text, LABEL_MAX, "<b>%s</b> - %s \n[%.2f | %.2f] - %.3f Hz", group->name, group->function, min, max, frequence);
+    gtk_label_set_markup(group->label, label_text);
+
+	for(i=0; i<group->number_of_courbes; i++)
+	{
+    	// trace la droite d'équation y=0.
+        cairo_set_source_rgb(cr, 0, 0, 0);
+        cairo_rectangle(cr, 1, coordonneeYZero(min, max, hauteur) + 0.5, largeur-2, 0.5);
+        cairo_fill(cr);
+
+        if(group->courbes[i].show == TRUE) // si il faut tracer la courbe pour ce neurone, l'exécution continue.
+        {
+			// application de la couleur associée à la courbe.
+			graph_get_line_color(i, &r, &g, &b);
+			cairo_set_source_rgb(cr, r, g, b);
+
+	        indexAncien = group->courbes[i].old_index;
+	        indexDernier = group->courbes[i].last_index;
+	        values = group->courbes[i].values;
+
+			// trace la courbe (les point sont reliés).
+			indexTmp = indexDernier;
+			tmp = 0;
+			k = 0;
+			for(x = largeur - 2.0; !(x < 1) ; x-=2.0, k=1)
+			{
+				tmp = values[sortie][indexTmp];
+				yVal = CoordonneeYPoint(tmp, min, max, hauteur - 4.5);
+				if(k == 0)
+					cairo_move_to(cr, x, yVal + 1);
+				else
+					cairo_line_to(cr, x, yVal + 1);
+				if(indexAncien == indexTmp)
+					break;
+				indexTmp--;
+				if(indexTmp < 0)
+					indexTmp = NB_Max_VALEURS_ENREGISTREES-1;
+			}
+			cairo_stroke(cr); // relie les points.
+        }
+	}
+}
+
+void update_graph_data(type_group *group)
+{
+	int indexDernier, indexAncien, i, j, k, incrementation = group->number_of_neurons / (group->columns * group->rows);
+	float **values;
+
+	if(stop == TRUE || group->rows > 10 || group->columns > 10)
+		return;
+
+    for (j = 0; j < group->rows; j++)
+    {
+      for (i = 0; i < group->columns * incrementation; i += incrementation)
+      {
+		values = group->tabValues[j][i/incrementation];
+		indexDernier = group->indexDernier[j][i/incrementation];
+		indexAncien = group->indexAncien[j][i/incrementation];
+
+		// ajout de la dernière valeur au tableau des valeurs utilisé pour tracer le graphe.
+
+		// si aucune valeur enregistrée, initialisation du tableau.
+		if(indexDernier == -1)
+		{
+			indexDernier = indexAncien = 0;
+			for(k = 0; k<NB_Max_VALEURS_ENREGISTREES; k++)
+			{
+				values[0][k] = group->neurons[i + j * group->columns * incrementation].s;
+				values[1][k] = group->neurons[i + j * group->columns * incrementation].s1;
+				values[2][k] = group->neurons[i + j * group->columns * incrementation].s2;
+			}
+		}
+		// si le tableau est plein, remplacement de la valeur la plus ancienne par la valeur à ajouter. l'enregistrement des valeurs est similaire à une file circulaire.
+		else if(indexAncien == indexDernier+1 || (indexDernier == NB_Max_VALEURS_ENREGISTREES-1 && indexAncien == 0))
+		{
+			if(indexDernier == NB_Max_VALEURS_ENREGISTREES-1)
+			{
+				indexDernier = 0;
+				indexAncien = 1;
+			}
+			else if(indexAncien == NB_Max_VALEURS_ENREGISTREES-1)
+			{
+				indexDernier++;
+				indexAncien = 0;
+			}
+			else
+			{
+				indexDernier++;
+				indexAncien++;
+			}
+			values[0][indexDernier] = group->neurons[i + j * group->columns * incrementation].s;
+			values[1][indexDernier] = group->neurons[i + j * group->columns * incrementation].s1;
+			values[2][indexDernier] = group->neurons[i + j * group->columns * incrementation].s2;
+		}
+		// si le tableau n'est pas plein, ajout de la valeur à la suite des valeurs déja présentes.
+		else
+		{
+			indexDernier++;
+			values[0][indexDernier] = group->neurons[i + j * group->columns * incrementation].s;
+			values[1][indexDernier] = group->neurons[i + j * group->columns * incrementation].s1;
+			values[2][indexDernier] = group->neurons[i + j * group->columns * incrementation].s2;
+		}
+
+		// sauvegarde des indices courants.
+		group->indexDernier[j][i/incrementation] = indexDernier;
+		group->indexAncien[j][i/incrementation] = indexAncien;
+      }
+    }
+}
+
+void update_big_graph_data(type_group *group)
+{
+	int indexDernier, indexAncien, column, line, k, l, incrementation = group->number_of_neurons / (group->columns * group->rows);
+	float **values;
+
+	if(stop == TRUE)
+		return;
+
+	for(l=0; l < group->number_of_courbes; l++)
+	{
+		values = group->courbes[l].values;
+		column = group->courbes[l].column;
+		line = group->courbes[l].line;
+		indexAncien = group->courbes[l].old_index;
+		indexDernier = group->courbes[l].last_index;
+
+		// si aucune valeur enregistrée, initialisation du tableau.
+		if(indexDernier == -1)
+		{
+			indexDernier = indexAncien = 0;
+			for(k = 0; k<NB_Max_VALEURS_ENREGISTREES; k++)
+			{
+				values[0][k] = group->neurons[column + line * group->columns * incrementation].s;
+				values[1][k] = group->neurons[column + line * group->columns * incrementation].s1;
+				values[2][k] = group->neurons[column + line * group->columns * incrementation].s2;
+			}
+		}
+		// si le tableau est plein, remplacement de la valeur la plus ancienne par la valeur à ajouter. l'enregistrement des valeurs est similaire à une file circulaire.
+		else if(indexAncien == indexDernier+1 || (indexDernier == NB_Max_VALEURS_ENREGISTREES-1 && indexAncien == 0))
+		{
+			if(indexDernier == NB_Max_VALEURS_ENREGISTREES-1)
+			{
+				indexDernier = 0;
+				indexAncien = 1;
+			}
+			else if(indexAncien == NB_Max_VALEURS_ENREGISTREES-1)
+			{
+				indexDernier++;
+				indexAncien = 0;
+			}
+			else
+			{
+				indexDernier++;
+				indexAncien++;
+			}
+			values[0][indexDernier] = group->neurons[column + line * group->columns * incrementation].s;
+			values[1][indexDernier] = group->neurons[column + line * group->columns * incrementation].s1;
+			values[2][indexDernier] = group->neurons[column + line * group->columns * incrementation].s2;
+		}
+		// si le tableau n'est pas plein, ajout de la valeur à la suite des valeurs déja présentes.
+		else
+		{
+			indexDernier++;
+			values[0][indexDernier] = group->neurons[column + line * group->columns * incrementation].s;
+			values[1][indexDernier] = group->neurons[column + line * group->columns * incrementation].s1;
+			values[2][indexDernier] = group->neurons[column + line * group->columns * incrementation].s2;
+		}
+
+		// sauvegarde des indices courants.
+		group->courbes[l].last_index = indexDernier;
+		group->courbes[l].old_index = indexAncien;
+	}
+}
+
 
 // modifie la zone affichée. x et y représentent le point situé en haut a gauche de la zone à afficher.
 void architecture_set_view_point(GtkWidget *scrollbars, float x, float y)
@@ -615,6 +733,7 @@ void architecture_display_update(GtkWidget *architecture_display, void *data)
             if (cairo_in_fill(cr, event->x, event->y)) selected_group = group;
           }
           if (group == selected_group) cairo_set_source_rgb(cr, RED);
+          else if(group->is_in_a_loop == TRUE) cairo_set_source_rgb(cr, 0.8, 0.8, 0.8);
           else color(cr, group);
           cairo_fill_preserve(cr);
 
@@ -644,7 +763,16 @@ void architecture_display_update(GtkWidget *architecture_display, void *data)
                 cairo_set_source_rgb(cr, RED);
                 cairo_set_line_width(cr, 3);
               }
-              else cairo_set_line_width(cr, 1);
+              else if(group->is_in_a_loop == TRUE && input_group->is_in_a_loop == TRUE)
+              {
+                cairo_set_source_rgb(cr, BLACK);
+                cairo_set_line_width(cr, 4);
+              }
+              else
+              {
+            	color(cr, group);
+            	cairo_set_line_width(cr, 1);
+              }
               cairo_move_to(cr, x_offset + input_group->x * graphic.x_scale + LARGEUR_GROUPE, y_offset + input_group->y * graphic.y_scale + HAUTEUR_GROUPE / 2); //Début de la liaison (à droite du groupe prédécesseur)
               cairo_line_to(cr, x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + HAUTEUR_GROUPE / 2); //Fin de la liaison (à gauche du groupe courant)
               cairo_stroke(cr);

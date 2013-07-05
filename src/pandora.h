@@ -82,16 +82,14 @@
 #define BUTTON_WIDTH 60
 #define BUTTON_HEIGHT 25
 #define BIG_GRAPH_MAX_NEURONS_NUMBER 8
-#define NB_Max_VALEURS_ENREGISTREES 300
+#define NB_Max_VALEURS_ENREGISTREES 200
 #define FREQUENCE_MAX_VALUES_NUMBER 20
 #define ZOOM_GAP 10
 
 #define APPLY_SCRIPT_GROUPS_CARACTERISTICS 1
 #define SAVE_SCRIPT_GROUPS_CARACTERISTICS 2
-#define LOCK_SCRIPT_CARACTERISTICS_FUNCTION 3
-#define UNLOCK_SCRIPT_CARACTERISTICS_FUNCTION 4
 
-
+#define STAT_HISTORIC_MAX_NUMBER 50
 
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 
@@ -135,6 +133,34 @@ typedef struct coordonnees {
  } neuron;
  */
 
+typedef struct stat_one_execution
+{
+	long time_phase_0, time_phase_1, time_phase_3;
+	float rate_activity;
+} stat_one_execution;
+
+typedef struct stat_group_execution
+{
+	stat_one_execution executions[STAT_HISTORIC_MAX_NUMBER];
+	int old_index, last_index;
+	float taux_moyen, somme_taux, taux_min, taux_max;
+	long last_time_phase_0, last_time_phase_1, last_time_phase_3;
+	long somme_temps_executions;
+	int nb_executions;
+	long first_time;
+	gboolean initialiser;
+} stat_group_execution;
+
+typedef struct data_courbe
+{
+	float **values;
+	int indice;
+	int last_index, old_index;
+	int column, line;
+	gboolean show;
+	GtkWidget *check_box, *check_box_label;
+} data_courbe;
+
 typedef struct group_display_save
 {
   char name[SIZE_NO_NAME];
@@ -154,7 +180,8 @@ typedef struct group {
   int rows;
   int columns;
   type_neurone *neurons; //Tableau des neurones du groupe
-  int x, y;
+  int x, y, calculate_x;
+  int is_in_a_loop, is_currently_in_a_loop;
   gboolean knownX; //TRUE si la coordonnée x est connue
   gboolean knownY;
   int number_of_links;
@@ -167,14 +194,16 @@ typedef struct group {
   void *entry_val_min, *entry_val_max;
   void *ext, *dialog;
   void *path;
-  int output_display, display_mode, previous_display_mode;
-  int normalized;
+  int output_display, display_mode, previous_display_mode, previous_output_display;
+  int normalized, image_selected_index;
 
   /// enregistrement des valeurs S, S1 et S2, utilisées pour tracer le graphe. [ligne][colonne][s(0), s1(1) ou s2(2)][numValeur]
   float ****tabValues;
   int **indexDernier, **indexAncien;
   GtkWidget *button_vbox;
   int **afficher; // utilisé pour le mode big graph uniquement.
+  data_courbe *courbes;
+  int number_of_courbes;
 
   /// variables utilisées pour la fréquence moyenne
   float frequence_values[FREQUENCE_MAX_VALUES_NUMBER];
@@ -184,6 +213,9 @@ typedef struct group {
   int counter;
   GTimer *timer;
   GThread *thread;
+
+  // variables utilisées pour le calcul du taux d'activité de chaque groupe.
+  stat_group_execution stats;
 } type_group;
 
 
@@ -262,7 +294,8 @@ extern int number_of_net_links;
 void init_pandora(int argc, char** argv);
 void prom_bus_init(const char *ip);
 void script_update_positions(type_script *script);
-void group_expose_neurons(type_group *group, gboolean lock_gdk_threads);
+void group_expose_neurons(type_group *group, gboolean lock_gdk_threads, gboolean update_frequence);
+void resize_group(type_group *group);
 
 //Signaux
 void drag_drop_neuron_frame(GtkWidget *zone_neurons, GdkEventButton *event, gpointer data);

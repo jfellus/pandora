@@ -13,11 +13,19 @@
 #include "prom_user/include/Struct/prom_images_struct.h"
 #include "prom_kernel/include/reseau.h"
 
+#define diff(a,b) (a > b ? a-b : b-a)
+#define permut(a,b,tmp) {tmp = a; a = b; b = tmp;}
+
 ENetHost* enet_server = NULL;
 
 const char *displayMode;
 
 void enet_manager(ENetHost *server); /* Sinon il faut mettre la fonction avant les appels */
+
+void update_group_stats(type_group *group, long time);
+void verify_script(type_script *script);
+void verify_group(type_group *group);
+
 int freePeer = 0; //Utilisé pour numéroter les peers (donc les promethes, donc les scripts) (ENet)
 
 /**
@@ -36,7 +44,7 @@ void server_for_promethes()
   address.host = ENET_HOST_ANY;
   address.port = PANDORA_PORT;
 
-  enet_server = enet_host_create(&address, NB_SCRIPTS_MAX, PANDORA_NUMBER_OF_CHANNELS, ENET_UNLIMITED_BANDWITH, ENET_UNLIMITED_BANDWITH);
+  enet_server = enet_host_create(&address, NB_SCRIPTS_MAX, ENET_NUMBER_OF_CHANNELS, ENET_UNLIMITED_BANDWITH, ENET_UNLIMITED_BANDWITH);
 
   if (enet_server != NULL)
   {
@@ -75,6 +83,9 @@ void enet_manager(ENetHost *server)
   type_script *script = NULL;
   type_group *group, *input_group;
   type_neurone *neurons;
+
+  long time;
+  int phase;
 
 
   while (running)
@@ -141,6 +152,9 @@ void enet_manager(ENetHost *server)
             group->knownX = FALSE;
             group->knownY = FALSE;
             group->x = 1;
+            group->calculate_x = FALSE;
+            group->is_in_a_loop = FALSE;
+            group->is_currently_in_a_loop = FALSE;
             group->y = 1;
             group->number_of_links = 0;
             group->val_min = 0;
@@ -152,11 +166,19 @@ void enet_manager(ENetHost *server)
             group->previous = NULL;
             group->widget = NULL;
             group->ext = NULL;
+            group->image_selected_index = 0;
 
             group->tabValues = NULL;
             group->indexAncien = NULL;
             group->indexDernier = NULL;
             group->afficher = NULL;
+            group->courbes = NULL;
+
+            group->stats.last_index = -1;
+            group->stats.last_time_phase_0 = -1;
+            group->stats.last_time_phase_1 = 0;
+            group->stats.last_time_phase_3 = 0;
+            group->stats.initialiser = TRUE;
           }
 
           current_data=&current_data[groups_size];
@@ -245,6 +267,7 @@ void enet_manager(ENetHost *server)
           }
 
           script->y_offset= 0;
+          verify_script(script);
           for (script_id = 0; script_id < number_of_scripts; script_id++)
           {
             if (scripts[script_id]->groups != NULL) script_update_positions(scripts[script_id]);
@@ -274,38 +297,9 @@ void enet_manager(ENetHost *server)
 
           pthread_mutex_lock(&mutex_script_caracteristics);
           if((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && group->drawing_area != NULL && group->widget != NULL)
-        	  group_expose_neurons(group, TRUE);
+        	  group_expose_neurons(group, TRUE, TRUE);
           pthread_mutex_unlock(&mutex_script_caracteristics);
-/*
-          time = g_timer_elapsed(group->timer, NULL);
-          g_timer_start(group->timer);
 
-          // calcul de la fréquence moyenne basée sur les FREQUENCE_MAX_VALUES_NUMBER dernières itérations.
-            if(group->frequence_index_last == -1)
-            {
-                group->frequence_index_last = group->frequence_index_older = 0;
-                group->frequence_values[0] = 1/time;
-            }
-            else if(group->frequence_index_older == group->frequence_index_last+1 || (group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1 && group->frequence_index_older == 0))
-            {
-                if(group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1)
-                {
-                    group->frequence_index_last = 0;
-                    group->frequence_index_older = 1;
-                }
-                else
-                {
-                    group->frequence_index_last++;
-                    group->frequence_index_older++;
-                }
-                group->frequence_values[group->frequence_index_last] = 1/time;
-            }
-            else
-            {
-                group->frequence_index_last++;
-                group->frequence_values[group->frequence_index_last] = 1/time;
-            }
-*/
           break;
 
         case ENET_UPDATE_EXT_CHANNEL:
@@ -344,39 +338,54 @@ void enet_manager(ENetHost *server)
 
           pthread_mutex_lock(&mutex_script_caracteristics);
           if((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && group->drawing_area != NULL && group->widget != NULL)
-        	  group_expose_neurons(group, TRUE);
+        	  group_expose_neurons(group, TRUE, TRUE);
           pthread_mutex_unlock(&mutex_script_caracteristics);
-/*
-          time = g_timer_elapsed(group->timer, NULL);
-          g_timer_start(group->timer);
-
-            if(group->frequence_index_last == -1)
-            {
-                group->frequence_index_last = group->frequence_index_older = 0;
-                group->frequence_values[0] = 1/time;
-            }
-            else if(group->frequence_index_older == group->frequence_index_last+1 || (group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1 && group->frequence_index_older == 0))
-            {
-                if(group->frequence_index_last == FREQUENCE_MAX_VALUES_NUMBER-1)
-                {
-                    group->frequence_index_last = 0;
-                    group->frequence_index_older = 1;
-                }
-                else
-                {
-                    group->frequence_index_last++;
-                    group->frequence_index_older++;
-                }
-                group->frequence_values[group->frequence_index_last] = 1/time;
-            }
-            else
-            {
-                group->frequence_index_last++;
-                group->frequence_values[group->frequence_index_last] = 1/time;
-            }
-*/          break;
-        }
         break;
+        case ENET_UPDATE_DEBUG_INFO_CHANNEL:/*
+          current_data = event.packet->data;
+          group_id = *((int *)current_data);
+          group = &script->groups[group_id];
+          current_data = &current_data[sizeof(int)];
+          time = *((long *) current_data);
+          current_data = &current_data[sizeof(long)];
+          phase = *((int *)current_data);
+          if(group->stats.initialiser == TRUE)
+          {
+        	  group->stats.first_time = time;
+        	  group->stats.nb_executions = 0;
+        	  group->stats.somme_temps_executions = 0;
+        	  group->stats.initialiser = FALSE;
+          }
+
+          if(phase == 0)
+          {
+        	  if(group->stats.last_time_phase_0 != -1)
+        	  {
+        		  update_group_stats(group, time);
+        	  }
+        	  else
+        		  group->stats.last_time_phase_0 = time;
+          }
+          else if(phase == 1)
+          {
+        	  group->stats.last_time_phase_3 = group->stats.last_time_phase_1 = time;
+          }
+          else if(phase == 3)
+          {
+        	  group->stats.nb_executions++;
+        	  group->stats.last_time_phase_3 = time;
+        	  group->stats.somme_temps_executions += diff(group->stats.last_time_phase_1, group->stats.last_time_phase_3);
+              printf("\n  debug info group %s : time : %ld  ::  phase : %d  ::  rate : %f  ::  somme : %ld , %d\n", group->name, time, phase, group->stats.somme_taux, group->stats.somme_temps_executions, group->stats.nb_executions);
+          }
+          if(diff(group->stats.first_time, time) > 2000000)
+          {
+        	  // affichage
+        	  group->stats.initialiser = TRUE;
+          }*/
+          enet_packet_destroy(event.packet);
+          break;
+        }
+      break;
 
       case ENET_EVENT_TYPE_DISCONNECT:
         script = event.peer->data;
@@ -391,3 +400,204 @@ void enet_manager(ENetHost *server)
   }
 }
 
+void sort_list_groups_by_rate(type_group **groups, int number_of_groups) // utilisation de l'algorithme de tri rapide.
+{
+	int i=1, j = number_of_groups-1;
+	type_group *tmp;
+	if(number_of_groups < 2)
+		return;
+
+	while(i<j)
+	{
+		for(;i<j && !(groups[i]->stats.taux_moyen > groups[0]->stats.taux_moyen); i++);
+		for(;i<j && !(groups[i]->stats.taux_moyen < groups[0]->stats.taux_moyen); j--);
+		if(i<j)
+			permut(groups[i], groups[j], tmp);
+	}
+	if(i==j && groups[i]->stats.taux_moyen > groups[0]->stats.taux_moyen)
+		i--;
+	if(i > 0)
+		permut(groups[0], groups[i], tmp);
+
+	if(i>0)
+		sort_list_groups_by_rate(groups, i);
+	if(i<number_of_groups-1)
+		sort_list_groups_by_rate(&groups[i+1], number_of_groups - i-1);
+}
+
+void update_group_stats(type_group *group, long time)
+{
+	stat_group_execution *stats = &group->stats;
+	int last_index = stats->last_index, old_index = stats->old_index;
+	if(last_index == -1)
+	{
+		last_index = old_index = 0;
+		stats->executions[0].time_phase_0 = stats->last_time_phase_0;
+		stats->executions[0].time_phase_1 = stats->last_time_phase_1;
+		stats->executions[0].time_phase_3 = stats->last_time_phase_3;
+		stats->executions[0].rate_activity = ((float) diff(stats->last_time_phase_1, stats->last_time_phase_3)) / ((float) diff(stats->last_time_phase_0, time));
+
+		stats->taux_min = stats->taux_max = stats->taux_moyen = stats->somme_taux = stats->executions[0].rate_activity;
+	}
+	else if(last_index == STAT_HISTORIC_MAX_NUMBER - 1)
+	{
+		last_index = 0;
+		old_index++;
+		stats->somme_taux -= stats->executions[last_index].rate_activity;
+
+		stats->executions[last_index].time_phase_0 = stats->last_time_phase_0;
+		stats->executions[last_index].time_phase_1 = stats->last_time_phase_1;
+		stats->executions[last_index].time_phase_3 = stats->last_time_phase_3;
+		stats->executions[last_index].rate_activity = ((float) diff(stats->last_time_phase_1, stats->last_time_phase_3)) / ((float) diff(stats->last_time_phase_0, time));
+
+		stats->somme_taux += stats->executions[last_index].rate_activity;
+		stats->taux_moyen = stats->somme_taux / STAT_HISTORIC_MAX_NUMBER;
+
+		if(stats->taux_max < stats->executions[last_index].rate_activity)
+			stats->taux_max = stats->executions[last_index].rate_activity;
+		else if(stats->taux_min > stats->executions[last_index].rate_activity)
+			stats->taux_max = stats->executions[last_index].rate_activity;
+	}
+	else if(old_index == STAT_HISTORIC_MAX_NUMBER - 1)
+	{
+		last_index++;
+		old_index = 0;
+		stats->somme_taux -= stats->executions[last_index].rate_activity;
+
+		stats->executions[last_index].time_phase_0 = stats->last_time_phase_0;
+		stats->executions[last_index].time_phase_1 = stats->last_time_phase_1;
+		stats->executions[last_index].time_phase_3 = stats->last_time_phase_3;
+		stats->executions[last_index].rate_activity = ((float) diff(stats->last_time_phase_1, stats->last_time_phase_3)) / ((float) diff(stats->last_time_phase_0, time));
+
+		stats->somme_taux += stats->executions[last_index].rate_activity;
+		stats->taux_moyen = stats->somme_taux / STAT_HISTORIC_MAX_NUMBER;
+
+		if(stats->taux_max < stats->executions[last_index].rate_activity)
+			stats->taux_max = stats->executions[last_index].rate_activity;
+		else if(stats->taux_min > stats->executions[last_index].rate_activity)
+			stats->taux_max = stats->executions[last_index].rate_activity;
+	}
+	else if(old_index == last_index + 1)
+	{
+		last_index = old_index;
+		old_index++;
+
+		stats->somme_taux -= stats->executions[last_index].rate_activity;
+		stats->executions[last_index].time_phase_0 = stats->last_time_phase_0;
+		stats->executions[last_index].time_phase_1 = stats->last_time_phase_1;
+		stats->executions[last_index].time_phase_3 = stats->last_time_phase_3;
+		stats->executions[last_index].rate_activity = ((float) diff(stats->last_time_phase_1, stats->last_time_phase_3)) / ((float) diff(stats->last_time_phase_0, time));
+
+		stats->somme_taux += stats->executions[last_index].rate_activity;
+		stats->taux_moyen = stats->somme_taux / STAT_HISTORIC_MAX_NUMBER;
+
+		if(stats->taux_max < stats->executions[last_index].rate_activity)
+			stats->taux_max = stats->executions[last_index].rate_activity;
+		else if(stats->taux_min > stats->executions[last_index].rate_activity)
+			stats->taux_max = stats->executions[last_index].rate_activity;
+	}
+	else
+	{
+		last_index++;
+
+		stats->executions[last_index].time_phase_0 = stats->last_time_phase_0;
+		stats->executions[last_index].time_phase_1 = stats->last_time_phase_1;
+		stats->executions[last_index].time_phase_3 = stats->last_time_phase_3;
+		stats->executions[last_index].rate_activity = ((float) diff(stats->last_time_phase_1, stats->last_time_phase_3)) / ((float) diff(stats->last_time_phase_0, time));
+
+		stats->somme_taux += stats->executions[last_index].rate_activity;
+		stats->taux_moyen = stats->somme_taux / (last_index+1);
+
+		if(stats->taux_max < stats->executions[last_index].rate_activity)
+			stats->taux_max = stats->executions[last_index].rate_activity;
+		else if(stats->taux_min > stats->executions[last_index].rate_activity)
+			stats->taux_max = stats->executions[last_index].rate_activity;
+	}
+	stats->last_time_phase_0 = stats->last_time_phase_1 = stats->last_time_phase_3 = time;
+	stats->last_index = last_index;
+	stats->old_index = old_index;
+}
+
+void verify_script(type_script *script)
+{
+	int i;
+
+	for(i=0; i<script->number_of_groups; i++)
+		if(script->groups[i].knownX == FALSE)
+			verify_group(&script->groups[i]);
+	for(i=0; i<script->number_of_groups; i++)
+		script->groups[i].knownX = FALSE;
+}
+
+void verify_group(type_group *group)
+{
+	static type_group *first_in_loop[50];
+	static int loop_number = 0;
+	int i;
+
+	if(group->calculate_x == TRUE)
+	{
+		if(loop_number == 0 || first_in_loop[loop_number-1] != group)
+		{
+			first_in_loop[loop_number] = group;
+			loop_number++;
+		}
+		group->is_in_a_loop = TRUE;
+		group->is_currently_in_a_loop = TRUE;
+		return;
+	}
+	group->calculate_x = TRUE;
+	if (group->previous == NULL)
+	{
+		group->x = 1;
+	}
+	else
+	{
+		for (i = 0; i < group->number_of_links; i++)
+		{
+			if (group->previous[i]->knownX == FALSE)
+			{
+				verify_group(group->previous[i]);
+				if(group->previous[i]->is_currently_in_a_loop)
+				{
+					group->is_currently_in_a_loop = group->is_in_a_loop = TRUE;
+					group->previous[i]->is_currently_in_a_loop = FALSE;
+					if(loop_number > 0 && first_in_loop[loop_number-1] == group)
+					{
+						group->is_currently_in_a_loop = FALSE;
+						loop_number--;
+					}
+				}
+			}
+			if (group->previous[i]->x >= group->x) group->x = group->previous[i]->x + 1;
+		}
+
+		for (i = 0; i < number_of_net_links; i++)
+		{
+			if (net_links[i].next == group && net_links[i].previous != NULL)
+			{
+				if (net_links[i].type & NET_LINK_BLOCK)
+				{
+					if (!net_links[i].previous->knownX)
+					{
+						verify_group(net_links[i].previous);
+						if(net_links[i].previous->is_currently_in_a_loop)
+						{
+							group->is_currently_in_a_loop = group->is_in_a_loop = TRUE;
+							net_links[i].previous->is_currently_in_a_loop = FALSE;
+							if(loop_number > 0 && first_in_loop[loop_number-1] == group)
+							{
+								group->is_currently_in_a_loop = FALSE;
+								loop_number--;
+							}
+						}
+					}
+					if (net_links[i].next->x < net_links[i].previous->x) net_links[i].next->x = net_links[i].previous->x + 1;
+				}
+			}
+		}
+	}
+	group->calculate_x = FALSE;
+
+	group->knownX = TRUE;
+}
