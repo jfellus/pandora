@@ -12,6 +12,7 @@
 #include "prom_kernel/include/pandora_connect.h"
 #include "prom_user/include/Struct/prom_images_struct.h"
 #include "prom_kernel/include/reseau.h"
+#include "pandora_save.h"
 
 #define diff(a,b) (a > b ? a-b : b-a)
 #define permut(a,b,tmp) {tmp = a; a = b; b = tmp;}
@@ -57,6 +58,8 @@ void server_for_promethes()
 void enet_manager(ENetHost *server)
 {
   static int first_call = 1;
+  //static state_of_saving state;
+
   char ip[HOST_NAME_MAX];
   int running = 1;
   int i;
@@ -83,17 +86,20 @@ void enet_manager(ENetHost *server)
   type_script *script = NULL;
   type_group *group, *input_group;
   type_neurone *neurons;
-
   long time;
   int phase;
+
 
 
   while (running)
   {
   first_call++;
+  //state.saving=saving_press;
+
     /* Wait up to 2000 milliseconds for an event. */
     while (enet_host_service(server, &event, 2000) > 0)
     {
+      //state.saving=saving_press;
       switch (event.type)
       {
       case ENET_EVENT_TYPE_CONNECT:
@@ -172,6 +178,10 @@ void enet_manager(ENetHost *server)
             group->indexAncien = NULL;
             group->indexDernier = NULL;
             group->afficher = NULL;
+            group->associated_file=NULL;
+            group->selected_for_save=FALSE;
+            group->on_saving=FALSE;
+           
             group->courbes = NULL;
 
             group->stats.last_index = -1;
@@ -179,6 +189,7 @@ void enet_manager(ENetHost *server)
             group->stats.last_time_phase_1 = 0;
             group->stats.last_time_phase_3 = 0;
             group->stats.initialiser = TRUE;
+
           }
 
           current_data=&current_data[groups_size];
@@ -292,6 +303,14 @@ void enet_manager(ENetHost *server)
           /* printf("RTT: %i\n", event.peer->lastRoundTripTime); */
           //Réception du paquet
           memcpy(group->neurons, event.packet->data, sizeof(type_neurone) * number_of_neurons);
+          gdk_threads_enter();
+          if(group->selected_for_save==1 && saving_press==1)
+          {
+
+        	 continuous_saving(group);
+
+          }
+          gdk_threads_leave();
           group->counter++;
           enet_packet_destroy(event.packet);
 
@@ -389,6 +408,7 @@ void enet_manager(ENetHost *server)
 
       case ENET_EVENT_TYPE_DISCONNECT:
         script = event.peer->data;
+        destroy_saving_ref_one(script);
         event.peer->data = NULL;
         break;
 
@@ -398,6 +418,8 @@ void enet_manager(ENetHost *server)
       }
     }
   }
+
+  destroy_saving_ref(scripts);
 }
 
 void sort_list_groups_by_rate(type_group **groups, int number_of_groups) // utilisation de l'algorithme de tri rapide.

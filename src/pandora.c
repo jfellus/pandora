@@ -11,6 +11,7 @@
 #include "pandora_ivy.h"
 #include "graphic.h"
 #include "basic_tools.h"
+#include "pandora_save.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -64,6 +65,10 @@ int number_of_groups_to_display = 0;
 
 char bus_id[BUS_ID_MAX];
 char bus_ip[HOST_NAME_MAX];
+
+//Pour la sauvegarde
+gboolean saving_press=0;
+
 
 
 void on_search_group(int index);
@@ -253,6 +258,25 @@ void findY(type_group *group)
  */
 
 //-----------------------------------------------------4. SIGNAUX---------------------------------------------
+
+/*TODO*/
+void on_toggled_saving_button(GtkWidget *save_button, gpointer pData)
+{
+	(void)pData;
+
+	  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(save_button)))
+	  {
+	    saving_press=1;
+	    architecture_display_update(architecture_display,NULL);//ineficace
+
+	  }else //Si le bouton est désactivé
+	  {
+		saving_press=0;
+		destroy_saving_ref(scripts); //on ferme tout les fichiers et on remet les on_saving à 0
+		architecture_display_update(architecture_display,NULL); // pour remettre à jour l'affichage quand tout les on_saving sont à 0
+	  }
+}
+
 void on_script_displayed_toggled(GtkWidget *pWidget, gpointer user_data)
 {
   type_script *script = user_data;
@@ -282,7 +306,8 @@ gboolean window_close(GtkWidget *pWidget, GdkEvent *event, gpointer pData) //Fon
   (void) event;
   (void) pData;
 
-  pandora_file_save("./pandora.pandora"); // enregistrement de l'état actuel. cet état sera appliqué au prochain démarrage de pandora.
+  destroy_saving_ref(scripts);//par securité pour la cloture des fichiers de sauvegarde
+  pandora_file_save("./pandora.pandora"); //TODO : OUBLIE LIBE MEMOIRE ICI enregistrement de l'état actuel. cet état sera appliqué au prochain démarrage de pandora.
   gtk_main_quit();
   return FALSE;
 }
@@ -567,6 +592,7 @@ void on_search_group(int index)
           {
             //Le groupe correspondant est séléctionné
             selected_group = &selected_script->groups[i];
+
             architecture_get_group_position(selected_group, &x, &y);
             x -= (scrollbars->allocation.width - LARGEUR_GROUPE)/2;
             if(x < 0.0) x = 0.0;
@@ -589,6 +615,7 @@ void on_search_group(int index)
           {
             //Le groupe correspondant est séléctionné
             selected_group = &selected_script->groups[i];
+
             // les coordonnées de ce groupe sont récupérées et le groupe est placé au centre de l'affichage.
             architecture_get_group_position(selected_group, &x, &y);
             x -= (scrollbars->allocation.width - LARGEUR_GROUPE)/2;
@@ -660,6 +687,7 @@ void button_press_event(GtkWidget *pWidget, GdkEventButton *event)
   (void) pWidget;
 
   selected_group = NULL;
+
   architecture_display_update(architecture_display, event);
   architecture_display_update(architecture_display, NULL);
 
@@ -685,13 +713,13 @@ gboolean architecture_display_scroll_event(GtkWidget *pWidget, GdkEventScroll *e
     if(event->device->source != GDK_SOURCE_MOUSE)
       return FALSE;
 
-    if(event->direction == GDK_SCROLL_UP && event->state & GDK_CONTROL_MASK)
+    if((event->direction == GDK_SCROLL_UP) && (event->state & GDK_CONTROL_MASK))
     {
         zoom_in();
         return TRUE;
     }
 
-    if(event->direction == GDK_SCROLL_DOWN && event->state & GDK_CONTROL_MASK)
+    if((event->direction == GDK_SCROLL_DOWN) && (event->state & GDK_CONTROL_MASK))
     {
         zoom_out();
         return TRUE;
@@ -760,6 +788,8 @@ void key_press_event(GtkWidget *pWidget, GdkEventKey *event)
   case GDK_KP_Add :
   case GDK_plus : if(event->state & GDK_CONTROL_MASK) zoom_in();
   break;
+  case GDK_Control_L:
+	  break;
   case GDK_minus :
   case GDK_KP_Subtract : if(event->state & GDK_CONTROL_MASK) zoom_out();
   break;
@@ -1107,7 +1137,7 @@ void on_group_display_clicked(GtkButton *button, type_group *group)
 {
   char builder_file_name[PATH_MAX];
   GError *g_error = NULL;
-  GtkWidget *frame = NULL, *vbox, *hbox, *label, *left_spinner, *right_spinner, *image_hbox, *image_combo_box;
+  GtkWidget *frame = NULL, *vbox, *hbox, *label, *left_spinner, *right_spinner, *image_hbox;
   int height = 0;
   float r, g, b;
   char markup[126];
@@ -1168,7 +1198,7 @@ void on_group_display_clicked(GtkButton *button, type_group *group)
   gtk_box_pack_start(GTK_BOX(image_hbox), label, TRUE, FALSE, 0);
   selected_image_combo_box = gtk_combo_box_new_text();
   gtk_box_pack_start(GTK_BOX(image_hbox), selected_image_combo_box, TRUE, FALSE, 0);
-  g_signal_connect(GTK_OBJECT(image_combo_box), "changed", G_CALLBACK(on_group_display_selected_image_changed), group);
+  g_signal_connect(GTK_OBJECT(selected_image_combo_box), "changed", G_CALLBACK(on_group_display_selected_image_changed), group);
 
   gtk_widget_show_all(selected_group_dialog);
 
@@ -1217,6 +1247,7 @@ int button_press_neurons(GtkWidget *zone2D, GdkEventButton *event, type_group *g
   else if (event->button == 1) //Si clic gauche la fenêtre est séléctionnée
   {
     selected_group = group; //Le groupe associé à la fenêtre dans laquelle on a cliqué est également sélectionné
+
     on_group_display_clicked(NULL, group);
   }
 
@@ -1876,7 +1907,7 @@ void pandora_file_save(const char *filename)
   type_group *group;
   type_script *script;
 
-  tree = mxmlNewXML("1.0");
+  tree = mxmlNewXML("1.0"); // todo oublie de libe memoire
 
   preferences_node = mxmlNewElement(tree, "preferences");
   xml_set_string(preferences_node, "bus_id", bus_id);
@@ -1934,7 +1965,7 @@ void pandora_file_load(const char *filename)
     group_display_destroy(groups_to_display[0]);
   }
 
-  tree = xml_load_file((char *) filename);
+  tree = xml_load_file((char *) filename); // TODO oublie de liberation de memoire
 
   preferences_node = xml_get_first_child_with_node_name(tree, "preferences");
   /* On change le bus id s'il n'a pas été mis en paramètre */
@@ -2143,16 +2174,32 @@ gboolean neurons_refresh_display_without_change_values()
 	return TRUE;
 }
 
+
+
+
+/*
+void tabula_rasa_select()
+{
+
+	int indGroup=0;
+	for (indGroup=0;indGroup<number_of_groups_to_display;indGroup++)
+	{
+		groups_to_display[indGroup]->selected=0;
+	}
+
+}
+*/
 void pandora_window_new()
 {
   char path[PATH_MAX];
-  GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons, *refreshModeHBox, *refreshModeComboBox, *refreshModeLabel, *refreshManualButton,  *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu;
+  GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons,*hbox_barre, *refreshModeHBox, *refreshModeComboBox, *refreshModeLabel, *refreshManualButton,  *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu;
   GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *zySetting, *zyLabel;
-  GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault, *boutonPause;
+  GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault, *boutonPause, *save_button;
   GtkWidget *pFrameScripts, *scrollbars2;
   GtkWidget *load, *save, *saveAs, *quit, *itemFile;
-//La fenêtre principale
 
+
+//La fenêtre principale
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_widget_set_double_buffered(window, TRUE);
   /* Positionne la GTK_WINDOW "pWindow" au centre de l'écran */
@@ -2164,14 +2211,16 @@ void pandora_window_new()
   sprintf(path, "%s/bin_leto_prom/resources/pandora_icon.png", getenv("HOME"));
   gtk_window_set_icon_from_file(GTK_WINDOW(window), path, NULL);
 
+
 //Le signal de fermeture de la fenêtre est connecté à la fenêtre (petite croix)
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(window_close), (GtkWidget*) window);
 
 
 // création de la barre de menus.
-  menuBar = gtk_menu_bar_new();
+  menuBar = gtk_menu_bar_new(); //TODO : verif libé mémoire
 
-  fileMenu = gtk_menu_new();
+  fileMenu = gtk_menu_new(); //TODO : verif libé mémoire
+
 
   load = gtk_menu_item_new_with_label(g_locale_to_utf8("Load", -1, NULL, NULL, NULL));
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), load);
@@ -2195,18 +2244,31 @@ void pandora_window_new()
 
   gtk_menu_append(menuBar, itemFile);
 
-
   /*Création d'une VBox (boîte de widgets disposés verticalement) */
   v_box_main = gtk_vbox_new(FALSE, 0);
   /*ajout de v_box_main dans pWindow, qui est alors vu comme un GTK_CONTAINER*/
   gtk_container_add(GTK_CONTAINER(window), v_box_main);
 
+  gtk_box_pack_start(GTK_BOX(v_box_main), menuBar, FALSE, FALSE, 0); // ajout de la barre de menus.
+
+  //Création d'une Hbox qui contiendra les deux boutons suivant
+  hbox_barre=gtk_hbox_new(TRUE, 1);
+
+  //TODO Création du bouton hide see, bug probable car transformation en hide left pannel show left pannel
   hide_see_scales_button = gtk_toggle_button_new_with_label("Hide scales");
   g_signal_connect(G_OBJECT(hide_see_scales_button), "toggled", (GtkSignalFunc) on_hide_see_scales_button_active, NULL);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hide_see_scales_button), FALSE);
-  gtk_widget_set_size_request(hide_see_scales_button, 150, 30);
-  gtk_box_pack_start(GTK_BOX(v_box_main), menuBar, FALSE, FALSE, 0); // ajout de la barre de menus.
-  gtk_box_pack_start(GTK_BOX(v_box_main), hide_see_scales_button, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(hbox_barre), hide_see_scales_button, FALSE, TRUE, 0);
+
+  //Creation du bouton d'enregistrement
+  save_button=gtk_toggle_button_new_with_label("Save");
+  printf("\ncreation bouton\n");
+  g_signal_connect(G_OBJECT(save_button),"toggled",(GtkSignalFunc) on_toggled_saving_button, NULL);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(save_button), FALSE);
+  gtk_box_pack_start(GTK_BOX(hbox_barre), save_button, FALSE, TRUE, 0);
+
+  // on insere la Hbox dans la vbox
+  gtk_box_pack_start(GTK_BOX(v_box_main), hbox_barre, FALSE, FALSE, 0);
 
   /*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
   h_box_main = gtk_hbox_new(FALSE, 0);
@@ -2385,11 +2447,12 @@ void pandora_window_new()
  */
 int main(int argc, char** argv)
 {
+
   int option;
   struct sigaction action;
   char chemin[] = "./pandora.pandora";
-
   stop = FALSE;
+
   load_temporary_save = FALSE;
   architecture_display_dragging_currently = FALSE;
   refresh_mode = REFRESH_MODE_AUTO;
@@ -2418,7 +2481,7 @@ int main(int argc, char** argv)
   pthread_mutex_init(&mutex_script_caracteristics, NULL);
 
 // Initialisation de GTK+
-  gtk_init(&argc, &argv);
+  gtk_init(&argc, &argv); // TODO : VERIF LIBE MEMOIRE
 
 //Initialisation d'ENet
   if (enet_initialize() != 0)
@@ -2482,5 +2545,6 @@ int main(int argc, char** argv)
   gdk_threads_enter();
   gtk_main(); //Boucle infinie : attente des événements
   gdk_threads_leave();
+
   return EXIT_SUCCESS;
 }

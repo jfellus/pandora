@@ -214,6 +214,12 @@ typedef struct group {
   GTimer *timer;
   GThread *thread;
 
+  gboolean selected_for_save;
+  gboolean on_saving;
+  FILE* associated_file;
+
+
+
   // variables utilisées pour le calcul du taux d'activité de chaque groupe.
   stat_group_execution stats;
 } type_group;
@@ -314,6 +320,8 @@ void save_preferences(GtkWidget *pWidget, gpointer pData);
 void save_preferences_as(GtkWidget *pWidget, gpointer pData);
 void pandora_load_preferences(GtkWidget *pWidget, gpointer pData);
 void defaultScale(GtkWidget *pWidget, gpointer pData);
+void on_toggled_saving_button(GtkWidget *save_button,gpointer pdata);
+//void tabula_rasa_select();
 
 //"Constructeurs"
 void init_script(type_script *s, char *name, char *machine, int z, int nbGroups, int id);
@@ -345,4 +353,6 @@ gboolean script_caracteristics(type_script *script, int action);
 void fatal_error(const char *name_of_file, const char *name_of_function, int numero_of_line, const char *message, ...);
 void pandora_bus_send_message(char *id, const char *format, ...);
 void server_for_promethes();
+//void findX(type_group *group);
+
 #endif

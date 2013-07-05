@@ -118,7 +118,7 @@ void group_expose_neurons(type_group *group, gboolean lock_gdk_threads, gboolean
   group->counter = 0;
 
 
-  cr = gdk_cairo_create(GTK_WIDGET(group->drawing_area)->window); //Crée un contexte Cairo associé à la drawing_area "zone"
+  cr = gdk_cairo_create(GTK_WIDGET(group->drawing_area)->window); //Crée un contexte Cairo associé à la drawing_area "zone" (?????)
 
   // si la sortie vaut 3, on affiche l'image ou un indicateur si aucune image a été reçue.
   if (group->output_display == 3)
@@ -725,17 +725,42 @@ void architecture_display_update(GtkWidget *architecture_display, void *data)
           group = &script->groups[group_id];
 
           /* Box */
+          if (group->on_saving==1) cairo_set_line_width(cr, 4);
+          if (group->on_saving==0) cairo_set_line_width(cr, 2);
           cairo_rectangle(cr, x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale, LARGEUR_GROUPE, HAUTEUR_GROUPE);
+
 
           /* Test selection */
           if (event != NULL)
           {
-            if (cairo_in_fill(cr, event->x, event->y)) selected_group = group;
+            if (cairo_in_fill(cr, event->x, event->y)) // Test selection pour sauvegarde (touche control activée)
+            	{
+            	selected_group = group;
+            	  if ((event->state & GDK_CONTROL_MASK) && !saving_press)
+            	  {
+            		  group->selected_for_save=!group->selected_for_save;
+
+            		  //TODO : demande d'envois des données à promethé pour ceux qui sont en selection type sauvegarde
+            		  if (group->selected_for_save==1) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name);
+            		  else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name);
+            	  }
+            	}
+
           }
           if (group == selected_group) cairo_set_source_rgb(cr, RED);
           else if(group->is_in_a_loop == TRUE) cairo_set_source_rgb(cr, 0.8, 0.8, 0.8);
           else color(cr, group);
           cairo_fill_preserve(cr);
+          if(group->selected_for_save==1)
+          {
+
+              if (group->on_saving==1) cairo_set_source_rgb(cr, YELLOW);
+              if (group->on_saving==0) cairo_set_source_rgb(cr, BLUE);
+
+
+        	  cairo_stroke_preserve(cr);
+          }
+
 
           /* Texts  */
           cairo_save(cr);
@@ -793,7 +818,7 @@ void architecture_display_update(GtkWidget *architecture_display, void *data)
 
       if (input_group != NULL && group != NULL)
       {
-        if ((input_group == selected_group) || (group == selected_group))
+        if ((input_group == selected_group ) || (group == selected_group))
         {
           cairo_set_source_rgb(cr, RED);
           cairo_set_line_width(cr, 5);

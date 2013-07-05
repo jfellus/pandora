@@ -7,7 +7,7 @@
 
 #ifndef GRAPHIC_H
 #define GRAPHIC_H
-
+#define BUS_ID_MAX 128
 
 #include "pandora.h"
 
@@ -23,7 +23,7 @@ typedef struct graphic
 
 type_graphic graphic;
 
-
+extern char bus_id[BUS_ID_MAX];
 
 
 void group_update_frequence_values(type_group *group);
@@ -40,6 +40,6 @@ void pandora_window_new();
 
 
 extern TxWidget *check_button_draw_connections, *check_button_draw_net_connections;
-
+extern gboolean saving_press;
 
 #endif /* GRAPHIC_H */
