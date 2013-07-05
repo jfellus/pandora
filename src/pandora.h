@@ -24,6 +24,7 @@
 
 #include <net_message_debug_dist.h>
 #include "colors.h"
+#include "pandora_ivy.h"
 #include "prom_tools/include/xml_tools.h"
 #include "enet/include/enet/enet.h"
 #include "prom_kernel/include/pandora_connect.h"
@@ -133,22 +134,14 @@ typedef struct coordonnees {
  } neuron;
  */
 
-typedef struct stat_one_execution
-{
-	long time_phase_0, time_phase_1, time_phase_3;
-	float rate_activity;
-} stat_one_execution;
-
 typedef struct stat_group_execution
 {
-	stat_one_execution executions[STAT_HISTORIC_MAX_NUMBER];
-	int old_index, last_index;
-	float taux_moyen, somme_taux, taux_min, taux_max;
 	long last_time_phase_0, last_time_phase_1, last_time_phase_3;
 	long somme_temps_executions;
 	int nb_executions;
 	long first_time;
 	gboolean initialiser;
+	char message[MESSAGE_MAX];
 } stat_group_execution;
 
 typedef struct data_courbe
@@ -254,6 +247,7 @@ typedef struct script_link {
 
 
 int refresh_mode;
+extern char bus_id[BUS_ID_MAX];
 
 pthread_mutex_t mutex_script_caracteristics;
 
@@ -267,6 +261,7 @@ gboolean load_temporary_save;
 char preferences_filename[PATH_MAX]; //fichier de préférences (*.jap)
 
 int stop; // continue l'enregistrement pour le graphe ou non.
+extern gboolean calculate_executions_times;
 
 extern int number_of_scripts; //Nombre de scripts à afficher
 char scriptsNames[NB_SCRIPTS_MAX][SCRIPT_NAME_MAX]; //Tableau des noms des scripts

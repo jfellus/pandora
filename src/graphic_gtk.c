@@ -767,7 +767,8 @@ void architecture_display_update(GtkWidget *architecture_display, void *data)
           if (group != selected_group) cairo_clip(cr);
           gdk_cairo_set_source_color(cr, &couleurs[noir]);
           cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + TEXT_LINE_HEIGHT);
-          cairo_show_text(cr, group->name);
+          snprintf(text, TEXT_MAX, "%s   | %sµs", group->name, group->stats.message);
+          cairo_show_text(cr, text);
           cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + 2 * TEXT_LINE_HEIGHT);
           cairo_show_text(cr, group->function);
           snprintf(text, TEXT_MAX, "%d x %d", group->columns, group->rows);
@@ -842,6 +843,50 @@ void architecture_display_update(GtkWidget *architecture_display, void *data)
     }
   }
   cairo_destroy(cr);
+}
+
+void architecture_display_update_group(GtkWidget *architecture_display, type_group *group)
+{
+  cairo_t *cr;
+  char text[TEXT_MAX];
+  double x_offset = 0, y_offset = 0;
+  type_script *script;
+
+//Dessin des groupes : on dessine d'abord les scripts du plan z = 0 (s'il y en a), puis ceux du plan z = 1, etc., jusqu'à zMax inclus
+  script = group->script;
+  if(script->displayed)
+  {
+	  x_offset = graphic.zx_scale * script->z;
+	  y_offset = graphic.zy_scale * script->z + script->y_offset * graphic.y_scale;
+
+	  /* Box */
+	  cr = gdk_cairo_create(architecture_display->window); //Crée un contexte Cairo associé à la drawing_area "zone"
+	  cairo_rectangle(cr, x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale, LARGEUR_GROUPE, HAUTEUR_GROUPE);
+
+	  if (group == selected_group) cairo_set_source_rgb(cr, RED);
+	  else if(group->is_in_a_loop == TRUE) cairo_set_source_rgb(cr, 0.8, 0.8, 0.8);
+	  else color(cr, group);
+	  cairo_fill_preserve(cr);
+
+	  /* Texts  */
+	  cairo_save(cr);
+	  if (group != selected_group) cairo_clip(cr);
+	  gdk_cairo_set_source_color(cr, &couleurs[noir]);
+	  cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + TEXT_LINE_HEIGHT);
+	  if(group->stats.message[0] != '\0')
+		  snprintf(text, TEXT_MAX, "%s   | %sµs", group->name, group->stats.message);
+	  else
+		  snprintf(text, TEXT_MAX, "%s", group->name);
+	  cairo_show_text(cr, text);
+	  cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + 2 * TEXT_LINE_HEIGHT);
+	  cairo_show_text(cr, group->function);
+	  snprintf(text, TEXT_MAX, "%d x %d", group->columns, group->rows);
+	  cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + 3 * TEXT_LINE_HEIGHT);
+	  cairo_show_text(cr, text);
+	  cairo_stroke(cr);
+	  cairo_restore(cr); /* unclip */
+	  cairo_destroy(cr);
+  }
 }
 
 // permet de connaitre les coordonnées d'un groupe affiché dans la zone "architecture_display" (point en haut à gauche du groupe).

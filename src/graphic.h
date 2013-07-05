@@ -7,7 +7,7 @@
 
 #ifndef GRAPHIC_H
 #define GRAPHIC_H
-#define BUS_ID_MAX 128
+
 
 #include "pandora.h"
 
@@ -23,7 +23,7 @@ typedef struct graphic
 
 type_graphic graphic;
 
-extern char bus_id[BUS_ID_MAX];
+
 
 
 void group_update_frequence_values(type_group *group);
@@ -36,10 +36,13 @@ void group_update_display(TxGraphic *cr, int a, int b, int c, int d, type_group 
 void architecture_set_view_point(GtkWidget *scrollbars, float x, float y);
 void architecture_get_group_position(type_group *group, float *x, float *y);
 void architecture_display_update(TxWidget *group_display, void *event);
+void architecture_display_update_group(GtkWidget *architecture_display, type_group *group);
 void pandora_window_new();
 
 
 extern TxWidget *check_button_draw_connections, *check_button_draw_net_connections;
+GtkWidget *architecture_display; //La grande zone de dessin des liaisons entre groupes
+
 extern gboolean saving_press;
 
 #endif /* GRAPHIC_H */

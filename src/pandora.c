@@ -25,7 +25,6 @@ GtkWidget *vpaned, *scrollbars;
 GtkWidget *hide_see_scales_button; //Boutton permettant de cacher le menu de droite
 GtkWidget *pPane; //Panneau latéral
 GtkWidget *pVBoxScripts; //Panneau des scripts
-GtkWidget *architecture_display; //La grande zone de dessin des liaisons entre groupes
 GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale; //Échelles
 GtkBuilder *builder;
     /*Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshots)*/
@@ -65,6 +64,8 @@ int number_of_groups_to_display = 0;
 
 char bus_id[BUS_ID_MAX];
 char bus_ip[HOST_NAME_MAX];
+
+gboolean calculate_executions_times=FALSE;
 
 //Pour la sauvegarde
 gboolean saving_press=0;
@@ -592,7 +593,6 @@ void on_search_group(int index)
           {
             //Le groupe correspondant est séléctionné
             selected_group = &selected_script->groups[i];
-
             architecture_get_group_position(selected_group, &x, &y);
             x -= (scrollbars->allocation.width - LARGEUR_GROUPE)/2;
             if(x < 0.0) x = 0.0;
@@ -615,7 +615,6 @@ void on_search_group(int index)
           {
             //Le groupe correspondant est séléctionné
             selected_group = &selected_script->groups[i];
-
             // les coordonnées de ce groupe sont récupérées et le groupe est placé au centre de l'affichage.
             architecture_get_group_position(selected_group, &x, &y);
             x -= (scrollbars->allocation.width - LARGEUR_GROUPE)/2;
@@ -687,7 +686,6 @@ void button_press_event(GtkWidget *pWidget, GdkEventButton *event)
   (void) pWidget;
 
   selected_group = NULL;
-
   architecture_display_update(architecture_display, event);
   architecture_display_update(architecture_display, NULL);
 
@@ -788,8 +786,6 @@ void key_press_event(GtkWidget *pWidget, GdkEventKey *event)
   case GDK_KP_Add :
   case GDK_plus : if(event->state & GDK_CONTROL_MASK) zoom_in();
   break;
-  case GDK_Control_L:
-	  break;
   case GDK_minus :
   case GDK_KP_Subtract : if(event->state & GDK_CONTROL_MASK) zoom_out();
   break;
@@ -1247,7 +1243,6 @@ int button_press_neurons(GtkWidget *zone2D, GdkEventButton *event, type_group *g
   else if (event->button == 1) //Si clic gauche la fenêtre est séléctionnée
   {
     selected_group = group; //Le groupe associé à la fenêtre dans laquelle on a cliqué est également sélectionné
-
     on_group_display_clicked(NULL, group);
   }
 
@@ -1266,6 +1261,26 @@ void graph_stop_or_not(GtkWidget *pWidget, gpointer pData)
         gtk_button_set_label(GTK_BUTTON(pWidget), "Record graphs");
     else
         gtk_button_set_label(GTK_BUTTON(pWidget), "Stop graphs");
+}
+
+void phases_info_start_or_stop(GtkWidget *pWidget, gpointer pData)
+{
+    int i;
+	(void) pData;
+
+	calculate_executions_times = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pWidget));
+    if(calculate_executions_times == TRUE)
+    {
+    	gtk_button_set_label(GTK_BUTTON(pWidget), "Stop calculate execution times");
+    	for(i=0; i<number_of_scripts; i++)
+    		pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_START, 0, scripts[i]->name);
+    }
+    else
+    {
+    	gtk_button_set_label(GTK_BUTTON(pWidget), "Start calculate execution times");
+    	for(i=0; i<number_of_scripts; i++)
+    		pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_STOP, 0, scripts[i]->name);
+    }
 }
 
 void on_group_display_show_or_mask_neuron(GtkWidget *pWidget, gpointer pData)
@@ -1368,26 +1383,7 @@ void group_display_new(type_group *group, float pos_x, float pos_y)
 		  group->courbes[i].last_index = -1;
 	  }
   }
-/*
 
-  if(group->rows * group->columns <= BIG_GRAPH_MAX_NEURONS_NUMBER)
-    for (j = 0; j < group->rows; j++)
-    {
-        for (i = 0; i < group->columns; i++)
-        {
-            graph_get_line_color(j*group->columns + i, &r, &g, &b);
-            sprintf(p_legende_texte, "<b><span foreground=\"#%02X%02X%02X\"> %dx%d</span></b>\n", (int) (r*255), (int) (g*255), (int) (b*255), i, j);
-            button_label = gtk_label_new("");
-            gtk_label_set_markup(GTK_LABEL(button_label), p_legende_texte);
-            button = gtk_check_button_new();
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), group->afficher[j][i]);
-            gtk_container_add(GTK_CONTAINER(button), button_label);
-            gtk_widget_set_size_request(button, BUTTON_WIDTH, BUTTON_HEIGHT);
-            gtk_box_pack_start(GTK_BOX(group->button_vbox), button, TRUE, FALSE, 0);
-            g_signal_connect(GTK_OBJECT(button), "toggled", G_CALLBACK(on_group_display_show_or_mask_neuron), &(group->afficher[j][i]));
-        }
-    }
-*/
   group->drawing_area = gtk_drawing_area_new();
   gtk_widget_set_double_buffered(group->drawing_area, TRUE);
   principal_hbox = gtk_hbox_new(FALSE, 0);
@@ -1907,7 +1903,7 @@ void pandora_file_save(const char *filename)
   type_group *group;
   type_script *script;
 
-  tree = mxmlNewXML("1.0"); // todo oublie de libe memoire
+  tree = mxmlNewXML("1.0");
 
   preferences_node = mxmlNewElement(tree, "preferences");
   xml_set_string(preferences_node, "bus_id", bus_id);
@@ -2174,32 +2170,16 @@ gboolean neurons_refresh_display_without_change_values()
 	return TRUE;
 }
 
-
-
-
-/*
-void tabula_rasa_select()
-{
-
-	int indGroup=0;
-	for (indGroup=0;indGroup<number_of_groups_to_display;indGroup++)
-	{
-		groups_to_display[indGroup]->selected=0;
-	}
-
-}
-*/
 void pandora_window_new()
 {
   char path[PATH_MAX];
   GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons,*hbox_barre, *refreshModeHBox, *refreshModeComboBox, *refreshModeLabel, *refreshManualButton,  *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu;
   GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *zySetting, *zyLabel;
-  GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault, *boutonPause, *save_button;
+  GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault, *boutonPause, *save_button, *boutonTempsPhases;
   GtkWidget *pFrameScripts, *scrollbars2;
   GtkWidget *load, *save, *saveAs, *quit, *itemFile;
-
-
 //La fenêtre principale
+
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_widget_set_double_buffered(window, TRUE);
   /* Positionne la GTK_WINDOW "pWindow" au centre de l'écran */
@@ -2210,7 +2190,6 @@ void pandora_window_new()
   window_title_update();
   sprintf(path, "%s/bin_leto_prom/resources/pandora_icon.png", getenv("HOME"));
   gtk_window_set_icon_from_file(GTK_WINDOW(window), path, NULL);
-
 
 //Le signal de fermeture de la fenêtre est connecté à la fenêtre (petite croix)
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(window_close), (GtkWidget*) window);
@@ -2243,6 +2222,7 @@ void pandora_window_new()
   gtk_menu_item_set_submenu(GTK_MENU_ITEM(itemFile), fileMenu);
 
   gtk_menu_append(menuBar, itemFile);
+
 
   /*Création d'une VBox (boîte de widgets disposés verticalement) */
   v_box_main = gtk_vbox_new(FALSE, 0);
@@ -2360,6 +2340,10 @@ void pandora_window_new()
   gtk_range_set_value(GTK_RANGE(zyScale), graphic.zy_scale);
   g_signal_connect(GTK_OBJECT(zyScale), "change-value", (GCallback) on_scale_change_value, &graphic.zy_scale);
 
+  boutonTempsPhases = gtk_toggle_button_new_with_label("start calculate execution times");
+  gtk_box_pack_start(GTK_BOX(pVBoxEchelles), boutonTempsPhases, FALSE, TRUE, 6);
+  g_signal_connect(G_OBJECT(boutonTempsPhases), "toggled", G_CALLBACK(phases_info_start_or_stop), NULL);
+
   hbox_buttons = gtk_hbox_new(TRUE, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), hbox_buttons, FALSE, TRUE, 12);
 
@@ -2447,12 +2431,11 @@ void pandora_window_new()
  */
 int main(int argc, char** argv)
 {
-
   int option;
   struct sigaction action;
   char chemin[] = "./pandora.pandora";
-  stop = FALSE;
 
+  stop = FALSE;
   load_temporary_save = FALSE;
   architecture_display_dragging_currently = FALSE;
   refresh_mode = REFRESH_MODE_AUTO;
@@ -2481,7 +2464,7 @@ int main(int argc, char** argv)
   pthread_mutex_init(&mutex_script_caracteristics, NULL);
 
 // Initialisation de GTK+
-  gtk_init(&argc, &argv); // TODO : VERIF LIBE MEMOIRE
+  gtk_init(&argc, &argv);
 
 //Initialisation d'ENet
   if (enet_initialize() != 0)
@@ -2545,6 +2528,5 @@ int main(int argc, char** argv)
   gdk_threads_enter();
   gtk_main(); //Boucle infinie : attente des événements
   gdk_threads_leave();
-
   return EXIT_SUCCESS;
 }
