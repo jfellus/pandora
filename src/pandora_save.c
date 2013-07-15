@@ -1,14 +1,21 @@
+/**
+ * pandora_save.h
+ *
+ *  Created on: 2 juil. 2013
+ *      Author: Nils Beaussé
+ */
+
+
 
 
 #include "pandora_save.h"
-#include "basic_tools.h"
-//TODO Fonctionne : à commenter et optimiser et regler le probleme du 0, !
-// Si le groupe change : rappeler first call
-// Si le groupe
+#include "locale.h"
+#include "pandora_graphic.h"
+#include "common.h"
 
-
-
-
+extern GtkWidget *architecture_display;
+extern char path_named[MAX_LENGHT_PATHNAME];
+extern GtkListStore* currently_saving_list;
 
 void destroy_saving_ref(type_script *scripts_used[NB_SCRIPTS_MAX])
 {
@@ -21,10 +28,12 @@ void destroy_saving_ref(type_script *scripts_used[NB_SCRIPTS_MAX])
 			N=scripts_used[indScript]->number_of_groups;
 			for(indGroup=0;indGroup<N;indGroup++)
 			{
-				if (scripts_used[indScript]->groups[indGroup].on_saving==1 || scripts_used[indScript]->groups[indGroup].associated_file!=NULL)
+				if (scripts_used[indScript]->groups[indGroup].associated_file!=NULL)
 				{
+
 					fclose(scripts_used[indScript]->groups[indGroup].associated_file);
 					printf("\n\nCloture du fichier associé à %s\n\n",scripts_used[indScript]->groups[indGroup].name);
+					scripts_used[indScript]->groups[indGroup].associated_file=NULL;
 					scripts_used[indScript]->groups[indGroup].on_saving=0; //par sécurité mais normalement c'est fait ailleurs.
 				}
 
@@ -58,12 +67,14 @@ void destroy_saving_ref_one(type_script* script_used)
 void file_create(type_group *used_group)
 {
 	char file_path_ori[MAX_LENGHT_PATHNAME];
-	char file_path[MAX_LENGHT_PATHNAME]=PATH_NAME;
+	char file_path[MAX_LENGHT_PATHNAME];
 	char num[4];
 	FILE* test=NULL;
 	int i=0;
+	GtkTreeIter iter;
+	gchar* pPath=NULL;
 
-	//strcpy(file_path,PATH_NAME);
+	strcpy(file_path,path_named);
 
 	//Creation du nom de fichier
 	strcat(file_path,used_group->name);
@@ -94,6 +105,10 @@ void file_create(type_group *used_group)
 
 	used_group->associated_file = fopen(file_path, "a+");
 	printf("\npathname final=%s",file_path);
+
+    pPath=file_path;
+	gtk_list_store_append(currently_saving_list,&iter);
+	gtk_list_store_set(currently_saving_list, &iter,0,pPath,-1);
 
 	if (used_group->associated_file != NULL)
 	{
@@ -153,35 +168,3 @@ void continuous_saving(type_group *used_group)
 
 }
 
-//peut etre inutile
-/*
-void tabula_rasa_selected(type_script *scripts_to_deselect[NB_SCRIPTS_MAX])
-{
-	int N=0;
-	int indScript, indGroup;
-
-	for (indScript=0; indScript<number_of_scripts;indScript++)
-	{
-		N=scripts_to_deselect[indScript]->number_of_groups;
-		for(indGroup=0;indGroup<N;indGroup++)
-		{
-			scripts_to_deselect[indScript]->groups[indGroup].selected_for_save=0;
-		}
-	}
-
-}
-*/
-/*
-//peut etre inutile
-gboolean compare_list(char* string_table, char *compared,state_of_saving* state)
-{
-	int indTable;
-	gboolean retur=0;
-	for(indTable=0;indTable<state->nbr_group_to_save;indTable++)
-	{
-		if(strcmp(&(string_table[indTable]),compared)) retur=1;
-
-	}
-	return retur;
-}
-*/

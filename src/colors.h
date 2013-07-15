@@ -1,4 +1,4 @@
-/*
+/**
  * colors.h
  * 
  * Auteur : Brice Errandonea

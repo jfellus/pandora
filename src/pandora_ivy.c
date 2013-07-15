@@ -12,35 +12,18 @@
  * @param *format: le message à afficher
  **/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h> /* strcmp ... */
-#include <stdarg.h> /* va_arg va_list*/
-#include <semaphore.h> /* sem_t */
-#include <limits.h> /* HOST_NAME_MAX */
-#include <unistd.h> /* gethostname */
-#include <ivy.h>
-
-#include "pandora.h"
 #include "pandora_ivy.h"
-
+#include "pandora.h"
 #include "prom_bus.h"
-#include "prom_kernel/include/pandora_connect.h" /* NB_SCRIPTS_MAX */
+#include <unistd.h> /* gethostname */
+#include <limits.h> /* HOST_NAME_MAX */
 
-#define BROADCAST_MAX 32
-#define SIZE_OF_IVY_PROM_NAME 64
-#define MAX_SIZE_OF_PROM_BUS_MESSAGE 256
-
-
-typedef struct ivyServer {
-  char ip[18];
-  char appName[30];
-} ivyServer;
-
+/* Variables Globales pour ce fichier */
+extern char bus_id[BUS_ID_MAX];
 sem_t ivy_semaphore;
-char ivy_prom_name[SIZE_OF_IVY_PROM_NAME]; /* utiliser un define, peut être le mettre en commun a themis */
-ivyServer ivyServers[NB_SCRIPTS_MAX]; //Stocke l'ip de chaque promethe qui se connecte et le nom du script qu'il exécute
-int ivyServerNb = 0; //Ce numéro sera affecté au prochain promethe qui se connectera
+
+
+
 
 void pandora_bus_send_message(char *id, const char *format, ...)
 {
@@ -60,6 +43,8 @@ void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEve
   char *host;
   int i;
   type_script *script;
+  static ivyServer ivyServers[NB_SCRIPTS_MAX]; //Stocke l'ip de chaque promethe qui se connecte et le nom du script qu'il exécute
+  static int ivyServerNb = 0; //Ce numéro sera affecté au prochain promethe qui se connectera
 
   (void) user_data;
 
@@ -99,6 +84,7 @@ void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEve
 
 void prom_bus_init(const char *ip)
 {
+  char ivy_prom_name[SIZE_OF_IVY_PROM_NAME]; /* utiliser un define, peut être le mettre en commun a themis */
   char broadcast[BROADCAST_MAX];
   char computer_name[HOST_NAME_MAX];
   pid_t my_pid;

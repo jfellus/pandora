@@ -11,6 +11,7 @@
 #define ETIS	//À commenter quand on n'est pas à l'ETIS
 //------------------------------------------------BIBLIOTHEQUES------------------------------------------------------
 
+/*
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -21,6 +22,7 @@
 #include <gtk/gtk.h>
 #include <cairo.h>
 #include <gdk/gdkkeysyms.h>
+#include <gtk/gtkobject.h>
 
 #include <net_message_debug_dist.h>
 #include "colors.h"
@@ -30,6 +32,10 @@
 #include "prom_kernel/include/pandora_connect.h"
 #include "prom_kernel/include/reseau.h"
 #include "prom_user/include/Struct/prom_images_struct.h"
+*/
+#include "common.h"
+#include "pandora_ivy.h"
+
 
 #define PANDORA_PORT 1235
 #define BROADCAST_IP "127.255.255.255"
@@ -91,6 +97,7 @@
 #define SAVE_SCRIPT_GROUPS_CARACTERISTICS 2
 
 #define STAT_HISTORIC_MAX_NUMBER 50
+#define MAX_LENGHT_PATHNAME 100
 
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 
@@ -284,12 +291,14 @@ extern int nbColonnesTotal; //Nombre total de colonnes de neurones dans les fen�
 extern int nbLignesMax; //Nombre maximal de lignes de neurones à afficher dans l'une des fenêtres du bandeau du bas
 
 //Pour pandora_receive_from_prom.c
-extern int ivyServerNb;
+//extern int ivyServerNb;
 
-extern ENetHost *enet_server;
+//extern ENetHost *enet_server;
 
 extern type_script_link net_links[SCRIPT_LINKS_MAX];
 extern int number_of_net_links;
+
+extern pthread_t enet_thread;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_pandora(int argc, char** argv);

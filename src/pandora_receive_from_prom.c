@@ -4,41 +4,31 @@
  *
  */
 
-#include "pandora.h"
-#include "graphic.h"
-#include <gtk/gtk.h>
-#include <enet/enet.h>
-#include "prom_tools/include/basic_tools.h"
-#include "net_message_debug_dist.h"
-#include "prom_kernel/include/pandora_connect.h"
-#include "prom_user/include/Struct/prom_images_struct.h"
-#include "prom_kernel/include/reseau.h"
+
+#include "pandora_receive_from_prom.h"
+#include "pandora_graphic.h"
 #include "pandora_save.h"
 
-#define diff(a,b) (a > b ? a-b : b-a)
-#define permut(a,b,tmp) {tmp = a; a = b; b = tmp;}
+/* Variable Globales pour ce fichier*/
+extern gboolean saving_press;
+extern GtkWidget *architecture_display;
 
-ENetHost* enet_server = NULL;
-
-const char *displayMode;
-
-void enet_manager(ENetHost *server); /* Sinon il faut mettre la fonction avant les appels */
-
-void verify_script(type_script *script);
-void verify_group(type_group *group);
-
-int freePeer = 0; //Utilisé pour numéroter les peers (donc les promethes, donc les scripts) (ENet)
+//const char *displayMode;
+//int freePeer = 0; //Utilisé pour numéroter les peers (donc les promethes, donc les scripts) (ENet)
+pthread_t enet_thread;
 
 /**
  *
  * Crée dans Pandora un serveur, qui va écouter le réseau et accepter les connexions des Prométhés
  *
  */
+
 void server_for_promethes()
 {
+  ENetHost* enet_server = NULL;
   char host_name[HOST_NAME_MAX];
   ENetAddress address;
-  pthread_t enet_thread;
+
 
   enet_time_set(0);
 
@@ -286,18 +276,24 @@ void enet_manager(ENetHost *server)
             pandora_file_load_script(preferences_filename, script);
           script_caracteristics(script, APPLY_SCRIPT_GROUPS_CARACTERISTICS);
           pthread_mutex_unlock(&mutex_script_caracteristics);
-
+          break;
+          /*
           if(calculate_executions_times == TRUE)
       		pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_START, 0, script->name);
           else
         	pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_STOP, 0, script->name);
           break;
+*/
 
         case ENET_UPDATE_NEURON_CHANNEL:
           number_of_neurons = (event.packet->dataLength) / sizeof(type_neurone);
           neurons = (type_neurone*) event.packet->data;
           group_id = neurons->groupe;
+
+          if (script->groups==NULL || script->groups==0x0) break; // securité
+
           group = &script->groups[group_id];
+
 
           /* printf("RTT: %i\n", event.peer->lastRoundTripTime); */
           //Réception du paquet

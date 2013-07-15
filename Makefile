@@ -7,7 +7,7 @@ CC:=prom_colorgcc
 
 PACKAGES:= gtk+-2.0 gmodule-2.0 gthread-2.0
 GTK_FLAGS:= `pkg-config --cflags $(PACKAGES)`
-SOURCES:=pandora.c pandora_receive_from_prom.c graphic_gtk.c pandora_ivy.c pandora_save.c
+SOURCES:=pandora.c pandora_receive_from_prom.c pandora_graphic.c pandora_ivy.c pandora_save.c
 OBJECTS:=$(patsubst %.c,%.o,$(SOURCES))
 INCLUDES:=-I../shared/include  -I../enet/include  -I..
 LIBS:= -L../lib/$(system)/enet/lib -lenet -L../lib/$(system)/ivy -lglibivy -L../lib/$(system)/script -lscript -L../lib/$(system)/graphique -lgraphique -lmxml `pkg-config --libs $(PACKAGES)`
@@ -19,7 +19,7 @@ $(objdir)/release:
 	mkdir -p $@
 
 $(objdir)/debug/%.o:src/%.c | $(objdir)/debug
-	$(CC) -c $(CFLAGS) $(FLAGS_DEBUG) $(GTK_FLAGS) $(INCLUDES) $< -o $@  
+	$(CC) -c -ggdb $(CFLAGS) $(FLAGS_DEBUG) $(GTK_FLAGS) $(INCLUDES) $< -o $@  
 
 $(objdir)/release/%.o:src/%.c | $(objdir)/release
 	$(CC) -c $(CFLAGS) $(FLAGS_OPTIM) $(GTK_FLAGS) $(INCLUDES) $< -o $@

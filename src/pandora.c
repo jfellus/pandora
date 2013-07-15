@@ -9,13 +9,8 @@
  */
 #include "pandora.h"
 #include "pandora_ivy.h"
-#include "graphic.h"
-#include "basic_tools.h"
+#include "pandora_graphic.h"
 #include "pandora_save.h"
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 
 char label_text[LABEL_MAX];
 
@@ -23,10 +18,12 @@ GtkWidget *window = NULL; //La fenêtre de l'application Pandora
 GtkWidget *selected_group_dialog, *selected_image_combo_box;
 GtkWidget *vpaned, *scrollbars;
 GtkWidget *hide_see_scales_button; //Boutton permettant de cacher le menu de droite
-GtkWidget *pPane; //Panneau latéral
+GtkWidget *check_button_draw_connections, *check_button_draw_net_connections;
 GtkWidget *pVBoxScripts; //Panneau des scripts
 GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale; //Échelles
 GtkBuilder *builder;
+GtkWidget *architecture_display; //La grande zone de dessin des liaisons entre groupes
+
     /*Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshots)*/
 const char *displayMode;
 GtkWidget *modeLabel;
@@ -69,7 +66,10 @@ gboolean calculate_executions_times=FALSE;
 
 //Pour la sauvegarde
 gboolean saving_press=0;
-
+char path_named[MAX_LENGHT_PATHNAME]="save/";
+char python_path[MAX_LENGHT_PATHNAME]="$HOME/simulateur/japet/save/default_script.py";
+char matlab_path[MAX_LENGHT_PATHNAME]="$HOME/simulateur/japet/save/convert_matlab.py";
+GtkListStore* currently_saving_list;
 
 
 void on_search_group(int index);
@@ -149,6 +149,8 @@ void pandora_quit()
   enet_deinitialize();
   gtk_main_quit();
   gtk_widget_destroy(window);
+  pthread_cancel(enet_thread);
+  destroy_saving_ref(scripts);//par securité pour la cloture des fichiers de sauvegarde
 }
 
 void on_signal_interupt(int signal)
@@ -278,6 +280,61 @@ void on_toggled_saving_button(GtkWidget *save_button, gpointer pData)
 	  }
 }
 
+
+void recover_path (GtkWidget *button, GtkWidget *file_selection)//TODO verifier inutilité et effacer
+{
+const gchar* path;
+GtkWidget *dialog;
+
+(void)button;
+path = gtk_file_selection_get_filename(GTK_FILE_SELECTION (file_selection) );
+
+dialog = gtk_message_dialog_new(GTK_WINDOW(file_selection),
+GTK_DIALOG_MODAL,
+GTK_MESSAGE_INFO,
+GTK_BUTTONS_OK,
+"Vous avez choisi :\n%s",path);
+
+gtk_dialog_run(GTK_DIALOG(dialog));
+gtk_widget_destroy(dialog);
+gtk_widget_destroy(file_selection);
+}
+
+
+
+void on_click_save_path_button(GtkWidget *save_button, gpointer pData)//TODO mettre dans le repertoire de l'utilisateur (ce serait cool que le bureau soir également dans ce répertoire)
+{
+
+	GtkWidget *selection;
+
+	(void)pData;
+	(void)save_button;
+	selection = gtk_file_chooser_dialog_new("selectionner un repertoire",
+	        NULL,
+	        GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+	        GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+	        GTK_STOCK_OPEN, GTK_RESPONSE_OK,
+	        NULL);
+	gtk_widget_show(selection);
+
+	//On interdit l'utilisation des autres fenêtres.
+	//gtk_window_set_modal(GTK_WINDOW(selection), TRUE);
+
+	if (gtk_dialog_run (GTK_DIALOG (selection)) == GTK_RESPONSE_OK)
+	  {
+	    char *filename;
+	    filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (selection));
+	    printf("\nfilename : %s",filename);
+	    printf("\npath_named : %s",path_named);
+	    strcpy(path_named,filename);
+	    strcat(path_named,"/");
+	    printf("\nnouveau path_named : %s",path_named);
+	  }
+	gtk_widget_destroy (selection);
+
+
+}
+
 void on_script_displayed_toggled(GtkWidget *pWidget, gpointer user_data)
 {
   type_script *script = user_data;
@@ -307,9 +364,10 @@ gboolean window_close(GtkWidget *pWidget, GdkEvent *event, gpointer pData) //Fon
   (void) event;
   (void) pData;
 
-  destroy_saving_ref(scripts);//par securité pour la cloture des fichiers de sauvegarde
   pandora_file_save("./pandora.pandora"); //TODO : OUBLIE LIBE MEMOIRE ICI enregistrement de l'état actuel. cet état sera appliqué au prochain démarrage de pandora.
-  gtk_main_quit();
+
+  exit(0);
+  //gtk_main_quit();
   return FALSE;
 }
 
@@ -646,25 +704,57 @@ void on_search_group(int index)
   gtk_widget_destroy(search_dialog);
 }
 
-void on_hide_see_scales_button_active(GtkWidget *hide_see_scales_button, gpointer pData)
+
+void on_hide_see_legend_button_active(GtkWidget *hide_see_legend_button, gpointer pData)
 {
-  (void) pData;
+  gpointer arrow_im_2 = gtk_object_get_data(GTK_OBJECT(hide_see_legend_button),"arrow_im_2");
+  (void)pData;
 
 //Si le bouton est activé
-  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(hide_see_scales_button)))
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(hide_see_legend_button)))
   {
     //On cache le menu de droite
-    gtk_widget_hide(pPane);
-    //On actualise le label du boutton
-    gtk_button_set_label(GTK_BUTTON(hide_see_scales_button), "Hide left panel");
+    gtk_widget_hide(pData);
+    //On actualise l'image du boutton
+    gtk_image_set_from_stock(GTK_IMAGE(arrow_im_2), GTK_STOCK_GO_BACK,  GTK_ICON_SIZE_MENU);
+
   }
 //Si le bouton est désactivé
   else
   {
     //On montre le menu de droite
-    gtk_widget_show(pPane);
-    //On actualise le label du boutton
-    gtk_button_set_label(GTK_BUTTON(hide_see_scales_button), "Show left panel");
+    gtk_widget_show(pData);
+    //On actualise l'image du boutton;
+    gtk_image_set_from_stock(GTK_IMAGE(arrow_im_2), GTK_STOCK_GO_FORWARD,  GTK_ICON_SIZE_MENU);
+  }
+
+}
+
+
+
+
+void on_hide_see_scales_button_active(GtkWidget *hide_see_scales_button, gpointer pData)
+{
+  gpointer arrow_im = gtk_object_get_data(GTK_OBJECT(hide_see_scales_button),"arrow_im");
+
+  (void)pData;
+
+//Si le bouton est activé
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(hide_see_scales_button)))
+  {
+    //On cache le menu de gauche
+    gtk_widget_hide(pData);
+    //On actualise l'image du boutton
+    gtk_image_set_from_stock(GTK_IMAGE(arrow_im), GTK_STOCK_GO_FORWARD,  GTK_ICON_SIZE_BUTTON);
+
+  }
+//Si le bouton est désactivé
+  else
+  {
+    //On montre le menu de gauche
+    gtk_widget_show(pData);
+    //On actualise l'image du boutton;
+    gtk_image_set_from_stock(GTK_IMAGE(arrow_im), GTK_STOCK_GO_BACK,  GTK_ICON_SIZE_BUTTON);
   }
 }
 
@@ -1042,7 +1132,7 @@ void on_group_display_mode_combobox_changed(GtkComboBox *combo_box, gpointer dat
   else if(group->display_mode != DISPLAY_MODE_BIG_GRAPH && GTK_WIDGET_VISIBLE(frame) == TRUE)
   {
 	  gtk_widget_hide_all(frame);
-	  gtk_window_resize(GTK_WINDOW(selected_group_dialog), selected_group_dialog->allocation.width, selected_group_dialog->allocation.height - frame->allocation.height);
+	  //gtk_window_resize(GTK_WINDOW(selected_group_dialog), selected_group_dialog->allocation.width, selected_group_dialog->allocation.height - frame->allocation.height); //TODO : corriger et comprendre
   }
   if(group->previous_display_mode != group->display_mode)
 	  resize_group(group);
@@ -1450,6 +1540,8 @@ void group_display_destroy(type_group *group)
 void script_widget_update(type_script *script)
 {
   char label_text[LABEL_MAX];
+  //script->label=NULL;
+  //script->label=gtk_label_new("");
   sprintf(label_text, "<span foreground=\"%s\"><b>%s</b></span>", tcolor(script), script->name);
   gtk_label_set_markup(GTK_LABEL(script->label), label_text);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(script->z_spinnner), script->z);
@@ -1532,8 +1624,9 @@ void script_update_display(type_script *script)
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(script->checkbox), TRUE);
   script->displayed = TRUE;
 
-  gtk_widget_show_all(window); //Affichage du widget pWindow et de tous ceux qui sont dedans
-  script_widget_update(script);
+  gtk_widget_show_all(pVBoxScripts); //Affichage du widget pWindow et de tous ceux qui sont dedans
+
+  script_widget_update(script);//TODO erreur ici probablement
   architecture_display_update(architecture_display, NULL);
 
   gdk_threads_leave();
@@ -1745,7 +1838,7 @@ void script_destroy(type_script *script)
 	  script_widget_update(scripts[i]);
   }
 
-  script_widget_update(scripts[script->id]);
+  //script_widget_update(scripts[script->id]); //TODO : a verifier si cohérent
   architecture_display_update(architecture_display, NULL);
 }
 
@@ -2170,14 +2263,190 @@ gboolean neurons_refresh_display_without_change_values()
 	return TRUE;
 }
 
+void call_matlab(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer userdata)
+  {
+    gchar *name;
+    char exec[MAX_LENGHT_PATHNAME]="";
+    FILE* link=NULL;
+
+    (void)path;
+    (void)userdata;
+
+
+    gtk_tree_model_get (model, iter, 0, &name, -1);
+    strcat(exec,"python ");
+    strcat(exec,matlab_path);
+    strcat(exec," ");
+    strcat(exec, name);
+    link=popen(exec,"r");
+    (void)link;
+
+    printf("%s is selected\n", name);
+  }
+
+void call_python(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer userdata)
+  {
+    gchar *name;
+    char exec[MAX_LENGHT_PATHNAME]="";
+    FILE* link=NULL;
+
+    (void)path;
+    (void)userdata;
+
+    gtk_tree_model_get (model, iter, 0, &name, -1);
+    strcat(exec,"python ");
+    strcat(exec,python_path);
+    strcat(exec," ");
+    strcat(exec, name);
+    link=popen(exec,"r");
+    (void)link;
+
+    printf("%s is selected\n", name);
+  }
+
+void call_python_inter(GtkWidget *python_window,int arg, gpointer pdata)
+{
+  GtkWidget* text_entry=NULL;
+  GtkTreeIter iter;
+  gchar entry[MAX_LENGHT_FILENAME];
+
+  (void)python_window;
+  printf("\nhop");
+  if (arg==GTK_RESPONSE_OK) gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(pdata), call_python, NULL);
+  if (arg==GTK_RESPONSE_DELETE_EVENT) gtk_widget_destroy(python_window);
+  if (arg==GTK_RESPONSE_ACCEPT)
+  {
+    text_entry=gtk_object_get_data(GTK_OBJECT(python_window),"text_entry");
+    strcpy(entry,gtk_entry_get_text(GTK_ENTRY(text_entry)));
+    if (strcmp(entry,"")!=0)
+    {
+      gtk_list_store_append(currently_saving_list,&iter);
+      gtk_list_store_set(currently_saving_list, &iter,0,entry,-1);
+    }
+  }
+}
+void call_matlab_inter(GtkWidget *python_window,int arg, gpointer pdata)
+{
+  GtkWidget* text_entry=NULL;
+  GtkTreeIter iter;
+  gchar entry[MAX_LENGHT_FILENAME];
+
+  (void)python_window;
+  printf("\nhop");
+  if (arg==GTK_RESPONSE_OK) gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(pdata), call_matlab, NULL);
+  if (arg==GTK_RESPONSE_DELETE_EVENT) gtk_widget_destroy(python_window);
+  if (arg==GTK_RESPONSE_ACCEPT)
+  {
+    text_entry=gtk_object_get_data(GTK_OBJECT(python_window),"text_entry");
+    strcpy(entry,gtk_entry_get_text(GTK_ENTRY(text_entry)));
+    if (strcmp(entry,"")!=0)
+    {
+      gtk_list_store_append(currently_saving_list,&iter);
+      gtk_list_store_set(currently_saving_list, &iter,0,entry,-1);
+    }
+  }
+}
+
+void on_click_call_dialog(GtkWidget *pWidget, gpointer pdata) //TODO : ramener au cas 1 et copier coller? ou resoudre ce shtruc
+{
+
+  GtkWidget *path_list;
+  GtkCellRenderer *render_text_column;
+  GtkTreeViewColumn *text_column;
+  GtkWidget *python_window,*pScrollbar;
+  GtkTreeSelection *selection;
+  GtkWidget* text_entry;
+  long ID;
+
+  (void)pWidget;
+
+  ID=(long)pdata;
+  printf("\n pdata=%ld",ID);
+
+  python_window=NULL;
+
+  path_list = gtk_tree_view_new_with_model(GTK_TREE_MODEL(currently_saving_list));
+  selection=gtk_tree_view_get_selection(GTK_TREE_VIEW(path_list));
+  gtk_tree_selection_set_mode(selection, GTK_SELECTION_MULTIPLE );
+
+  render_text_column = gtk_cell_renderer_text_new();
+  text_column=gtk_tree_view_column_new_with_attributes("Saved box", render_text_column, "text",0,NULL);
+  gtk_tree_view_append_column(GTK_TREE_VIEW(path_list), text_column);
+
+  printf("\n pdata=%ld",ID);
+  if (ID==0) python_window=gtk_dialog_new_with_buttons("Python Call", GTK_WINDOW(window), GTK_DIALOG_DESTROY_WITH_PARENT, "Call python script on selected", GTK_RESPONSE_OK,"add manually",GTK_RESPONSE_ACCEPT,NULL);
+  if (ID==1) python_window=gtk_dialog_new_with_buttons("Matlab conversion", GTK_WINDOW(window), GTK_DIALOG_DESTROY_WITH_PARENT, "Convert selected", GTK_RESPONSE_OK,"add manually",GTK_RESPONSE_ACCEPT, NULL);
+
+    gtk_window_set_default_size(GTK_WINDOW(python_window), 300, 200);
+
+  if (ID==0) g_signal_connect(python_window, "response", G_CALLBACK(call_python_inter), selection);
+  if (ID==1) g_signal_connect(python_window, "response", G_CALLBACK(call_matlab_inter), selection);
+
+  pScrollbar = gtk_scrolled_window_new(NULL, NULL);
+  gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(pScrollbar),GTK_POLICY_AUTOMATIC,GTK_POLICY_AUTOMATIC);
+  gtk_container_add(GTK_CONTAINER(pScrollbar), path_list);
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(python_window)->vbox),pScrollbar,TRUE,TRUE,1);
+
+  text_entry=gtk_entry_new_with_max_length(MAX_LENGHT_FILENAME);
+  gtk_object_set_data(GTK_OBJECT(python_window), "text_entry", GTK_WIDGET(text_entry));
+  gtk_box_pack_start(GTK_BOX(GTK_DIALOG(python_window)->vbox),text_entry,FALSE,TRUE,1);
+ // gtk_box_pack_start(GTK_BOX(GTK_DIALOG(python_window)->vbox),pScrollbar,TRUE,TRUE,1);
+  gtk_widget_show_all(GTK_DIALOG(python_window)->vbox);
+  gtk_widget_show_all(python_window);
+
+}
+
+void on_click_config(GtkWidget *button, gpointer pdata)
+{
+  GtkWidget *selection;
+
+  (void)pdata;
+  (void)button;
+  selection = gtk_file_chooser_dialog_new("selectionner un repertoire",
+          NULL,
+          GTK_FILE_CHOOSER_ACTION_OPEN,
+          GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+          GTK_STOCK_OPEN, GTK_RESPONSE_OK,
+          NULL);
+  gtk_widget_show(selection);
+
+  if (gtk_dialog_run (GTK_DIALOG (selection)) == GTK_RESPONSE_OK)
+    {
+      char *path;
+      path = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (selection));
+      printf("\nfilename : %s",path);
+      strcpy(python_path,path);
+    }
+  gtk_widget_destroy (selection);
+
+
+}
+
+
+
 void pandora_window_new()
 {
   char path[PATH_MAX];
-  GtkWidget *h_box_main, *v_box_main, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons,*hbox_barre, *refreshModeHBox, *refreshModeComboBox, *refreshModeLabel, *refreshManualButton,  *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu;
-  GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *zySetting, *zyLabel;
-  GtkWidget *pBoutons, *boutonSave, *boutonLoad, *boutonDefault, *boutonPause, *save_button, *boutonTempsPhases;
-  GtkWidget *pFrameScripts, *scrollbars2;
+  GtkWidget *h_box_main, *v_box_main,*v_box_inter, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons,*hbox_barre, *refreshModeHBox, *refreshModeComboBox, *refreshModeLabel, *refreshManualButton,  *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu, *legend, *com;
+  GtkWidget *h_box_save,*h_box_global,*h_box_network;
+  GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *zySetting, *zyLabel, *saveLabel, *globalLabel, *networkLabel;
+  GtkWidget *boutonDefault, *boutonPause, *save_button, *boutonTempsPhases, *save_path_button, *hide_see_legend_button, *call_python_button,*convert_matlab_button,*config_button;
+  GtkWidget *pPane,*lPane; //Panneaux latéraux
+  GtkWidget *pFrameScripts, *scrollbars2, *textScrollbar;
   GtkWidget *load, *save, *saveAs, *quit, *itemFile;
+  GtkWidget *arrow_im, *arrow_im_2;
+  GtkWidget *notebook;
+  GtkWidget *com_zone;
+  GtkTextBuffer * p_buf;
+
+
+  //TODO : a bien commenter
+  void* IDdialog_python=(void*)0;
+  void* IDdialog_matlab=(void*)1;
+
+  (void)p_buf;
+  currently_saving_list=gtk_list_store_new(1,G_TYPE_STRING);
+
 //La fenêtre principale
 
   window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -2231,24 +2500,55 @@ void pandora_window_new()
 
   gtk_box_pack_start(GTK_BOX(v_box_main), menuBar, FALSE, FALSE, 0); // ajout de la barre de menus.
 
-  //Création d'une Hbox qui contiendra les deux boutons suivant
-  hbox_barre=gtk_hbox_new(TRUE, 1);
 
-  //TODO Création du bouton hide see, bug probable car transformation en hide left pannel show left pannel
-  hide_see_scales_button = gtk_toggle_button_new_with_label("Hide scales");
-  g_signal_connect(G_OBJECT(hide_see_scales_button), "toggled", (GtkSignalFunc) on_hide_see_scales_button_active, NULL);
-  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hide_see_scales_button), FALSE);
-  gtk_box_pack_start(GTK_BOX(hbox_barre), hide_see_scales_button, FALSE, TRUE, 0);
+
+  // Création du systemes d'onglets pour la barre d'outils
+  notebook = gtk_notebook_new();
+  gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
+
+  h_box_save = gtk_hbox_new(TRUE, 0);
+  h_box_global = gtk_hbox_new(TRUE, 0);
+  h_box_network = gtk_hbox_new(TRUE, 0);
+
+  saveLabel = gtk_label_new("Saving");
+  globalLabel = gtk_label_new("General");
+  networkLabel = gtk_label_new("Network");
+
+  gtk_notebook_append_page (GTK_NOTEBOOK(notebook), h_box_save, saveLabel);
+  gtk_notebook_append_page (GTK_NOTEBOOK(notebook), h_box_global, globalLabel);
+  gtk_notebook_append_page (GTK_NOTEBOOK(notebook), h_box_network, networkLabel);
+
+  gtk_box_pack_start(GTK_BOX(v_box_main), notebook, FALSE, FALSE, 0);
+
+  //Creation du bouton de changement de chemin
+  save_path_button=gtk_button_new_with_label("Define save path");
+  g_signal_connect(G_OBJECT(save_path_button),"clicked",(GtkSignalFunc) on_click_save_path_button, NULL);
+  gtk_box_pack_start(GTK_BOX(h_box_save), save_path_button, FALSE, FALSE, 0);
 
   //Creation du bouton d'enregistrement
-  save_button=gtk_toggle_button_new_with_label("Save");
-  printf("\ncreation bouton\n");
+  save_button=gtk_toggle_button_new_with_label("Launch data saving");
   g_signal_connect(G_OBJECT(save_button),"toggled",(GtkSignalFunc) on_toggled_saving_button, NULL);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(save_button), FALSE);
-  gtk_box_pack_start(GTK_BOX(hbox_barre), save_button, FALSE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(h_box_save), save_button, FALSE, FALSE, 0);
 
-  // on insere la Hbox dans la vbox
-  gtk_box_pack_start(GTK_BOX(v_box_main), hbox_barre, FALSE, FALSE, 0);
+  //Creation du bouton d'appel python
+  call_python_button=gtk_button_new_with_label("Call python script");
+  g_signal_connect(G_OBJECT(call_python_button),"clicked",(GtkSignalFunc) on_click_call_dialog, (gpointer)IDdialog_python);
+  gtk_box_pack_start(GTK_BOX(h_box_save), call_python_button, FALSE, FALSE, 0);
+
+  //Creation du bouton de conversion matlab
+  convert_matlab_button=gtk_button_new_with_label("Convert to Matlab");
+  g_signal_connect(G_OBJECT(convert_matlab_button),"clicked",(GtkSignalFunc) on_click_call_dialog, (gpointer)IDdialog_matlab);
+  gtk_box_pack_start(GTK_BOX(h_box_save), convert_matlab_button, FALSE, FALSE, 0);
+
+  //Creation du bouton de config
+  config_button=gtk_button_new_with_label("Define script path");
+  g_signal_connect(G_OBJECT(config_button),"clicked",(GtkSignalFunc) on_click_config, NULL);
+  gtk_box_pack_start(GTK_BOX(h_box_save), config_button, FALSE, FALSE, 0);
+
+  boutonTempsPhases = gtk_toggle_button_new_with_label("start calculate execution times");
+  gtk_box_pack_start(GTK_BOX(h_box_global), boutonTempsPhases, FALSE, FALSE, 0);
+  g_signal_connect(G_OBJECT(boutonTempsPhases), "toggled", G_CALLBACK(phases_info_start_or_stop), NULL);
 
   /*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
   h_box_main = gtk_hbox_new(FALSE, 0);
@@ -2259,6 +2559,7 @@ void pandora_window_new()
 
   /*Panneau latéral*/
   pPane = gtk_vbox_new(FALSE, 0);
+  lPane = gtk_vbox_new(FALSE, 0);
   gtk_box_pack_start(GTK_BOX(h_box_main), pPane, FALSE, TRUE, 0);
 
 //Les échelles
@@ -2340,10 +2641,6 @@ void pandora_window_new()
   gtk_range_set_value(GTK_RANGE(zyScale), graphic.zy_scale);
   g_signal_connect(GTK_OBJECT(zyScale), "change-value", (GCallback) on_scale_change_value, &graphic.zy_scale);
 
-  boutonTempsPhases = gtk_toggle_button_new_with_label("start calculate execution times");
-  gtk_box_pack_start(GTK_BOX(pVBoxEchelles), boutonTempsPhases, FALSE, TRUE, 6);
-  g_signal_connect(G_OBJECT(boutonTempsPhases), "toggled", G_CALLBACK(phases_info_start_or_stop), NULL);
-
   hbox_buttons = gtk_hbox_new(TRUE, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), hbox_buttons, FALSE, TRUE, 12);
 
@@ -2357,14 +2654,14 @@ void pandora_window_new()
 
 
 //3 boutons
-  pBoutons = gtk_hbox_new(TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(pVBoxEchelles), pBoutons, FALSE, TRUE, 0);
-  boutonSave = gtk_button_new_with_label("Save");
-  gtk_box_pack_start(GTK_BOX(pBoutons), boutonSave, TRUE, TRUE, 0);
-  g_signal_connect(G_OBJECT(boutonSave), "clicked", G_CALLBACK(save_preferences), NULL);
-  boutonLoad = gtk_button_new_with_label("Load");
-  gtk_box_pack_start(GTK_BOX(pBoutons), boutonLoad, TRUE, TRUE, 0);
-  g_signal_connect(G_OBJECT(boutonLoad), "clicked", G_CALLBACK(pandora_load_preferences), NULL);
+  //pBoutons = gtk_hbox_new(TRUE, 0);
+  //gtk_box_pack_start(GTK_BOX(pVBoxEchelles), pBoutons, FALSE, TRUE, 0);
+  //boutonSave = gtk_button_new_with_label("Save");
+  //gtk_box_pack_start(GTK_BOX(pBoutons), boutonSave, TRUE, TRUE, 0);
+  //g_signal_connect(G_OBJECT(boutonSave), "clicked", G_CALLBACK(save_preferences), NULL);
+  //boutonLoad = gtk_button_new_with_label("Load");
+  //gtk_box_pack_start(GTK_BOX(pBoutons), boutonLoad, TRUE, TRUE, 0);
+  //g_signal_connect(G_OBJECT(boutonLoad), "clicked", G_CALLBACK(pandora_load_preferences), NULL);
 
   check_button_draw_connections = gtk_check_button_new_with_label("draw connections");
   check_button_draw_net_connections = gtk_check_button_new_with_label("draw net connections");
@@ -2387,6 +2684,39 @@ void pandora_window_new()
   gtk_container_add(GTK_CONTAINER(pFrameScripts), pVBoxScripts);
 
 //La zone principale
+
+  //ceation d'une Vbox qui contiendra le paned de la zone affichage et les boutons d'ouverture des cotés
+  v_box_inter=gtk_vbox_new(FALSE, 1);
+  //Création d'une Hbox qui contiendra les boutons suivants
+  hbox_barre=gtk_hbox_new(FALSE, 1);
+
+
+  // Creation des deux boutons de reduction des panneaux gauche et droits.
+  hide_see_scales_button = gtk_toggle_button_new();
+  arrow_im = gtk_image_new_from_stock(GTK_STOCK_GO_BACK,  GTK_ICON_SIZE_MENU);
+  gtk_object_set_data(GTK_OBJECT(hide_see_scales_button), "arrow_im", GTK_WIDGET(arrow_im));
+  gtk_container_add (GTK_CONTAINER (hide_see_scales_button), arrow_im);
+  g_signal_connect(G_OBJECT(hide_see_scales_button), "toggled", (GtkSignalFunc) on_hide_see_scales_button_active, pPane);
+  gtk_box_pack_start(GTK_BOX(hbox_barre), hide_see_scales_button, FALSE, TRUE, 0);
+
+
+
+
+  hide_see_legend_button = gtk_toggle_button_new();
+  arrow_im_2 = gtk_image_new_from_stock(GTK_STOCK_GO_FORWARD,  GTK_ICON_SIZE_MENU);
+  gtk_object_set_data(GTK_OBJECT(hide_see_legend_button), "arrow_im_2", arrow_im_2);
+  gtk_container_add (GTK_CONTAINER (hide_see_legend_button), arrow_im_2);
+  g_signal_connect(G_OBJECT(hide_see_legend_button), "toggled", (GtkSignalFunc) on_hide_see_legend_button_active, lPane);
+
+
+  gtk_box_pack_end(GTK_BOX(hbox_barre), hide_see_legend_button, FALSE, TRUE, 0);
+
+  // on insere la Hbox dans la vbox vpaned
+  gtk_box_pack_start(GTK_BOX(v_box_inter), hbox_barre, FALSE, FALSE, 0);
+  //gtk_container_add(GTK_CONTAINER(vpaned), hbox_barre);
+
+
+
   pFrameGroupes = gtk_frame_new("Neural groups");
   gtk_container_add(GTK_CONTAINER(vpaned), pFrameGroupes);
   scrollbars = gtk_scrolled_window_new(NULL, NULL);
@@ -2414,15 +2744,46 @@ void pandora_window_new()
   g_signal_connect(GTK_OBJECT(zone_neurons), "button-release-event", (GtkSignalFunc) drag_drop_neuron_frame, NULL);
   g_signal_connect(GTK_OBJECT(zone_neurons), "motion-notify-event", (GtkSignalFunc) neurons_frame_drag_group, NULL);
 
-  gtk_box_pack_start(GTK_BOX(h_box_main), vpaned, TRUE, TRUE, 0);
+
+  gtk_box_pack_start(GTK_BOX(v_box_inter),vpaned,TRUE,TRUE,0);
+
+  gtk_box_pack_start(GTK_BOX(h_box_main), v_box_inter, TRUE, TRUE, 0);
+
+
+
+
+
+
+
+  /*Panneau latéral droit*/
+
+  legend = gtk_frame_new("Legends");
+  com = gtk_frame_new("Pronts");
+  com_zone= gtk_text_view_new();
+  p_buf=gtk_text_view_get_buffer (GTK_TEXT_VIEW (com_zone));
+  textScrollbar = gtk_scrolled_window_new (NULL, NULL);
+
+  gtk_widget_set_size_request(GTK_WIDGET(textScrollbar), 240, 600);
+  gtk_text_view_set_editable( GTK_TEXT_VIEW(com_zone),FALSE );
+
+  gtk_container_add(GTK_CONTAINER(textScrollbar),com_zone);
+  gtk_container_add(GTK_CONTAINER(com),textScrollbar);
+  gtk_box_pack_start(GTK_BOX(lPane),legend, FALSE,TRUE,0);
+  gtk_box_pack_start(GTK_BOX(lPane),com, FALSE,TRUE,0);
+  gtk_box_pack_start(GTK_BOX(h_box_main), lPane, FALSE, TRUE, 0);
 
   gtk_widget_show_all(window); //Affichage du widget pWindow et de tous ceux qui sont dedans
   gtk_widget_hide_all(refreshManualButton);
+  // On cache la fenetre au départ
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hide_see_legend_button), TRUE);
+  on_hide_see_legend_button_active(hide_see_legend_button,(gpointer*)lPane);
+  //gtk_widget_hide(lPane);
+  //gtk_widget_hide(pPane);
 }
 
 /**
  *
- * name: Programme Principale (Main)
+ * name: Programme Principal (Main)
  *
  * @param argv, argc
  * @see enet_initialize()
@@ -2434,6 +2795,8 @@ int main(int argc, char** argv)
   int option;
   struct sigaction action;
   char chemin[] = "./pandora.pandora";
+  //GtkSettings *default_settings = gtk_settings_get_default();
+ // g_object_set(default_settings, "gtk-button-images", TRUE, NULL);
 
   stop = FALSE;
   load_temporary_save = FALSE;
@@ -2458,13 +2821,15 @@ int main(int argc, char** argv)
     exit(EXIT_FAILURE);
   }
 
-  g_thread_init(NULL); /* useless since glib 2.32 */
+  //g_thread_init(NULL); /* useless since glib 2.32 */
   gdk_threads_init();
 
   pthread_mutex_init(&mutex_script_caracteristics, NULL);
 
 // Initialisation de GTK+
   gtk_init(&argc, &argv);
+
+
 
 //Initialisation d'ENet
   if (enet_initialize() != 0)
