@@ -259,9 +259,9 @@ extern char bus_id[BUS_ID_MAX];
 pthread_mutex_t mutex_script_caracteristics;
 
 gboolean architecture_display_dragging_currently;
-float architecture_display_cursor_x;
-float architecture_display_cursor_y;
-float new_x, new_y;
+gdouble architecture_display_cursor_x;
+gdouble architecture_display_cursor_y;
+gdouble new_x, new_y;
 
 extern int period;
 gboolean load_temporary_save;

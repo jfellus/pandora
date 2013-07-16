@@ -388,7 +388,7 @@ void enet_manager(ENetHost *server)
         	  group->stats.initialiser = TRUE;
         	  sprintf(group->stats.message, "%ld", (group->stats.nb_executions > 0 ? group->stats.somme_temps_executions / group->stats.nb_executions : 0));
         	  gdk_threads_enter();
-        	  architecture_display_update_group(architecture_display, group);
+        	  architecture_display_update_group(architecture_display, group); //TODO : fait partie de la grande verif des affichage à modifier
         	  gdk_threads_leave();
           }
           enet_packet_destroy(event.packet);

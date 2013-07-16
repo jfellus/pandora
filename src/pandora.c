@@ -71,6 +71,7 @@ char python_path[MAX_LENGHT_PATHNAME]="$HOME/simulateur/japet/save/default_scrip
 char matlab_path[MAX_LENGHT_PATHNAME]="$HOME/simulateur/japet/save/convert_matlab.py";
 GtkListStore* currently_saving_list;
 
+pthread_t new_window_thread;
 
 void on_search_group(int index);
 void group_display_new(type_group *group, float pos_x, float pos_y);
@@ -270,7 +271,7 @@ void on_toggled_saving_button(GtkWidget *save_button, gpointer pData)
 	  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(save_button)))
 	  {
 	    saving_press=1;
-	    architecture_display_update(architecture_display,NULL);//ineficace
+	    architecture_display_update(architecture_display,NULL);
 
 	  }else //Si le bouton est désactivé
 	  {
@@ -335,7 +336,7 @@ void on_click_save_path_button(GtkWidget *save_button, gpointer pData)//TODO met
 
 }
 
-void on_script_displayed_toggled(GtkWidget *pWidget, gpointer user_data)
+void on_script_displayed_toggled(GtkWidget *pWidget, gpointer user_data)//TODO : creer un architecture display uniquement pour un script particulier?.
 {
   type_script *script = user_data;
 
@@ -365,10 +366,30 @@ gboolean window_close(GtkWidget *pWidget, GdkEvent *event, gpointer pData) //Fon
   (void) pData;
 
   pandora_file_save("./pandora.pandora"); //TODO : OUBLIE LIBE MEMOIRE ICI enregistrement de l'état actuel. cet état sera appliqué au prochain démarrage de pandora.
-
   exit(0);
   //gtk_main_quit();
   return FALSE;
+}
+
+void on_destroy_new_window(GtkWidget *pWidget, gpointer pdata) //Fonction de fermeture d'une fenetre secondaire d'affichage neuronnes
+{
+  GtkWidget *button;
+  gpointer pbutton = gtk_object_get_data(GTK_OBJECT(pWidget),"toggle_button");
+  //(void)pdata;
+
+  button=(GtkWidget*)pbutton;
+
+
+  gtk_widget_reparent ((GtkWidget*)pdata, vpaned);
+  gtk_widget_destroy(pWidget);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), FALSE);
+
+}
+
+void on_destroy(GtkWidget *pWidget, gpointer pdata)
+{
+  (void)pdata;
+  gtk_widget_destroy(pWidget);
 }
 
 /**
@@ -504,13 +525,16 @@ void architecture_display_button_pressed(GtkWidget *pWidget, GdkEventButton *eve
     (void) pWidget;
     (void) pdata;
 
-    if(event->button == 2)   // boutton molette
-        architecture_display_dragging_currently = TRUE;
-
-    architecture_display_cursor_x = (float) event->x;
-    architecture_display_cursor_y = (float) event->y;
-    new_x = ((float) gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value);
-    new_y = ((float) gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value);
+    printf ("\non rentre dans archi_display_button_pressed, le if a pour valeur : %d",event->button);
+    if(event->button == 1)   // boutton gauche
+    {
+    printf ("on passe le if");
+    architecture_display_dragging_currently = TRUE;
+    architecture_display_cursor_x = event->x;
+    architecture_display_cursor_y = event->y;
+    new_x = gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value;
+    new_y = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrollbars))->value;
+    }
 }
 
 void architecture_display_button_released(GtkWidget *pWidget, GdkEventButton *event, gpointer pdata)
@@ -518,11 +542,11 @@ void architecture_display_button_released(GtkWidget *pWidget, GdkEventButton *ev
     (void) pWidget;
     (void) pdata;
 
-    if(event->button == 2)   // boutton molette
+    if(event->button == 1)   // boutton gauche
         architecture_display_dragging_currently = FALSE;
 
-    architecture_display_cursor_x = (float) event->x;
-    architecture_display_cursor_y = (float) event->y;
+   // architecture_display_cursor_x = (float) event->x;
+   // architecture_display_cursor_y = (float) event->y;
 }
 
 // permet de déplacer la zone à afficher s'active en appuyant sur la molette.
@@ -531,19 +555,22 @@ void architecture_display_drag_motion(GtkWidget *pWidget, GdkEventMotion *event,
     (void) pWidget;
     (void) pdata;
 
-    if(architecture_display_dragging_currently == FALSE)
-      return;
+    printf ("\non rentre dans drag motion");
+    if(architecture_display_dragging_currently == TRUE)
+    {
+      printf ("\non passe le if ,l'autre");
+      new_x = new_x - event->x + architecture_display_cursor_x;
+      if(new_x < 0.0) new_x = 0.0;
+      else if(new_x > (gdouble)(10000 - scrollbars->allocation.width)) new_x = (gdouble)(10000 - scrollbars->allocation.width);
 
-    new_x = new_x - ((float) event->x) + architecture_display_cursor_x;
-    if(new_x < 0) new_x = 0.0;
-    else if(new_x > 10000 - scrollbars->allocation.width) new_x = (float) 10000 - scrollbars->allocation.width;
-    new_y = new_y - ((float) event->y) + architecture_display_cursor_y;
-    if(new_y < 0) new_y = 0.0;
-    else if(new_y > 10000 - scrollbars->allocation.height) new_y = (float) 10000 - scrollbars->allocation.height;
+      new_y = new_y - event->y + architecture_display_cursor_y;
+      if(new_y < 0.0) new_y = 0.0;
+      else if(new_y > (gdouble)(10000 - scrollbars->allocation.height)) new_y = (gdouble)(10000 - scrollbars->allocation.height);
 
-    architecture_set_view_point(scrollbars, new_x, new_y);
-    architecture_display_cursor_x = (float) event->x;
-    architecture_display_cursor_y = (float) event->y;
+      architecture_set_view_point(scrollbars, new_x, new_y);
+      architecture_display_cursor_x = event->x;
+      architecture_display_cursor_y = event->y;
+    }
 }
 
 // ouvre la fenetre de recherche en sélectionnant par défaut le script passé en paramètre.
@@ -763,6 +790,8 @@ void on_check_button_draw_active(GtkWidget *check_button, gpointer data)
   (void) check_button;
   (void) data;
 
+  graphic.draw_links = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_connections));
+  graphic.draw_net_links = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections));
   architecture_display_update(architecture_display, NULL);
 }
 
@@ -776,8 +805,9 @@ void button_press_event(GtkWidget *pWidget, GdkEventButton *event)
   (void) pWidget;
 
   selected_group = NULL;
+
+ // architecture_display_update(architecture_display, NULL);
   architecture_display_update(architecture_display, event);
-  architecture_display_update(architecture_display, NULL);
 
   if (event->button == 3)
   {
@@ -790,6 +820,8 @@ void button_press_event(GtkWidget *pWidget, GdkEventButton *event)
   }
   else
       move_neurons_start = open_neurons_start = 0;
+
+
 }
 
 // permet la gestion du zoom avec CTRL + molette. Molette vers le haut pour le zoom avant et vers le bas pour le zoom arrière.
@@ -820,7 +852,7 @@ gboolean architecture_display_scroll_event(GtkWidget *pWidget, GdkEventScroll *e
  * Appui sur une touche
  *
  */
-void key_press_event(GtkWidget *pWidget, GdkEventKey *event)
+void key_press_event(GtkWidget *pWidget, GdkEventKey *event) // TODO : a comprendre et améliorer
 {
   int i, j;
   int libre = 0;
@@ -1333,7 +1365,7 @@ int button_press_neurons(GtkWidget *zone2D, GdkEventButton *event, type_group *g
   else if (event->button == 1) //Si clic gauche la fenêtre est séléctionnée
   {
     selected_group = group; //Le groupe associé à la fenêtre dans laquelle on a cliqué est également sélectionné
-    on_group_display_clicked(NULL, group);
+    on_group_display_clicked(NULL, group); //Affichage de la petite fenetre etc.. (?)
   }
 
 //On actualise l'affichage
@@ -1627,7 +1659,7 @@ void script_update_display(type_script *script)
   gtk_widget_show_all(pVBoxScripts); //Affichage du widget pWindow et de tous ceux qui sont dedans
 
   script_widget_update(script);//TODO erreur ici probablement
-  architecture_display_update(architecture_display, NULL);
+  architecture_display_update(architecture_display, NULL); // TODO : interet ?????????
 
   gdk_threads_leave();
 }
@@ -1838,7 +1870,7 @@ void script_destroy(type_script *script)
 	  script_widget_update(scripts[i]);
   }
 
-  //script_widget_update(scripts[script->id]); //TODO : a verifier si cohérent
+  //script_widget_update(scripts[script->id]); //TODO : à verifier si cohérent
   architecture_display_update(architecture_display, NULL);
 }
 
@@ -2181,36 +2213,50 @@ void fatal_error(const char *name_of_file, const char *name_of_function, int num
 void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
 {
 	int i;
-	static int id_manual = 0, id_semi_automatic;
+	static int id_manual = 0, id_semi_automatic = 0;
 
 	(void) data;
 	refresh_mode = gtk_combo_box_get_active(comboBox);
-	if(refresh_mode == REFRESH_MODE_MANUAL)
+	switch(refresh_mode)
 	{
-		if(id_semi_automatic)
+	case REFRESH_MODE_MANUAL :
+		if(id_semi_automatic!=0)
 			{g_source_destroy(g_main_context_find_source_by_id(NULL, id_semi_automatic)); id_semi_automatic = 0;}
 
-		if(!id_manual) id_manual = g_timeout_add((guint) 50, neurons_refresh_display_without_change_values, NULL);
+		if(id_manual==0) id_manual = g_timeout_add((guint) 50, neurons_refresh_display_without_change_values, NULL); //TODO : comprendre, attention au !, ne marche peut etre pas à tout les coups dans cette logique !
 		for (i = 0; i < number_of_groups_to_display; i++)
 			pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_STOP : PANDORA_SEND_NEURONS_STOP), groups_to_display[i]->id, groups_to_display[i]->script->name);
 
 		gtk_widget_show_all(GTK_WIDGET(data));
-	}
-	else
-	{
-		if(id_manual)
+	break;
+	case REFRESH_MODE_AUTO :
+	  if(id_semi_automatic!=0)
+	              {g_source_destroy(g_main_context_find_source_by_id(NULL, id_semi_automatic)); id_semi_automatic = 0;}
+
+	  if(id_manual!=0)
+	              {g_source_destroy(g_main_context_find_source_by_id(NULL, id_manual)); id_manual = 0;}
+
+	  for (i = 0; i < number_of_groups_to_display; i++)
+	              pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name);
+
+	  gtk_widget_hide_all(GTK_WIDGET(data));
+	  break;
+	case REFRESH_MODE_SEMI_AUTO :
+	  if(id_manual!=0)
 			{g_source_destroy(g_main_context_find_source_by_id(NULL, id_manual)); id_manual = 0;}
 
-		if(id_semi_automatic && refresh_mode == REFRESH_MODE_AUTO)
-			{g_source_destroy(g_main_context_find_source_by_id(NULL, id_semi_automatic)); id_semi_automatic = 0;}
-		else if(refresh_mode == REFRESH_MODE_SEMI_AUTO && !id_semi_automatic)
+	  else if(id_semi_automatic==0)
 			id_semi_automatic = g_timeout_add((guint) 150, neurons_display_refresh_when_semi_automatic, NULL);
 
-		for (i = 0; i < number_of_groups_to_display; i++)
+	  for (i = 0; i < number_of_groups_to_display; i++)
 			pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name);
 
 		gtk_widget_hide_all(GTK_WIDGET(data));
+	break;
+	default :
+	  break;
 	}
+
 }
 
 void neurons_manual_refresh(GtkWidget *pWidget, gpointer pdata)
@@ -2382,6 +2428,8 @@ void on_click_call_dialog(GtkWidget *pWidget, gpointer pdata) //TODO : ramener a
   if (ID==0) g_signal_connect(python_window, "response", G_CALLBACK(call_python_inter), selection);
   if (ID==1) g_signal_connect(python_window, "response", G_CALLBACK(call_matlab_inter), selection);
 
+  g_signal_connect(G_OBJECT(python_window), "destroy", G_CALLBACK(on_destroy), NULL);
+
   pScrollbar = gtk_scrolled_window_new(NULL, NULL);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(pScrollbar),GTK_POLICY_AUTOMATIC,GTK_POLICY_AUTOMATIC);
   gtk_container_add(GTK_CONTAINER(pScrollbar), path_list);
@@ -2424,13 +2472,70 @@ void on_click_config(GtkWidget *button, gpointer pdata)
 
 
 
+void on_click_extract_area(GtkWidget *button, gpointer pdata)
+{
+  static GtkWidget *pWindow;
+  static GtkWidget *pframe_extract;
+  GtkWidget *v_box_second;
+
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
+  {
+
+    pframe_extract=(GtkWidget*)pdata;
+    pWindow=gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_widget_set_double_buffered(pWindow, TRUE);
+    gtk_object_set_data(GTK_OBJECT(pWindow), "toggle_button", GTK_WIDGET(button));
+    g_signal_connect(G_OBJECT(pWindow), "destroy", G_CALLBACK(on_destroy_new_window), pframe_extract);
+
+
+    //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), FALSE);
+
+
+    //frame_extract=*pframe_extract;
+    //pframe_extract=&frame_extract;
+
+    /*Création d'une VBox (boîte de widgets disposés verticalement) */
+    v_box_second = gtk_vbox_new(FALSE, 0);
+
+    gtk_widget_reparent (pframe_extract, v_box_second);
+
+    /*ajout de v_box_main dans pWindow, qui est alors vu comme un GTK_CONTAINER*/
+    //gtk_container_add(GTK_CONTAINER(pWindow), v_box_second);
+
+    /*
+    g_object_ref(pframe_extract);
+    gtk_container_remove(GTK_CONTAINER(vpaned), pframe_extract);
+    gtk_container_add(GTK_CONTAINER(v_box_second), pframe_extract);
+    g_object_unref(pframe_extract);
+    */
+    gtk_container_add(GTK_CONTAINER(pWindow), v_box_second);
+    gtk_signal_connect(GTK_OBJECT(pWindow), "key_press_event", (GtkSignalFunc) key_press_event, NULL);
+
+
+    gtk_widget_show_all(pWindow);
+
+  }
+  else
+  {
+    on_destroy_new_window(pWindow,pframe_extract);
+    pWindow=NULL;
+    pframe_extract=NULL;
+  }
+  //gdk_threads_enter();
+  //gtk_main(); //Boucle infinie : attente des événements
+  //gdk_threads_leave();
+
+
+}
+
+
 void pandora_window_new()
 {
   char path[PATH_MAX];
   GtkWidget *h_box_main, *v_box_main,*v_box_inter, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons,*hbox_barre, *refreshModeHBox, *refreshModeComboBox, *refreshModeLabel, *refreshManualButton,  *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar, *fileMenu, *legend, *com;
   GtkWidget *h_box_save,*h_box_global,*h_box_network;
   GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *zySetting, *zyLabel, *saveLabel, *globalLabel, *networkLabel;
-  GtkWidget *boutonDefault, *boutonPause, *save_button, *boutonTempsPhases, *save_path_button, *hide_see_legend_button, *call_python_button,*convert_matlab_button,*config_button;
+  GtkWidget *boutonDefault, *boutonPause, *save_button, *boutonTempsPhases, *save_path_button, *hide_see_legend_button, *call_python_button,*convert_matlab_button,*config_button,*windowed_area_button;
   GtkWidget *pPane,*lPane; //Panneaux latéraux
   GtkWidget *pFrameScripts, *scrollbars2, *textScrollbar;
   GtkWidget *load, *save, *saveAs, *quit, *itemFile;
@@ -2466,9 +2571,9 @@ void pandora_window_new()
 
 // création de la barre de menus.
   menuBar = gtk_menu_bar_new(); //TODO : verif libé mémoire
-
   fileMenu = gtk_menu_new(); //TODO : verif libé mémoire
 
+  neurons_frame = gtk_frame_new("Neurons' frame");
 
   load = gtk_menu_item_new_with_label(g_locale_to_utf8("Load", -1, NULL, NULL, NULL));
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), load);
@@ -2550,11 +2655,17 @@ void pandora_window_new()
   gtk_box_pack_start(GTK_BOX(h_box_global), boutonTempsPhases, FALSE, FALSE, 0);
   g_signal_connect(G_OBJECT(boutonTempsPhases), "toggled", G_CALLBACK(phases_info_start_or_stop), NULL);
 
+  windowed_area_button = gtk_toggle_button_new_with_label("windowed draw");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(windowed_area_button), FALSE);
+  gtk_box_pack_start(GTK_BOX(h_box_global), windowed_area_button, FALSE, FALSE, 0);
+  g_signal_connect(G_OBJECT(windowed_area_button), "toggled", G_CALLBACK(on_click_extract_area), (gpointer)neurons_frame);
+
+
+
   /*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
   h_box_main = gtk_hbox_new(FALSE, 0);
   vpaned = gtk_vpaned_new();
   gtk_paned_set_position(GTK_PANED(vpaned), 600);
-  neurons_frame = gtk_frame_new("Neurons' frame");
   gtk_box_pack_start(GTK_BOX(v_box_main), h_box_main, TRUE, TRUE, 0);
 
   /*Panneau latéral*/
@@ -2586,7 +2697,7 @@ void pandora_window_new()
 
   g_signal_connect(G_OBJECT(refreshModeComboBox), "changed", (GCallback) refresh_mode_combo_box_value_changed, refreshManualButton);
   g_signal_connect(G_OBJECT(refreshManualButton), "clicked", (GCallback) neurons_manual_refresh, NULL);
-  g_signal_connect(G_OBJECT(refreshManualButton), "realize", (GCallback) gtk_widget_hide_all, NULL);
+  g_signal_connect(G_OBJECT(refreshManualButton), "realize", (GCallback) gtk_widget_hide_all, NULL); // façon un peu orginale de cacher le widget à l'initialisation.
 
 
 
@@ -2652,25 +2763,18 @@ void pandora_window_new()
   gtk_box_pack_start(GTK_BOX(hbox_buttons), boutonDefault, TRUE, TRUE, 0);
   g_signal_connect(G_OBJECT(boutonDefault), "clicked", G_CALLBACK(defaultScale), NULL);
 
-
-//3 boutons
-  //pBoutons = gtk_hbox_new(TRUE, 0);
-  //gtk_box_pack_start(GTK_BOX(pVBoxEchelles), pBoutons, FALSE, TRUE, 0);
-  //boutonSave = gtk_button_new_with_label("Save");
-  //gtk_box_pack_start(GTK_BOX(pBoutons), boutonSave, TRUE, TRUE, 0);
-  //g_signal_connect(G_OBJECT(boutonSave), "clicked", G_CALLBACK(save_preferences), NULL);
-  //boutonLoad = gtk_button_new_with_label("Load");
-  //gtk_box_pack_start(GTK_BOX(pBoutons), boutonLoad, TRUE, TRUE, 0);
-  //g_signal_connect(G_OBJECT(boutonLoad), "clicked", G_CALLBACK(pandora_load_preferences), NULL);
-
   check_button_draw_connections = gtk_check_button_new_with_label("draw connections");
   check_button_draw_net_connections = gtk_check_button_new_with_label("draw net connections");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button_draw_connections), TRUE);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections), TRUE);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), check_button_draw_connections, FALSE, TRUE, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), check_button_draw_net_connections, FALSE, TRUE, 0);
-  gtk_signal_connect(GTK_OBJECT(check_button_draw_connections), "toggled", (GtkSignalFunc) on_check_button_draw_active, NULL);
+  gtk_signal_connect(GTK_OBJECT(check_button_draw_connections), "toggled", (GtkSignalFunc) on_check_button_draw_active, NULL); //TODO : heuuuuu? ? ? ?
   gtk_signal_connect(GTK_OBJECT(check_button_draw_net_connections), "toggled", (GtkSignalFunc) on_check_button_draw_active, NULL);
+
+  graphic.draw_links = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_connections));
+  graphic.draw_net_links = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_button_draw_net_connections));
+
 
   displayMode = "Sampled mode";
 
@@ -2725,18 +2829,20 @@ void pandora_window_new()
   gtk_drawing_area_size(GTK_DRAWING_AREA(architecture_display), 10000, 10000);
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars), architecture_display);
   gtk_signal_connect(GTK_OBJECT(architecture_display), "scroll-event", (GtkSignalFunc) architecture_display_scroll_event, NULL);
-  gtk_signal_connect(GTK_OBJECT(architecture_display), "expose_event", (GtkSignalFunc) architecture_display_update, NULL);
+  gtk_signal_connect(GTK_OBJECT(architecture_display), "expose-event", (GtkSignalFunc) architecture_display_update, NULL);
   gtk_widget_set_events(architecture_display, GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_BUTTON2_MOTION_MASK); //Détecte quand on appuie OU quand on relache un bouton de la souris alors que le curseur est dans la zone3D
-  gtk_signal_connect(GTK_OBJECT(architecture_display), "button_press_event", (GtkSignalFunc) button_press_event, NULL);
-  gtk_signal_connect(GTK_OBJECT(architecture_display), "button_press_event", (GtkSignalFunc) architecture_display_button_pressed, NULL);
-  gtk_signal_connect(GTK_OBJECT(architecture_display), "button_release_event", (GtkSignalFunc) architecture_display_button_released, NULL);
+  gtk_signal_connect(GTK_OBJECT(architecture_display), "button-press-event", (GtkSignalFunc) button_press_event, NULL);
+  gtk_signal_connect(GTK_OBJECT(architecture_display), "button-press-event", (GtkSignalFunc) architecture_display_button_pressed, NULL);
+  gtk_signal_connect(GTK_OBJECT(architecture_display), "button-release-event", (GtkSignalFunc) architecture_display_button_released, NULL);
   gtk_signal_connect(GTK_OBJECT(architecture_display), "motion-notify-event", (GtkSignalFunc) architecture_display_drag_motion, NULL);
-  gtk_signal_connect(GTK_OBJECT(window), "key_press_event", (GtkSignalFunc) key_press_event, NULL);
+  gtk_signal_connect(GTK_OBJECT(window), "key-press-event", (GtkSignalFunc) key_press_event, NULL);
 
 //la zone des groupes de neurones
   gtk_container_add(GTK_CONTAINER(vpaned), neurons_frame);
   scrollbars2 = gtk_scrolled_window_new(NULL, NULL);
   gtk_container_add(GTK_CONTAINER(neurons_frame), scrollbars2);
+
+
   zone_neurons = gtk_layout_new(NULL, NULL);
   gtk_widget_set_size_request(GTK_WIDGET(zone_neurons), 3000, 3000);
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars2), zone_neurons);
