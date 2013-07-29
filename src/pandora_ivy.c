@@ -1,9 +1,9 @@
-/*
+/**
  * ivy.c
  *
  *  Created on: Aug 23, 2012
  *      Author: arnablan
- */
+ **/
 
 /**
  *
@@ -18,12 +18,14 @@
 #include <unistd.h> /* gethostname */
 #include <limits.h> /* HOST_NAME_MAX */
 
+  char broadcast[BROADCAST_MAX];
+  char computer_name[HOST_NAME_MAX];
+  char ivy_prom_name[SIZE_OF_IVY_PROM_NAME]; /* utiliser un define, peut être le mettre en commun a themis */
+
+
 /* Variables Globales pour ce fichier */
 extern char bus_id[BUS_ID_MAX];
 sem_t ivy_semaphore;
-
-
-
 
 void pandora_bus_send_message(char *id, const char *format, ...)
 {
@@ -84,9 +86,7 @@ void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEve
 
 void prom_bus_init(const char *ip)
 {
-  char ivy_prom_name[SIZE_OF_IVY_PROM_NAME]; /* utiliser un define, peut être le mettre en commun a themis */
-  char broadcast[BROADCAST_MAX];
-  char computer_name[HOST_NAME_MAX];
+
   pid_t my_pid;
 
   gethostname(computer_name, HOST_NAME_MAX);

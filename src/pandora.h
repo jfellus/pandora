@@ -1,41 +1,18 @@
-/* pandora.h
+/** pandora.h
  *
  * Auteurs : Brice Errandonea et Manuel De Palma
  *
  * Pour compiler : make
  *
- */
+ **/
 
 #ifndef PANDORA_H
 #define PANDORA_H
 #define ETIS	//À commenter quand on n'est pas à l'ETIS
 //------------------------------------------------BIBLIOTHEQUES------------------------------------------------------
 
-/*
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
-#include <time.h>
-#include <semaphore.h>
-
-#include <gtk/gtk.h>
-#include <cairo.h>
-#include <gdk/gdkkeysyms.h>
-#include <gtk/gtkobject.h>
-
-#include <net_message_debug_dist.h>
-#include "colors.h"
-#include "pandora_ivy.h"
-#include "prom_tools/include/xml_tools.h"
-#include "enet/include/enet/enet.h"
-#include "prom_kernel/include/pandora_connect.h"
-#include "prom_kernel/include/reseau.h"
-#include "prom_user/include/Struct/prom_images_struct.h"
-*/
 #include "common.h"
 #include "pandora_ivy.h"
-
 
 #define PANDORA_PORT 1235
 #define BROADCAST_IP "127.255.255.255"
@@ -44,12 +21,10 @@
 
 #define COLOR_MAX 7
 
-
 //Si ces limites se révèlent trop restrictives (ou trop larges), éditer les valeurs de cette rubrique
 #define NB_WINDOWS_MAX 30 //Nombre maximal de petites fenêtres affichables dans le bandeau du bas
 #define NB_ROWS_MAX 4 //Nombre maximal de lignes de petites fenêtres affichant des neurones
 #define NB_BUFFERED_MAX 100 //Nombre maximal d'instantanés stockés
-
 #define NB_PLANES_MAX 7
 //Le nombre maximal de plans affichables simultanément dans la zone 3D est limité à 7. Cette limite là est un peu plus
 //compliquée à modifier car il faudrait définir de nouvelles couleurs pour chaque valeur de z > 6.
@@ -98,29 +73,19 @@
 
 #define STAT_HISTORIC_MAX_NUMBER 50
 #define MAX_LENGHT_PATHNAME 100
-
+#define CHEMIN "./pandora.pandora"
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 
-enum
-{
-	REFRESH_MODE_AUTO = 0,
-	REFRESH_MODE_SEMI_AUTO,
-	REFRESH_MODE_MANUAL
+enum {
+  REFRESH_MODE_AUTO = 0, REFRESH_MODE_SEMI_AUTO, REFRESH_MODE_MANUAL
 };
 
 enum {
-  NET_LINK_SIMPLE = 0,
-  NET_LINK_BLOCK = 1 << 0,
-  NET_LINK_ACK = 1 << 1,
+  NET_LINK_SIMPLE = 0, NET_LINK_BLOCK = 1 << 0, NET_LINK_ACK = 1 << 1,
 };
 
-enum{
-  DISPLAY_MODE_SQUARE = 0,
-  DISPLAY_MODE_INTENSITY,
-  DISPLAY_MODE_BAR_GRAPH,
-  DISPLAY_MODE_TEXT,
-  DISPLAY_MODE_GRAPH,
-  DISPLAY_MODE_BIG_GRAPH
+enum {
+  DISPLAY_MODE_SQUARE = 0, DISPLAY_MODE_INTENSITY, DISPLAY_MODE_BAR_GRAPH, DISPLAY_MODE_TEXT, DISPLAY_MODE_GRAPH, DISPLAY_MODE_BIG_GRAPH
 };
 
 //------------------------------------------------STRUCTURES---------------------------------------------------------
@@ -130,39 +95,27 @@ typedef struct coordonnees {
   int y;
 } coordonnees;
 
-/*
- typedef struct neuron
- {
- struct group *myGroup;
- float s[4]; //Valeurs du neurone (0 : s, 1 : s1, 2 : s2, 3 : pic)
- int x;
- int y;
- float buffer[4][NB_BUFFERED_MAX];
- } neuron;
- */
-
-typedef struct stat_group_execution
-{
-	long last_time_phase_0, last_time_phase_1, last_time_phase_3;
-	long somme_temps_executions;
-	int nb_executions;
-	long first_time;
-	gboolean initialiser;
-	char message[MESSAGE_MAX];
+typedef struct stat_group_execution {
+  long last_time_phase_0, last_time_phase_1, last_time_phase_3;
+  long somme_temps_executions;
+  long somme_tot;
+  int nb_executions_tot;
+  int nb_executions;
+  long first_time;
+  gboolean initialiser;
+  char message[MESSAGE_MAX];
 } stat_group_execution;
 
-typedef struct data_courbe
-{
-	float **values;
-	int indice;
-	int last_index, old_index;
-	int column, line;
-	gboolean show;
-	GtkWidget *check_box, *check_box_label;
+typedef struct data_courbe {
+  float **values;
+  int indice;
+  int last_index, old_index;
+  int column, line;
+  gboolean show;
+  GtkWidget *check_box, *check_box_label;
 } data_courbe;
 
-typedef struct group_display_save
-{
+typedef struct group_display_save {
   char name[SIZE_NO_NAME];
   float x, y;
   int output_display, display_mode;
@@ -170,11 +123,10 @@ typedef struct group_display_save
   int normalized;
 } type_group_display_save;
 
-
 typedef struct group {
   int id;
   struct script *script;
-  char name[SIZE_NO_NAME];
+  char name[SIZE_NO_NAME]; //TODO réduire le 1024... ne sert à rien
   char function[TAILLE_CHAINE];
   int number_of_neurons;
   int rows;
@@ -216,17 +168,19 @@ typedef struct group {
 
   gboolean selected_for_save;
   gboolean on_saving;
+  gboolean ok;
+  gboolean ok_display;
+  gboolean refresh_freq;
+
   FILE* associated_file;
 
-
+  int idDisplay;
 
   // variables utilisées pour le calcul du taux d'activité de chaque groupe.
   stat_group_execution stats;
 } type_group;
 
-
-typedef struct script_display_save
-{
+typedef struct script_display_save {
   char name[LOGICAL_NAME_MAX];
   int number_of_groups;
   type_group_display_save *groups;
@@ -252,22 +206,24 @@ typedef struct script_link {
   int type;
 } type_script_link;
 
+/* En-tête de Variables Globales */
 
-int refresh_mode;
+//TODO : continuer à reporter les variables  ici
 extern char bus_id[BUS_ID_MAX];
-
-pthread_mutex_t mutex_script_caracteristics;
-
-gboolean architecture_display_dragging_currently;
-gdouble architecture_display_cursor_x;
-gdouble architecture_display_cursor_y;
-gdouble new_x, new_y;
+extern int refresh_mode;
+extern pthread_mutex_t mutex_script_caracteristics;
+extern gboolean architecture_display_dragging_currently;
+extern gdouble architecture_display_cursor_x;
+extern gdouble architecture_display_cursor_y;
+extern gdouble new_x;
+extern gdouble new_y;
+extern gdouble old_x;
+extern gdouble old_y;
 
 extern int period;
-gboolean load_temporary_save;
-char preferences_filename[PATH_MAX]; //fichier de préférences (*.jap)
-
-int stop; // continue l'enregistrement pour le graphe ou non.
+extern gboolean load_temporary_save;
+extern char preferences_filename[PATH_MAX]; //fichier de préférences (*.jap)
+extern int stop; // continue l'enregistrement pour le graphe ou non.
 extern gboolean calculate_executions_times;
 
 extern int number_of_scripts; //Nombre de scripts à afficher
@@ -289,20 +245,22 @@ extern int windowValue[NB_WINDOWS_MAX]; //Numéro disant quelle valeur des neuro
 
 extern int nbColonnesTotal; //Nombre total de colonnes de neurones dans les fenêtres du bandeau du bas
 extern int nbLignesMax; //Nombre maximal de lignes de neurones à afficher dans l'une des fenêtres du bandeau du bas
-
-//Pour pandora_receive_from_prom.c
-//extern int ivyServerNb;
-
-//extern ENetHost *enet_server;
+extern type_group *groups_to_display[NB_WINDOWS_MAX];
+extern int number_of_groups_to_display;
 
 extern type_script_link net_links[SCRIPT_LINKS_MAX];
 extern int number_of_net_links;
 
 extern pthread_t enet_thread;
+
+extern pthread_mutex_t mutex_loading;
+extern pthread_cond_t cond_loading;
+extern pthread_cond_t cond_copy_arg_top;
+extern pthread_mutex_t mutex_copy_arg_top;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_pandora(int argc, char** argv);
-void prom_bus_init(const char *ip);
+//extern void prom_bus_init(const char *ip);
 void script_update_positions(type_script *script);
 void group_expose_neurons(type_group *group, gboolean lock_gdk_threads, gboolean update_frequence);
 void resize_group(type_group *group);
@@ -317,15 +275,15 @@ void changeValue(GtkWidget *pWidget, gpointer pData);
 void on_search_group_button_active(GtkWidget *pWidget, type_script *script);
 void on_hide_see_scales_button_active(GtkWidget *hide_see_scales_button, gpointer pData);
 void on_check_button_draw_active(GtkWidget *check_button, gpointer data);
-
-void button_press_event(GtkWidget *pWidget, GdkEventButton *event);
+void neurons_frame_drag_group(GtkWidget *pWidget, GdkEvent *event, gpointer pdata);
+void on_release(GtkWidget *zone_neurons, GdkEventButton *event, gpointer data);
+void on_group_display_show_or_mask_neuron(GtkWidget *pWidget, gpointer pData);
 void key_press_event(GtkWidget *pWidget, GdkEventKey *event);
 void save_preferences(GtkWidget *pWidget, gpointer pData);
 void save_preferences_as(GtkWidget *pWidget, gpointer pData);
 void pandora_load_preferences(GtkWidget *pWidget, gpointer pData);
 void defaultScale(GtkWidget *pWidget, gpointer pData);
-void on_toggled_saving_button(GtkWidget *save_button,gpointer pdata);
-//void tabula_rasa_select();
+void on_toggled_saving_button(GtkWidget *save_button, gpointer pdata);
 
 //"Constructeurs"
 void init_script(type_script *s, char *name, char *machine, int z, int nbGroups, int id);
@@ -342,10 +300,6 @@ void script_destroy(type_script *script);
 
 //Autres
 gboolean neurons_refresh_display();
-const char* tcolor(type_script *script);
-void color(cairo_t *cr, type_group *g);
-void clearColor(cairo_t *cr, type_group g);
-void group_new_display(type_group *g, float pos_x, float pos_y);
 gfloat niveauDeGris(float val, float valMin, float valMax);
 void resizeNeurons();
 int get_width_height(int nb_row_column);
@@ -357,6 +311,17 @@ gboolean script_caracteristics(type_script *script, int action);
 void fatal_error(const char *name_of_file, const char *name_of_function, int numero_of_line, const char *message, ...);
 void pandora_bus_send_message(char *id, const char *format, ...);
 void server_for_promethes();
-//void findX(type_group *group);
+float**** createTab4(int nbRows, int nbColumns);
+void destroy_tab_4(float **** tab, int nbColumns, int nbRows);
+int** createTab2(int nbRows, int nbColumns, int init_value);
+void destroy_tab_2(int **tab, int nbRows);
 
+void on_search_group(int index);
+gboolean neurons_refresh_display_without_change_values();
+gboolean neurons_display_refresh_when_semi_automatic();
+gboolean button_press_neurons(GtkStatusIcon *status_icon, GdkEvent *event, type_group *group);
+
+void zoom_out(GdkDevice *pointer);
+void zoom_in(GdkDevice *pointer);
+void phases_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData);
 #endif

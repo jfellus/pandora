@@ -13,30 +13,72 @@
 
 
 
+
+
+
+
+
+	0. Instalation
+	------------------
+	La nouvelle version de Pandora utilise GTK3+ normalement installée par défaut sous ubuntu, toutefois pensez à le verifier en cas de problème.
+	Cette version utilise également la derniere mise-à-jour de Mini-XML (mxml) sous sa version 2.7. Il est donc recommandé de la mettre à jour également :
+		
+		Mise à jour de mxml
+		-------------------
+		Le fichier mxml-2.7.tar.gz est disponible dans le dossier japet.
+		
+		- Décompresser le dossier		
+		tar xzf programme.tar.gz
+
+		- Changer l'emplacement pour celui utilisé par votre ancienne version, normalement usr.
+		./configure --prefix=/usr		
+
+		- Compiler les sources
+		make
+
+		- Proceder à l'installation
+		make install
+
+	Une fois ceci fait, vous pouvez compiler Pandora. Ne pas tenir compte des avertissement "deprecated" si il y en a.
+
 	
 	1. Lancement de Pandora
 	---------------------
 
-Pour démarer Pandora il faut lui donner un "-i" (bus id).
-Ce "-i" correspond au "-i" utilisé par les prométhés que l'on souhaite écouter.
-utilisation : pandora -inom_du_bus_id
+	Pour démarer Pandora il faut lui donner un "-i" (bus id).
+	Ce "-i" correspond au "-i" utilisé par les prométhés que l'on souhaite écouter.
+	utilisation : pandora -inom_du_bus_id
 
-Il est aussi possible de passer en argument un fichier de type (*.jap) qui permet de charger vos préférences. (bus id, échelles, groupes observés, ...).
-utilisation : pandora nom_du_fichier.jap
+	Il est aussi possible de passer en argument un fichier de type (*.pandora) qui permet de charger vos préférences. (bus id, échelles, groupes observés, ...).
+	utilisation : pandora nom_du_fichier.pandora
 
-Si je combine les deux, le bus id passé en option sera prioritaire.
-utilisation : pandora nom_du_fichier.jap -inom_du_bus_id_qui_sera_utilisé
+	Si je combine les deux, le bus id passé en option sera prioritaire.
+	utilisation : pandora nom_du_fichier.pandora -inom_du_bus_id_qui_sera_utilisé
 
-
+	
+	Pandora peut également se lancer en un clic depuis l'interface Themis ou vos scripts ont été ouverts, les parametres seront alors automatiquement spécifiés pour assurer la connexion.
+	En cas de non-passage d'un fichier de preference en parametre, Pandora en creera un par defaut, la sauvegarde et le chargement de la derniere interface utilisée sont automatiques. 
 
 
 	2. Utilisation de Pandora
 	-----------------------
 
-Pour rechercher les prométhés il faut appuyer sur le bouton "Ask for scripts".
+	Les scripts en cours d'utilisation sont automatiquement chargées. (à condition de partager le meme bus_id specifiable des deux cotés)
+	Pandora est séparé en 5 zones distinctes : 
 
-On peut ensuite observer un groupe en particulier. Pour celà on fait un clic droit sur le groupe, puis un clic droit là où je souhaite positionner la fenêtre liée au groupe.
+		- Le menu à onglet et le menu classique
 
-Il est alors possible de la redéplacer en faisant un clic droit sur la fenêtre puis un clic droit sur la nouvelle position souhaitée.
+		Le menu classique permet de forcer le chargement ou la sauvegarde d'un fichier de preference en particulier si besoin est.
+		Le menu à onglet contient différentes zones de boutons regroupé par themes : Reseau, général et sauvegarde
+			Reseau : Contiendra les fonctions d'analyse des performances reseau inter-script, de l'impact de pandora sur prométhé et du temps de transmission.
+			General : Contient une fonction d'affichage des termps d'execution pour chaque boites, permettant de reperer les plus lourdes.
+			Sauvegarde : Contient les fonctions de sauvegarde de l'activité de vos boites et de conversion sous d'autres formats.
 
-Pour fermer une fenêtre il faut faire un clic molette sur la fenêtre à fermer.
+		- La zone d'architecture
+
+		- La zone d'affichage des groupes de neuronnes
+
+		- Le panneaux latéral droit
+
+		- Le panneau latéral gauche
+		

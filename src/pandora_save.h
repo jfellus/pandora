@@ -3,15 +3,12 @@
  *
  *  Created on: 2 juil. 2013
  *      Author: Nils Beaussé
- */
-
-
+ **/
 
 #ifndef PANDORA_SAVE_N
 #define PANDORA_SAVE_N
 
 #include "pandora.h" // Pour les types script/group etc...
-
 
 #define MAX_LENGHT_PATHNAME  100
 #define MAX_LENGHT_FILENAME  50
@@ -24,7 +21,5 @@ void destroy_saving_ref_one(type_script *scripts_used);
 
 void file_create(type_group *used_group);
 
-
 #endif
-
 

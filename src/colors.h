@@ -7,47 +7,36 @@
 
 //--------------------------------------------------COULEURS---------------------------------------------------------
 
-
 //Pour le dessin (et le texte dans les zones de dessin)
-#define BLACK 	0, 0, 0	//Grille
-#define WHITE 	1, 1, 1	//Fond
+#define BLACK 	0.0, 0.0, 0.0,1.0	//Grille
+#define WHITE 	1, 1, 1,1.0	//Fond
+#define RED 		1, 0, 0,1.0	//Groupe sélectionné, fenêtre sélectionnée et liaisons entre scripts
+#define DARKRED 	0.5, 0, 0,1.0
 
-#define RED 		1, 0, 0	//Groupe sélectionné, fenêtre sélectionnée et liaisons entre scripts
-#define DARKRED 	0.5, 0, 0
+#define DARKGREEN	0, 0.5, 0,1.0	//Plan z = 0
+#define GREEN 		0, 1, 0,1.0		//Plan z = 0 actualisé
+#define DARKMAGENTA	0.5, 0, 0.5,1.0	//Plan z = 1
+#define MAGENTA		1, 0, 1,1.0		//Plan z = 1 actualisé
+#define	DARKYELLOW	0.5, 0.5, 0,1.0	//Plan z = 2
+#define YELLOW 		1, 1, 0,1.0 	//Plan z = 2 actualisé
+#define DARKBLUE	0.1, 0.1, 0.6,1.0 	//Plan z = 3
+#define BLUE 		0, 0, 1,1.0 	//Plan z = 3 actualisé
+#define DARKCYAN	0, 0.5, 0.5,1.0	//Plan z = 4
+#define CYAN 		0, 1, 1,1.0		//Plan z = 4 actualisé
+#define DARKORANGE	0.5, 0.25, 0,1.0 	//Plan z = 5
+#define ORANGE 		1, 0.5, 0,1.0 	//Plan z = 5 actualisé
+#define DARKGREY	0.25, 0.25, 0.25,1.0	//Plan z = 6
+#define GREY		0.5, 0.5, 0.5,1.0	//Plan z = 6 actualisé
+#define SAND 	1, 1, 0.5,1.0	//Pas de neurone à cet endroit
+#define SALMON 	1, 0.5, 0.5,1.0
+#define INDIGO	0.5, 0.5, 1,1.0 //Fenêtre montrant les neurones du groupe sélectionné
+#define FUCHSIA	1, 0, 0.5,1.0
+#define APPLE	0.5, 1, 0,1.0
+#define MINT	0, 1, 0.5,1.0
+#define PURPLE 	0.5, 0, 1,1.0
+#define COBALT	0, 0.5, 1,1.0
 
-#define DARKGREEN	0, 0.5, 0	//Plan z = 0
-#define GREEN 		0, 1, 0		//Plan z = 0 actualisé	
-
-#define DARKMAGENTA	0.5, 0, 0.5	//Plan z = 1 
-#define MAGENTA		1, 0, 1		//Plan z = 1 actualisé
-
-#define	DARKYELLOW	0.5, 0.5, 0	//Plan z = 2
-#define YELLOW 		1, 1, 0 	//Plan z = 2 actualisé
-
-#define DARKBLUE	0.1, 0.1, 0.6 	//Plan z = 3
-#define BLUE 		0, 0, 1 	//Plan z = 3 actualisé
-
-#define DARKCYAN	0, 0.5, 0.5	//Plan z = 4
-#define CYAN 		0, 1, 1		//Plan z = 4 actualisé
-
-#define DARKORANGE	0.5, 0.25, 0 	//Plan z = 5
-#define ORANGE 		1, 0.5, 0 	//Plan z = 5 actualisé
-
-#define DARKGREY	0.25, 0.25, 0.25	//Plan z = 6
-#define GREY		0.5, 0.5, 0.5	//Plan z = 6 actualisé
-
-#define SAND 	1, 1, 0.5	//Pas de neurone à cet endroit
-#define SALMON 	1, 0.5, 0.5 
-#define INDIGO	0.5, 0.5, 1 //Fenêtre montrant les neurones du groupe sélectionné
-
-#define FUCHSIA	1, 0, 0.5 
-#define APPLE	0.5, 1, 0
-#define MINT	0, 1, 0.5
-#define PURPLE 	0.5, 0, 1
-#define COBALT	0, 0.5, 1
-
-#define ANISE	0.5, 1, 0.5
-
+#define ANISE	0.5, 1, 0.5,1.0
 
 //Pour le texte des labels
 #define TBLACK "#000000"
@@ -83,3 +72,19 @@
 #define TSALMON "#FF8080"
 #define TANISE "#80FF80"
 #define TINDIGO "#8080FF" 
+
+//Ceci évite d'inclure graphicTx.h incompatible avec GTK3.0 tout en assurant la compatibilité de pandora.
+#define noir 0
+#define blanc 16
+#define gris 8
+#define rouge 17
+#define vert 18
+#define bleu 19
+#define ciel 20
+#define jaune 21
+#define violet 22
+#define marine 23
+#define pelouse 24
+#define bordeau 25
+#define kaki 26
+

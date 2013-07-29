@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <limits.h>
 
 /* Systeme de semaphore */
 #include <semaphore.h>
@@ -24,9 +25,9 @@
 /** Partie biblioteques non-standards **/
 /* Fichiers communs pour l'IHM */
 #include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#include <gdk/gdkx.h>
 #include <cairo.h>
-#include <gdk/gdkkeysyms.h>
-#include <gtk/gtkobject.h>
 
 /** Partie Promethe **/
 /* fichiers communs à promethe */
