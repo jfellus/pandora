@@ -196,6 +196,9 @@ void enet_manager(ENetHost *server)
             group->drawing_area = NULL;
             group->ok_display = FALSE;
             group->idDisplay = 0;
+            group->is_watch=FALSE;
+            group->from_file=FALSE;
+            group->neurons_length=20;
           }
 
           current_data = &current_data[groups_size];

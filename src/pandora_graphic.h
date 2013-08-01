@@ -63,4 +63,7 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
 void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *zone_neurons);
 void group_display_destroy(type_group *group);
 
+int zoom_neurons(type_group* group, gboolean direction);
+gboolean neuron_zooming(GtkWidget *pwidget, GdkEvent  *user_event, gpointer user_data);
+float determine_ideal_length(type_group* group);
 #endif /* GRAPHIC_H */

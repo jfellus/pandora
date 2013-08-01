@@ -171,11 +171,13 @@ typedef struct group {
   gboolean ok;
   gboolean ok_display;
   gboolean refresh_freq;
+  gboolean from_file;
 
   FILE* associated_file;
 
   int idDisplay;
-
+  gboolean is_watch;
+  float neurons_length;
   // variables utilisées pour le calcul du taux d'activité de chaque groupe.
   stat_group_execution stats;
 } type_group;
@@ -302,7 +304,7 @@ void script_destroy(type_script *script);
 gboolean neurons_refresh_display();
 gfloat niveauDeGris(float val, float valMin, float valMax);
 void resizeNeurons();
-int get_width_height(int nb_row_column);
+int get_width_height(int nb_row);
 void pandora_file_save(const char *filename);
 void pandora_file_load(const char *filename);
 void pandora_file_load_script(const char *filename, type_script *script);

@@ -63,6 +63,8 @@ int number_of_net_links = 0;
 type_group *groups_to_display[NB_WINDOWS_MAX];
 int number_of_groups_to_display = 0;
 
+//type_group *groups_to_survey[NB_SCRIPTS_MAX*NB_GROUPS_MAX];
+
 char bus_id[BUS_ID_MAX];
 char bus_ip[HOST_NAME_MAX];
 
@@ -191,12 +193,25 @@ void on_signal_interupt(int signal)
 }
 
 // retour la largeur (resp. la hauteur) de la zone d'affichage d'un groupe en fonction de son nombre de colonnes (resp. de lignes).
-int get_width_height(int nb_row_column)
+int get_width_height(int nb_row)
 {
-  if (nb_row_column == 1) return 100;
-  else if (nb_row_column <= 16) return 300;
-  else if (nb_row_column <= 128) return 400;
-  else if (nb_row_column <= 256) return 700;
+
+  /*int max;
+
+  if (nb_row >= nb_column)
+  {
+    max=nb_row;
+  }
+  else
+  {
+    max=nb_column;
+  }
+*/
+  if (nb_row == 0) return 1;
+  if (nb_row == 1) return 100;
+  else if (nb_row <= 16) return 300;
+  else if (nb_row <= 128) return 400;
+  else if (nb_row <= 256) return 700;
   else return 1000;
 }
 
@@ -537,11 +552,15 @@ void zoom_out(GdkDevice *pointer)
  * Clic souris
  *
  */
-void architecture_display_button_pressed(GtkWidget *pWidget, GdkEventButton *event, gpointer pdata)
+void architecture_display_button_pressed(GtkWidget *pWidget, GdkEvent *user_event, gpointer pdata)
 {
   cairo_t *cr;
+  GdkEventButton *event=NULL;
+  GtkWidget *scrollbars2=(GtkWidget*)pdata;
+  float hscroll, vscroll;
   (void) pWidget;
-  (void) pdata;
+ // (void) pdata;
+  event=(GdkEventButton*)user_event;
 
   selected_group = NULL;
 
@@ -568,7 +587,10 @@ void architecture_display_button_pressed(GtkWidget *pWidget, GdkEventButton *eve
     open_neurons_start = TRUE;
     move_neurons_start = FALSE;
     open_group = selected_group;
-    if (open_group != NULL) group_display_new(open_group, 25, 25, zone_neurons);
+    hscroll=(float)gtk_adjustment_get_value(gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(scrollbars2)));
+    vscroll=(float)gtk_adjustment_get_value(gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrollbars2)));
+
+    if (open_group != NULL) group_display_new(open_group, 25.0 + hscroll, 25.0 + vscroll, zone_neurons);
     break;
   default:
     move_neurons_start = FALSE;
@@ -855,8 +877,7 @@ gboolean architecture_display_scroll_event(GtkWidget *pWidget, GdkEventScroll *e
       zoom_in(event->device);
       return TRUE;
     }
-
-    if ((event->direction == GDK_SCROLL_DOWN) && (event->state & GDK_CONTROL_MASK))
+    else if ((event->direction == GDK_SCROLL_DOWN) && (event->state & GDK_CONTROL_MASK))
     {
       zoom_out(event->device);
       return TRUE;
@@ -1121,7 +1142,7 @@ void defaultScale(GtkWidget *pWidget, gpointer pData)
 
 void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer data)
 {
-  type_group *group = data;
+  type_group *group = (type_group*)data;
   int new_output = gtk_combo_box_get_active(combo_box), i;
   prom_images_struct *images;
   int height = 0;
@@ -1130,6 +1151,7 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
   GtkWidget *image_box = GTK_WIDGET(gtk_builder_get_object(builder, "image_hbox"));
   int nb;
 
+  resize_group(group);
   if (new_output == 3 && group->output_display != 3)
   {
     if (refresh_mode != REFRESH_MODE_MANUAL)
@@ -1182,15 +1204,16 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
     }
     gtk_window_resize(GTK_WINDOW(selected_group_dialog), gtk_widget_get_allocated_width(selected_group_dialog), gtk_widget_get_allocated_height(selected_group_dialog) + height);
   }
+
   group->previous_output_display = group->output_display;
   group->output_display = gtk_combo_box_get_active(combo_box);
+  resize_group(group);
 
-  if (group->previous_output_display != group->output_display) resize_group(group);
 }
 
 void on_group_display_mode_combobox_changed(GtkComboBox *combo_box, gpointer data)
 {
-  type_group *group = data;
+  type_group *group = (type_group*)data;
   GtkWidget *frame = GTK_WIDGET(gtk_builder_get_object(builder, "list_graph"));
 
   group->previous_display_mode = group->display_mode;
@@ -1204,13 +1227,16 @@ void on_group_display_mode_combobox_changed(GtkComboBox *combo_box, gpointer dat
   else if (group->display_mode != DISPLAY_MODE_BIG_GRAPH && gtk_widget_get_visible(frame) == TRUE)
   {
     gtk_widget_hide(frame);
+    resize_group(group);
     //gtk_window_resize(GTK_WINDOW(selected_group_dialog), selected_group_dialog->allocation.width, selected_group_dialog->allocation.height - frame->allocation.height); //TODO : corriger et comprendre
   }
-  if (group->previous_display_mode != group->display_mode) resize_group(group);
+  resize_group(group);
 }
 
 void resize_group(type_group *group)
 {
+  int nb_col,nb_lin,hauteur,largeur;
+
   if (group->output_display == 3)
   {
     gtk_widget_hide(GTK_WIDGET(group->button_vbox));
@@ -1218,13 +1244,28 @@ void resize_group(type_group *group)
   else if (group->display_mode == DISPLAY_MODE_BIG_GRAPH)
   {
     gtk_widget_show_all(GTK_WIDGET(group->button_vbox));
-    gtk_widget_set_size_request(group->widget, GRAPH_WIDTH, GRAPH_HEIGHT);
+    //gtk_widget_set_size_request(group->widget, GRAPH_WIDTH, GRAPH_HEIGHT);
     gtk_widget_set_size_request(group->drawing_area, GRAPH_WIDTH - BUTTON_WIDTH, GRAPH_HEIGHT);
   }
   else
   {
     gtk_widget_hide(GTK_WIDGET(group->button_vbox));
-    gtk_widget_set_size_request(group->widget, get_width_height(group->columns), get_width_height(group->rows));
+   // gtk_widget_set_size_request(group->widget, get_width_height(group->columns), get_width_height(group->rows));
+    //largeur_neur=get_width_height(group->columns,group->rows);
+    //gtk_widget_set_size_request(group->drawing_area, group->columns*largeur_neur, group->rows*largeur_neur);
+
+    if(group->columns > 0) nb_col=group->columns;
+    else nb_col=1;
+    if(group->rows > 0) nb_lin=group->rows;
+    else nb_lin=1;
+
+    largeur=nb_col*group->neurons_length;
+    hauteur=nb_lin*group->neurons_length;
+
+    //gtk_widget_set_size_request(group->drawing_area, get_width_height(group->columns), get_width_height(group->rows));
+    gtk_widget_set_size_request(group->drawing_area, largeur, hauteur);
+    gtk_widget_queue_draw(group->drawing_area);
+
   }
 }
 
@@ -1956,6 +1997,7 @@ void pandora_file_save(const char *filename)
         xml_set_int(group_node, "display_mode", group->display_mode);
         xml_set_float(group_node, "min", group->val_min);
         xml_set_float(group_node, "max", group->val_max);
+        xml_set_float(group_node, "neurons_length", group->neurons_length);
         xml_set_int(group_node, "normalized", group->normalized);
 
         gtk_widget_get_allocation(widget, &allocation);
@@ -2022,8 +2064,10 @@ void pandora_file_load(const char *filename)
                 group->val_min = xml_get_float(group_node, "min");
                 group->val_max = xml_get_float(group_node, "max");
                 group->normalized = xml_get_int(group_node, "normalized");
+                group->from_file=TRUE;
+                if (xml_try_to_get_float(group_node, "neurons_length",&(group->neurons_length))!=1) group->neurons_length=determine_ideal_length(group);
                 group_display_new(group, xml_get_float(group_node, "x"), xml_get_float(group_node, "y"), zone_neurons);
-
+                if (group->previous_output_display != group->output_display) resize_group(group);
               }
             }
           }
@@ -2069,6 +2113,8 @@ void pandora_file_load_script(const char *filename, type_script *script)
               group->val_min = xml_get_float(group_node, "min");
               group->val_max = xml_get_float(group_node, "max");
               group->normalized = xml_get_int(group_node, "normalized");
+              group->from_file=TRUE;
+              if (xml_try_to_get_float(group_node, "neurons_length",&(group->neurons_length))!=1) group->neurons_length=determine_ideal_length(group);
 
               arguments.group = group;
               arguments.posx = xml_get_float(group_node, "x");
@@ -2742,19 +2788,20 @@ void pandora_window_new()
   gtk_widget_set_size_request(architecture_display, 10000, 10000);
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars), architecture_display);
 
+  scrollbars2 = gtk_scrolled_window_new(NULL, NULL);
+
   gtk_widget_set_events(architecture_display, GDK_SCROLL_MASK | GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_BUTTON1_MOTION_MASK); //TODO : remplacer par add , Détecte quand on appuie OU quand on relache un bouton de la souris alors que le curseur est dans la zone3D
   g_signal_connect(G_OBJECT(architecture_display), "scroll-event", G_CALLBACK(architecture_display_scroll_event), NULL);
   g_signal_connect(G_OBJECT(architecture_display), "draw", G_CALLBACK(architecture_display_update), NULL);
   // gtk_widget_set_events(architecture_display, GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_BUTTON1_MOTION_MASK); //TODO : remplacer par add , Détecte quand on appuie OU quand on relache un bouton
   //gtk_signal_connect(GTK_OBJECT(architecture_display), "button-press-event", (GtkSignalFunc) button_press_event, NULL);
-  g_signal_connect(G_OBJECT(architecture_display), "button-press-event", G_CALLBACK(architecture_display_button_pressed), NULL);
+
   g_signal_connect(G_OBJECT(architecture_display), "button-release-event", G_CALLBACK(architecture_display_button_released), NULL);
   g_signal_connect(G_OBJECT(architecture_display), "motion-notify-event", G_CALLBACK(architecture_display_drag_motion), NULL);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(key_press_event), NULL);
-
+  g_signal_connect(G_OBJECT(architecture_display), "button-press-event", G_CALLBACK(architecture_display_button_pressed), (gpointer)scrollbars2);
 //la zone des groupes de neurones
   gtk_container_add(GTK_CONTAINER(vpaned), neurons_frame);
-  scrollbars2 = gtk_scrolled_window_new(NULL, NULL);
   gtk_container_add(GTK_CONTAINER(neurons_frame), scrollbars2);
 
   zone_neurons = gtk_layout_new(NULL, NULL);
@@ -2762,6 +2809,8 @@ void pandora_window_new()
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars2), zone_neurons);
   //gtk_widget_set_events(zone_neurons, GDK_BUTTON_RELEASE_MASK);
   //g_signal_connect(G_OBJECT(zone_neurons), "button-release-event", G_CALLBACK(on_release), NULL);
+
+
 
   gtk_box_pack_start(GTK_BOX(v_box_inter), vpaned, TRUE, TRUE, 0);
 
