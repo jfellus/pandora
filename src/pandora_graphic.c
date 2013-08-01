@@ -1434,7 +1434,7 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
 
     }
     group->refresh_freq = FALSE;
-    // resize_group(group);
+
     gtk_container_set_reallocate_redraws(GTK_CONTAINER(group->widget), TRUE);
 
   }

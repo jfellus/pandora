@@ -2458,6 +2458,7 @@ void on_click_extract_area(GtkWidget *button, gpointer pdata)
 {
   static GtkWidget *pWindow;
   static GtkWidget *pframe_extract;
+  int i;
   //GtkWidget *v_box_second;
 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
@@ -2475,6 +2476,11 @@ void on_click_extract_area(GtkWidget *button, gpointer pdata)
     g_signal_connect(G_OBJECT(pWindow), "key_press_event", G_CALLBACK(key_press_event), NULL);
 
     gtk_widget_show_all(pWindow);
+
+    for(i=0;i<number_of_groups_to_display ; i++)
+    {
+      resize_group(groups_to_display[i]);
+    }
 
   }
   else
