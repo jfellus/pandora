@@ -8,19 +8,23 @@
 
 #include "pandora_graphic.h"
 #include "common.h"
+#include "pandora_architecture.h"
 
 #define DIGITS_MAX 32
 #define NB_DIGITS 7
 #define TEXT_LINE_HEIGHT 12
-#define TEXT_MAX 32
-#define TEXT_OFFSET 4
+
+/** Contient les fonctions, variables et evenements associés à la zone nomée neurons_frame,
+ zone d'affichage des groupes de neuronne
+ Contient également les fonctions de dessins globale et à partager avec pandora_architecture,
+ ceci afin de creer un nouveau fichier ne contenant que peu de chose**/
 
 /* Variables Globales pour ce fichier*/
+gdouble move_neurons_old_x, move_neurons_old_y;
+gboolean move_neurons_start = FALSE;
+gboolean open_neurons_start = FALSE; //Pour ouvrir un frame_neuron
+type_group *move_neurons_group = NULL; //Pour bouger un frame_neuron
 extern pthread_cond_t cond_loading;
-extern pthread_cond_t cond_copy_arg_group_display;
-extern GtkWidget *architecture_display;
-extern gboolean saving_press;
-type_graphic graphic;
 
 /* TODO optimiser */
 float niveauDeGris(float val, float valMin, float valMax)
@@ -104,6 +108,7 @@ gboolean group_display_new_threaded(gpointer data)
   float positiony = 0;
   type_group *group_to_send = NULL;
   GtkWidget *zone_neuron = NULL;
+  gboolean blocked = FALSE;
 
   //Récuperation des données.
   argument_recup = (new_group_argument*) data;
@@ -111,6 +116,7 @@ gboolean group_display_new_threaded(gpointer data)
   positiony = argument_recup->posy;
   group_to_send = argument_recup->group;
   zone_neuron = argument_recup->zone_neuron;
+  blocked = argument_recup->blocked;
 
   pthread_mutex_lock(&mutex_script_caracteristics);
   group_display_new(group_to_send, (float) positionx, (float) positiony, zone_neuron);
@@ -119,7 +125,12 @@ gboolean group_display_new_threaded(gpointer data)
 
   //pthread_mutex_lock (&mutex_loading);
   //On signal au programme ayant appelé que cette appel est terminé et qu'il peut donc continuer
-  pthread_cond_signal(&cond_loading);
+  free(argument_recup);
+  if (blocked)
+  {
+    pthread_cond_signal(&cond_loading);
+  }
+
   //pthread_mutex_unlock (&mutex_loading);
 
   return FALSE;
@@ -380,285 +391,95 @@ void update_big_graph_data(type_group *group)
   }
 }
 
-// modifie la zone affichée. x et y représentent le point situé en haut a gauche de la zone à afficher.
-void architecture_set_view_point(GtkWidget *scrollbars, gdouble x, gdouble y)
+float calcul_pallier(float actual_length, gboolean direction)
 {
-  GtkAdjustment *a_x, *a_y;
-  a_x = gtk_scrolled_window_get_hadjustment(GTK_SCROLLED_WINDOW(scrollbars));
-  a_y = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(scrollbars));
-  // modification des valeurs.
-  gtk_adjustment_set_value(a_x, x);
-  gtk_adjustment_set_value(a_y, y);
-  // propagation de l'évènement. permet d'actualiser la zone à afficher.
-  // gtk_adjustment_value_changed(a_x);
-  // gtk_adjustment_value_changed(a_y);
-  // l'evenement semble capté par un expose event.
-}
-
-// Met à jour l'affichage des groupes de neuronnes
-void architecture_display_update(GtkWidget *architecture_display, cairo_t *cr, void *data)
-{
-  // cairo_t *cr;
-  char text[TEXT_MAX];
-  double dashes[] =
-    { 10.0, 20.0 };
-  int i, group_id = 0, link_id, z;
-  double x_offset = 0, y_offset = 0;
-  type_script *script;
-  type_group *group, *input_group;
-  GdkEventButton *event = data;
-  //cairo_t *cr;
-
-  //cr = gdk_cairo_create(gtk_widget_get_window(architecture_display)); //Crée un contexte Cairo associé à la drawing_area "zone"
-  (void) architecture_display;
-
-  if (gtk_cairo_should_draw_window(cr, gtk_widget_get_window(architecture_display)))
-  {
-    cairo_set_source_rgba(cr, WHITE);
-    cairo_paint(cr);
-
-//On recalcule zMax, la plus grande valeur de z parmi les scripts ouverts
-    zMax = 0;
-    for (i = 0; i < number_of_scripts; i++)
-      if (scripts[i]->z > zMax && scripts[i]->displayed) zMax = scripts[i]->z;
-
-//Dessin des groupes : on dessine d'abord les scripts du plan z = 0 (s'il y en a), puis ceux du plan z = 1, etc., jusqu'à zMax inclus
-    for (z = 0; z <= zMax; z++)
-    {
-      for (i = 0; i < number_of_scripts; i++)
-      {
-        script = scripts[i];
-        x_offset = graphic.zx_scale * z;
-        y_offset = graphic.zy_scale * z + script->y_offset * graphic.y_scale;
-
-        if (script->z == z && script->displayed)
-        {
-          for (group_id = 0; group_id < script->number_of_groups; group_id++)
-          {
-            group = &script->groups[group_id];
-
-            /* Box */
-            if (group->on_saving == 1) cairo_set_line_width(cr, 4);
-            if (group->on_saving == 0) cairo_set_line_width(cr, 2);
-            cairo_rectangle(cr, x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale, LARGEUR_GROUPE, HAUTEUR_GROUPE);
-
-            /* Test selection */
-            if (event != NULL)
-            {
-              if (cairo_in_fill(cr, event->x, event->y)) // Selection pour sauvegarde (touche control activée)
-              {
-                selected_group = group;
-                if ((event->state & GDK_CONTROL_MASK) && !saving_press)
-                {
-                  group->selected_for_save = !group->selected_for_save;
-
-                  //TODO : demande d'envoie des données à promethé pour ceux qui sont en selection type sauvegarde
-                  if (group->selected_for_save == 1) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name);
-                  else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name);
-                }
-              }
-
-            }
-            if (group == selected_group) cairo_set_source_rgba(cr, RED);
-            else if (group->is_in_a_loop == TRUE) cairo_set_source_rgba(cr, 0.8, 0.8, 0.8, 1);
-            else color(cr, group);
-            cairo_fill_preserve(cr);
-            if (group->selected_for_save == 1)
-            {
-
-              if (group->on_saving == 1) cairo_set_source_rgba(cr, YELLOW);
-              if (group->on_saving == 0) cairo_set_source_rgba(cr, BLUE);
-
-              cairo_stroke_preserve(cr);
-            }
-
-            /* Texts  */
-            cairo_save(cr);
-            if (group != selected_group) cairo_clip(cr);
-            cairo_set_source_rgba(cr, BLACK);
-            cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + TEXT_LINE_HEIGHT);
-            if (calculate_executions_times == TRUE)
-            {
-              snprintf(text, TEXT_MAX, "%s   | %sµs", group->name, group->stats.message);
-            }
-            else
-            {
-              snprintf(text, TEXT_MAX, "%s", group->name);
-            }
-            cairo_show_text(cr, text);
-            cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + 2 * TEXT_LINE_HEIGHT);
-            cairo_show_text(cr, group->function);
-            snprintf(text, TEXT_MAX, "%d x %d", group->columns, group->rows);
-            cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + 3 * TEXT_LINE_HEIGHT);
-            cairo_show_text(cr, text);
-            cairo_stroke(cr);
-            cairo_restore(cr); /* unclip */
-
-            /* Internal links */
-            if (graphic.draw_links)
-            {
-              for (link_id = 0; link_id < group->number_of_links; link_id++)
-              {
-                input_group = group->previous[link_id];
-
-                if ((group == selected_group) || (input_group == selected_group))
-                {
-                  cairo_set_source_rgba(cr, RED);
-                  cairo_set_line_width(cr, 3);
-                }
-                else if (group->is_in_a_loop == TRUE && input_group->is_in_a_loop == TRUE)
-                {
-                  cairo_set_source_rgba(cr, BLACK);
-                  cairo_set_line_width(cr, 4);
-                }
-                else
-                {
-                  color(cr, group);
-                  cairo_set_line_width(cr, 1);
-                }
-                cairo_move_to(cr, x_offset + input_group->x * graphic.x_scale + LARGEUR_GROUPE, y_offset + input_group->y * graphic.y_scale + HAUTEUR_GROUPE / 2); //Début de la liaison (à droite du groupe prédécesseur)
-                cairo_line_to(cr, x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + HAUTEUR_GROUPE / 2); //Fin de la liaison (à gauche du groupe courant)
-                cairo_stroke(cr);
-              }
-            }
-
-          }
-        }
-      }
-    }
-    /* Net links */
-    if (graphic.draw_net_links)
-    {
-      for (i = 0; i < number_of_net_links; i++)
-      {
-        input_group = net_links[i].previous;
-        group = net_links[i].next;
-
-        if (input_group != NULL && group != NULL)
-        {
-          if ((input_group == selected_group) || (group == selected_group))
-          {
-            cairo_set_source_rgba(cr, RED);
-            cairo_set_line_width(cr, 5);
-          }
-          else
-          {
-            cairo_set_source_rgba(cr, RED);
-            cairo_set_line_width(cr, 3);
-
-          }
-
-          if (!(net_links[i].type & NET_LINK_BLOCK)) cairo_set_dash(cr, dashes, 2, 0);
-          x_offset = graphic.zx_scale * input_group->script->z;
-          y_offset = graphic.zy_scale * input_group->script->z + input_group->script->y_offset * graphic.y_scale;
-          cairo_move_to(cr, x_offset + input_group->x * graphic.x_scale + LARGEUR_GROUPE, y_offset + input_group->y * graphic.y_scale + HAUTEUR_GROUPE / 2); //Début de la liaison (à droite du groupe prédécesseur)
-          x_offset = graphic.zx_scale * group->script->z;
-          y_offset = graphic.zy_scale * group->script->z + group->script->y_offset * graphic.y_scale;
-          cairo_line_to(cr, x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + HAUTEUR_GROUPE / 2); //Fin de la liaison (à gauche du groupe courant)
-          cairo_stroke(cr);
-        }
-      }
-    }
-    //cairo_destroy(cr);
-  }
-}
-
-gboolean architecture_display_update_group(gpointer *user_data)
-{
-  cairo_t *cr;
-  char text[TEXT_MAX];
-  double x_offset = 0, y_offset = 0;
-  type_script *script;
-  type_group *group = NULL;
-  type_group copy_arg;
-
-  copy_arg = *((type_group*) user_data);
-  group = &copy_arg;
-
-  //la copie est réalisé on envoie le signal de libération d'enet
-  pthread_cond_signal(&cond_copy_arg_group_display);
-
-//Dessin des groupes : on dessine d'abord les scripts du plan z = 0 (s'il y en a), puis ceux du plan z = 1, etc., jusqu'à zMax inclus
-  script = group->script;
-  if (script->displayed)
-  {
-    x_offset = graphic.zx_scale * script->z;
-    y_offset = graphic.zy_scale * script->z + script->y_offset * graphic.y_scale;
-
-    /* Box */
-    cr = gdk_cairo_create(gtk_widget_get_window(architecture_display)); //Crée un contexte Cairo associé à la drawing_area "zone"
-    cairo_rectangle(cr, x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale, LARGEUR_GROUPE, HAUTEUR_GROUPE);
-
-    if (group == selected_group) cairo_set_source_rgba(cr, RED);
-    else if (group->is_in_a_loop == TRUE) cairo_set_source_rgba(cr, 0.8, 0.8, 0.8, 1);
-    else color(cr, group);
-    cairo_fill_preserve(cr);
-
-    /* Texts  */
-    cairo_save(cr);
-    if (group != selected_group) cairo_clip(cr);
-    cairo_set_source_rgba(cr, BLACK);
-    cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + TEXT_LINE_HEIGHT);
-    if (group->stats.message[0] != '\0') snprintf(text, TEXT_MAX, "%s   | %sµs", group->name, group->stats.message);
-    else snprintf(text, TEXT_MAX, "%s", group->name);
-    cairo_show_text(cr, text);
-    cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + 2 * TEXT_LINE_HEIGHT);
-    cairo_show_text(cr, group->function);
-    snprintf(text, TEXT_MAX, "%d x %d", group->columns, group->rows);
-    cairo_move_to(cr, TEXT_OFFSET + x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale + 3 * TEXT_LINE_HEIGHT);
-    cairo_show_text(cr, text);
-    cairo_stroke(cr);
-    cairo_restore(cr); /* unclip */
-    cairo_destroy(cr);
-  }
-
-  return FALSE;
-}
-
-int zoom_neurons(type_group* group, gboolean direction)
-{
-  int actual_length = group->neurons_length;
-  int retour = 1;
+  int retour = 0;
+  float retour_ree = 0.0;
 
   if (direction == TRUE)
   {
-    if (20 <= actual_length && actual_length < 100)
+    if (20 <= (int) actual_length && (int) actual_length < 100)
     {
-      retour = actual_length + 10;
+      retour = (int) actual_length + 10;
+      retour_ree = (float) retour;
     }
-    else if (2 <= actual_length && actual_length < 20)
+    else if (2 <= (int) actual_length && (int) actual_length < 20)
     {
-      retour = actual_length + 2;
+      retour = (int) actual_length + 2;
+      retour_ree = (float) retour;
     }
-    else if (actual_length == 1)
+    else if ((int) actual_length == 1)
     {
-      retour = actual_length + 1;
+      retour = (int) actual_length + 1;
+      retour_ree = (float) retour;
+    }
+    else if ((int) actual_length >= 100)
+    {
+      retour = 100;
+      retour_ree = (float) retour;
     }
     else
     {
-      retour = 100;
+      retour_ree = actual_length * 1.5;
     }
   }
   if (direction == FALSE)
   {
-    if (actual_length >= 20)
+    if ((int) actual_length >= 20)
     {
-      retour = actual_length - 10;
+      retour = (int) actual_length - 10;
+      retour_ree = (float) retour;
     }
-    else if (2 < actual_length && actual_length < 20)
+    else if (2 < (int) actual_length && (int) actual_length < 20)
     {
-      retour = actual_length - 2;
+      retour = (int) actual_length - 2;
+      retour_ree = (float) retour;
     }
-    else if (actual_length == 2)
+    else if ((int) actual_length == 2)
     {
-      retour = actual_length - 1;
+      retour = (int) actual_length - 1;
+      retour_ree = (float) retour;
     }
     else
     {
-      retour = 1;
+      retour_ree = actual_length / 1.5;
     }
   }
-  return retour;
+  return retour_ree;
+}
+
+void zoom_neurons(type_group* group, gboolean direction, float *final_height, float *final_width)
+{
+  float actual_height = group->neurons_height;
+  float actual_width = group->neurons_width;
+
+  *final_height = calcul_pallier(actual_height, direction);
+  *final_width = calcul_pallier(actual_width, direction);
+
+  if (*final_height * (float) group->rows < 40.0)
+  {
+    *final_height = 40.0 / (float) group->rows;
+  }
+  if (*final_width * (float) group->columns < 40.0)
+  {
+    *final_width = 40.0 / (float) group->columns;
+  }
+
+  if (abs((int) (*final_height * (float) group->rows - *final_width * (float) group->columns)) < 20) // Si on est pas dans un cas spécial on peut mettre les neuronne au format carré
+  {
+    if (*final_height > *final_width) *final_height = *final_width;
+    if (*final_height < *final_width) *final_width = *final_height;
+  }
+
+  if (*final_height * (float) group->rows < 40.0)
+  {
+    *final_height = 40.0 / (float) group->rows;
+  }
+  if (*final_width * (float) group->columns < 40.0)
+  {
+    *final_width = 40.0 / (float) group->columns;
+  }
+
 }
 
 gboolean neuron_zooming(GtkWidget *pwidget, GdkEvent *user_event, gpointer user_data)
@@ -669,13 +490,13 @@ gboolean neuron_zooming(GtkWidget *pwidget, GdkEvent *user_event, gpointer user_
 
   if ((event->direction == GDK_SCROLL_UP) && (event->state & GDK_CONTROL_MASK))
   {
-    group->neurons_length = zoom_neurons(group, TRUE);
+    zoom_neurons(group, TRUE, &(group->neurons_height), &(group->neurons_width));
     resize_group(group);
     return TRUE;
   }
   else if ((event->direction == GDK_SCROLL_DOWN) && (event->state & GDK_CONTROL_MASK))
   {
-    group->neurons_length = zoom_neurons(group, FALSE);
+    zoom_neurons(group, FALSE, &(group->neurons_height), &(group->neurons_width));
     resize_group(group);
     return TRUE;
   }
@@ -686,72 +507,138 @@ gboolean neuron_zooming(GtkWidget *pwidget, GdkEvent *user_event, gpointer user_
 
 }
 
-float determine_ideal_length(type_group* group)
+float rectifi_pallier(float ideal_neuro)
 {
   float retour;
+  //test de bonne utilisation de la fonction
+  if (ideal_neuro > 0.0)
+  {
+    // si on est au dela de 20 on va de 10 en 10 donc remise du retour à la dixaine inférieure
+    if (ideal_neuro > 20.0)
+    {
+      retour = ideal_neuro / 10.0;
+      retour = (float) floor(retour);
+      retour = retour * 10;
+    }
+    //sinon on va de 2 en 2 donc on commence par en faire un int à l'unité inférieur puis on le ramene à un chiffre pair (inférieur d'une unité)
+    else if (ideal_neuro >= 2.0)
+    {
+      retour = (float) floor(ideal_neuro);
+      if (((int) retour % 2) != 0)
+      {
+        retour = retour - 1;
+      }
+    }
+    else if (ideal_neuro < 2 && ideal_neuro > 1)
+    {
+      retour = 1;
+    }
+    // en dessous de 1 et supérieur à 0 on garde le float trouvé;
+    else retour = ideal_neuro;
+  }
+  else
+  {
+    printf("ATTENTION : Mauvaise utilisation de la fonction determine_ideal_length, remise par defaut de la taille du groupe");
+    retour = 20.0;
+  }
+  return retour;
+}
+void determine_ideal_length(type_group* group, float* largeur, float* hauteur)
+{
+
   int column = group->columns;
   int rows = group->rows;
   int ideal_largeur = 0;
   int ideal_hauteur = 0;
-  float ideal_largeur_neuro = 0;
-  float ideal_hauteur_neuro = 0;
+  float ideal_largeur_neuro = 0.0;
+  float ideal_hauteur_neuro = 0.0;
 
   //On établis des cran sur l'apparence génerale comme utilisé avant
-  if (column == 0) ideal_largeur = 1;
+  if (column == 0) ideal_largeur = 40;
   if (column == 1) ideal_largeur = 100;
   else if (column <= 16) ideal_largeur = 300;
   else if (column <= 128) ideal_largeur = 400;
   else if (column <= 256) ideal_largeur = 700;
   else ideal_largeur = 1000;
 
-  if (rows == 0) ideal_hauteur = 1;
+  if (rows == 0) ideal_hauteur = 40;
   if (rows == 1) ideal_hauteur = 100;
   else if (rows <= 16) ideal_hauteur = 300;
   else if (rows <= 128) ideal_hauteur = 400;
   else if (rows <= 256) ideal_hauteur = 700;
-  else return ideal_hauteur = 1000;
+  else ideal_hauteur = 1000;
 
   // on en déduit la largeur et la hauteur des neuronnes
-  ideal_largeur_neuro = (float) ideal_largeur / (float) column;
-  ideal_hauteur_neuro = (float) ideal_hauteur / (float) rows;
+  ideal_largeur_neuro = ((float) ideal_largeur) / ((float) column);
+  ideal_hauteur_neuro = ((float) ideal_hauteur) / ((float) rows);
 
-  // on remet les neuronnes en carré en prenant le plus petit
-  if (ideal_hauteur_neuro < ideal_largeur_neuro) ideal_largeur_neuro = ideal_hauteur_neuro;
-  else ideal_hauteur_neuro = ideal_largeur_neuro;
-
-  //test de bonne utilisation de la fonction
-  if (ideal_hauteur_neuro > 0)
+  // on remet les neuronnes en carré en prenant le plus petit si on est dans un cas classique
+  if (ideal_largeur_neuro >= 1.0 && ideal_hauteur_neuro >= 1)
   {
-    // si on est au dela de 20 on va de 10 en 10 donc remise du retour à la dixaine inférieure
-    if (ideal_hauteur_neuro > 20)
-    {
-      retour = ideal_hauteur_neuro/10.0;
-      retour = (float) floor(retour);
-      retour = retour*10;
-    }
-    //sinon on va de 2 en 2 donc on commence par en faire un int à l'unité inférieur puis on le ramene à un chiffre pair (inférieur d'une unité)
-    else if (ideal_hauteur_neuro >= 2)
-    {
-      retour = (float) floor(ideal_hauteur_neuro);
-      if (((int)retour % 2) != 0)
-      {
-        retour = retour - 1;
-      }
-    }
-    else if (ideal_hauteur_neuro < 2 && ideal_hauteur_neuro>1)
-    {
-      retour=1;
-    }
-    // en dessous de 1 et supérieur à 0 on garde le float trouvé;
-    else retour = ideal_hauteur_neuro;
-  }
-  else
-  {
-    printf("ATTENTION : Mauvaise utilisation de la fonction determine_ideal_length, remise par defaut de la taille du groupe");
-    return 20.0;
+    if (ideal_hauteur_neuro < ideal_largeur_neuro) ideal_largeur_neuro = ideal_hauteur_neuro;
+    else ideal_hauteur_neuro = ideal_largeur_neuro;
   }
 
-  return retour;
+  ideal_hauteur_neuro = rectifi_pallier(ideal_hauteur_neuro);
+  ideal_largeur_neuro = rectifi_pallier(ideal_largeur_neuro);
+
+  // traitement de cas particulier.
+
+  if (ideal_hauteur_neuro * (float) group->rows < 40.0)
+  {
+    ideal_hauteur_neuro = 50.0 / (float) group->rows;
+  }
+  if (ideal_largeur_neuro * (float) group->columns < 40.0)
+  {
+    ideal_largeur_neuro = 40.0 / (float) group->columns;
+  }
+  if (ideal_hauteur_neuro * (float) group->rows > 1000)
+  {
+    ideal_hauteur_neuro = 1000.0 / (float) group->rows;
+  }
+  if (ideal_largeur_neuro * (float) group->columns > 1000)
+  {
+    ideal_largeur_neuro = 1000.0 / (float) group->columns;
+  }
+
+  *largeur = ideal_largeur_neuro;
+  *hauteur = ideal_hauteur_neuro;
+
+  return;
+}
+
+gboolean button_press_neurons(GtkWidget *widget, GdkEvent *event, type_group *group)
+{
+  GdkEventButton *event_button;
+  event_button = (GdkEventButton*) event;
+  (void) widget;
+  switch (event_button->button)
+  {
+  case 1:
+    move_neurons_old_x = event_button->x;
+    move_neurons_old_y = event_button->y;
+    move_neurons_start = TRUE;
+    move_neurons_group = group;
+    selected_group = group; //Le groupe associé à la fenêtre dans laquelle on a cliqué est également sélectionné
+    if (event_button->type == GDK_2BUTTON_PRESS) on_group_display_clicked(NULL, group); //Affichage de la petite fenetre etc.. (?)
+    break;
+
+  case 2:
+    group_display_destroy(group);
+    break;
+
+  case 3:
+    break;
+
+  default:
+    break;
+  }
+
+//On actualise l'affichage
+  gtk_widget_queue_draw(architecture_display);
+  //architecture_display_update(architecture_display, NULL);
+
+  return TRUE;
 }
 
 void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *zone_neurons)
@@ -761,7 +648,7 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   float r, g, b;
   char p_legende_texte[100];
   int nb_lin, nb_col;
-  int largeur, hauteur;
+  float largeur, hauteur;
   //int largeur_neur=0;
   //group_expose_argument arg;
   if (group->widget != NULL || group->ok != TRUE) return;
@@ -860,15 +747,15 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   if (group->rows > 0) nb_lin = group->rows;
   else nb_lin = 1;
 
-  if(!(group->from_file))
+  if (!(group->from_file))
   {
-    group->neurons_length=determine_ideal_length(group);
+    determine_ideal_length(group, &(group->neurons_width), &(group->neurons_height));
   }
-  largeur = nb_col * group->neurons_length;
-  hauteur = nb_lin * group->neurons_length;
+  largeur = (float) nb_col * group->neurons_width;
+  hauteur = (float) nb_lin * group->neurons_height;
 
   //gtk_widget_set_size_request(group->drawing_area, get_width_height(group->columns), get_width_height(group->rows));
-  gtk_widget_set_size_request(group->drawing_area, largeur, hauteur);
+  gtk_widget_set_size_request(group->drawing_area, (gint) largeur, (gint) hauteur);
 
   principal_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   gtk_box_set_homogeneous(GTK_BOX(principal_hbox), FALSE);
@@ -885,8 +772,10 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   g_signal_connect(G_OBJECT(group->drawing_area), "scroll-event", G_CALLBACK(neuron_zooming), group);
   g_signal_connect(G_OBJECT(group->widget), "button-press-event", G_CALLBACK(button_press_neurons), group);
 
-  g_signal_connect(G_OBJECT(group->widget), "draw", G_CALLBACK(group_expose_refresh), group);
+  //g_signal_connect(G_OBJECT(group->widget), "draw", G_CALLBACK(group_expose_refresh), group); //TODO : supprimer si aucun bug à long terme
   g_signal_connect(G_OBJECT(group->drawing_area), "draw", G_CALLBACK(group_expose_refresh), group); //semble fonctionner plutot bien
+  g_signal_connect(G_OBJECT(group->drawing_area), "button-press-event", G_CALLBACK(button_press_on_neuron), group);
+  g_signal_connect(G_OBJECT(group->drawing_area), "button-release-event", G_CALLBACK(button_release_on_neuron), group);
   //g_signal_connect(G_OBJECT(group->drawing_area), "button-release-event", G_CALLBACK(drag_drop_neuron_frame), NULL);
   g_signal_connect(G_OBJECT(group->widget), "motion-notify-event", G_CALLBACK(neurons_frame_drag_group), NULL);
   g_signal_connect(G_OBJECT(group->widget), "button-release-event", G_CALLBACK(drag_drop_neuron_frame), NULL);
@@ -939,7 +828,7 @@ void group_display_destroy(type_group *group)
   group->widget = NULL;
   group->drawing_area = NULL;
   group->ok_display = FALSE;
-  group->from_file=FALSE;
+  group->from_file = FALSE;
 }
 
 const char* tcolor(type_script *script)
@@ -976,25 +865,25 @@ void color(cairo_t *cr, type_group *group)
 //La couleur d'un groupe ou d'une liaison dépend du plan dans lequel il/elle se trouve
   {
   case 0:
-    cairo_set_source_rgba(cr, DARKGREEN);
+    cairo_set_source_rgba(cr, LIGHTGREEN);
     break;
   case 1:
-    cairo_set_source_rgba(cr, DARKMAGENTA);
+    cairo_set_source_rgba(cr, LIGHTMAGENTA);
     break;
   case 2:
     cairo_set_source_rgba(cr, DARKYELLOW);
     break;
   case 3:
-    cairo_set_source_rgba(cr, DARKBLUE);
+    cairo_set_source_rgba(cr, LIGHTBLUE);
     break;
   case 4:
-    cairo_set_source_rgba(cr, DARKCYAN);
+    cairo_set_source_rgba(cr, LIGHTRED);
     break;
   case 5:
-    cairo_set_source_rgba(cr, DARKORANGE);
+    cairo_set_source_rgba(cr, LIGHTORANGE);
     break;
   case 6:
-    cairo_set_source_rgba(cr, DARKGREY);
+    cairo_set_source_rgba(cr, LIGHTANISE);
     break;
   }
 }
@@ -1033,45 +922,79 @@ void clearColor(cairo_t *cr, type_group group)
   }
 }
 
-// permet de connaitre les coordonnées d'un groupe affiché dans la zone "architecture_display" (point en haut à gauche du groupe).
-void architecture_get_group_position(type_group *group, float *x, float *y)
+gboolean button_release_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *group)
 {
-  int i, group_id = 0, z;
-  double x_offset = 0, y_offset = 0;
-  type_script *script;
-  type_group *tmp_group;
+  struct timespec present_time;
+  GdkEventButton *event_button = (GdkEventButton*) event;
+  ;
+  (void) widget;
 
-//On recalcule zMax, la plus grande valeur de z parmi les scripts ouverts
-  zMax = 0;
-  for (i = 0; i < number_of_scripts; i++)
-    if (scripts[i]->z > zMax && scripts[i]->displayed) zMax = scripts[i]->z;
-
-//Dessin des groupes : on dessine d'abord les scripts du plan z = 0 (s'il y en a), puis ceux du plan z = 1, etc., jusqu'à zMax inclus
-  for (z = 0; z <= zMax; z++)
+  if (event != NULL && event_button->button == 1)
   {
-    for (i = 0; i < number_of_scripts; i++)
+    clock_gettime( CLOCK_REALTIME, &present_time);
+    if (((present_time.tv_nsec + 1000000000 * present_time.tv_sec) - (group->press_time.tv_nsec + 1000000000 * group->press_time.tv_sec)) <= 250000000)
     {
-      script = scripts[i];
-      x_offset = graphic.zx_scale * z;
-      y_offset = graphic.zy_scale * z + script->y_offset * graphic.y_scale;
-
-      if (script->z == z && script->displayed)
-      {
-        for (group_id = 0; group_id < script->number_of_groups; group_id++)
-        {
-          tmp_group = &script->groups[group_id];
-
-          /* Test selection */
-          if (tmp_group == group)
-          {
-            *x = x_offset + tmp_group->x * graphic.x_scale;
-            *y = y_offset + tmp_group->y * graphic.y_scale;
-            return;
-          }
-        }
-      }
+      group->x_event = event_button->x;
+      group->y_event = event_button->y;
     }
+    else
+    {
+      group->x_event = -1;
+      group->y_event = -1;
+    }
+
   }
+
+  return FALSE;
+}
+
+gboolean button_press_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *group)
+{
+//  cairo_t *cr;
+  GdkEventButton *event_button;
+  event_button = (GdkEventButton*) event;
+  //struct timespec tp;
+  (void) widget;
+  // float length_x=0;
+  // float length_y=0;
+  // int column=0;
+  // int row=0;
+  // int incrementation = 0;
+  // int neuron_number_display = 0;
+//  int neuron_real_number = 0;
+
+  // cr = gdk_cairo_create(gtk_widget_get_window(widget)); //Crée un contexte Cairo associé à la drawing_area "zone"
+  //gdk_cairo_set_source_window(cr, gtk_widget_get_window(widget), 0, 0);
+  // cairo_destroy(cr);
+
+  /* Test selection */
+  if (event != NULL && event_button->button == 1)
+  {
+    //setlocale(LC_NUMERIC, "C");
+    clock_gettime( CLOCK_REALTIME, &(group->press_time));
+    //group->x_event=event_button->x;
+    //group->y_event=event_button->y;
+    /*length_x=(float)(group->columns)/(float)gtk_widget_get_allocated_width(widget);
+     length_y=(float)(group->rows)/(float)gtk_widget_get_allocated_height(widget);
+
+
+     row=(event_button->y)/length_y;
+     column=(event_button->x)/length_x;
+     incrementation = group->number_of_neurons / (group->columns * group->rows);
+     //neuron_number_display=column + row * group->columns * incrementation + incrementation - 1;
+     neuron_number_display=column + row * group->columns;
+     neuron_real_number=neuron_number_display*incrementation+incrementation - 1;
+
+     printf("indice visible = %d \n",neuron_number_display);
+     printf("indice veritable = %d \n",neuron_real_number);
+     */
+  }
+  else
+  {
+    group->x_event = -1;
+    group->y_event = -1;
+  }
+  return FALSE;
 }
 
 void group_expose_neurons_test(type_group *group, gboolean update_frequence, cairo_t *cr)
@@ -1102,7 +1025,7 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
     //gtk_container_set_reallocate_redraws (GTK_CONTAINER(group->drawing_area), FALSE);
     //gtk_container_set_resize_mode(GTK_CONTAINER(group->widget), GTK_RESIZE_QUEUE);
     //gtk_widget_set_size_request(group->widget, get_width_height(group->columns), get_width_height(group->rows));
-    incrementation = group->number_of_neurons / (group->columns * group->rows); //TODO : micro-neuronnes
+    incrementation = group->number_of_neurons / (group->columns * group->rows);
 
     // ajustement de la taille du widget en fonction du mode d'affichage et de la sortie.
 
@@ -1119,8 +1042,8 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
     hauteurNeuron = (float) gtk_widget_get_allocated_height(GTK_WIDGET(group->drawing_area)) / (float) group->rows;
     //largeurNeuron=5;
     //hauteurNeuron=5;
-    if (largeurNeuron <= hauteurNeuron) hauteurNeuron = largeurNeuron;
-    else largeurNeuron = hauteurNeuron;
+    //  if (largeurNeuron <= hauteurNeuron) hauteurNeuron = largeurNeuron;
+    // else largeurNeuron = hauteurNeuron;
     //largeurNeuron=hauteurNeuron=get_width_height(group->columns,group->rows);
     if (update_frequence == TRUE) group_update_frequence_values(group);
 
@@ -1335,14 +1258,98 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
           ndg = niveauDeGris(val, min, max);
           switch (group->display_mode)
           {
+
           case DISPLAY_MODE_SQUARE:
+
+            cairo_set_source_rgba(cr, WHITE);
+            if (group->x_event > 0) //si l'event de selection n'a pas déja été traité
+            {
+              if (group->x_event >= (u * largeurNeuron + 0.5) && group->x_event < (u * largeurNeuron + 0.5 + (largeurNeuron - 2) + 1) && group->y_event >= (j * hauteurNeuron + 0.5) && group->y_event < (j * hauteurNeuron + 0.5 + (hauteurNeuron - 2) + 1))
+              {
+                // on est selectionné
+                if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est allé jusqu'au bout du tableau de neurone pour la remise à zero
+                {
+                  group->x_event = -1;
+                  group->y_event = -1;
+                }
+                if ((group->neuro_select >= 0) && (group->neuro_select != (i + j * group->columns * incrementation)))
+                {
+                  group->param_neuro_pandora[group->neuro_select].selected = FALSE;
+                  emit_signal_stop_to_promethe((group->firstNeuron + group->neuro_select), group->script);
+                  emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script);
+                }
+
+                if (group->neuro_select < 0)
+                {
+                  emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script); //déduit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
+                  group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
+                  group->neuro_select = i + j * group->columns * incrementation;
+                }
+                else if (group->neuro_select >= 0 && group->neuro_select == (i + j * group->columns * incrementation))
+                {
+                  emit_signal_stop_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script);
+                  group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
+                  group->neuro_select = -1;
+
+                }
+                else
+                {
+                  group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
+                  group->neuro_select = i + j * group->columns * incrementation;
+                }
+
+              }
+              else
+              {
+
+                if ((group->neuro_select >= 0) && (group->neuro_select != (i + j * group->columns * incrementation)) && (group->param_neuro_pandora[i + j * group->columns * incrementation].selected))
+                {
+                  emit_signal_stop_to_promethe((group->firstNeuron + i + j * group->columns * incrementation), group->script);
+                }
+                // emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script);
+
+                //emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script); //déduit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
+                group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
+
+                if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est allé jusqu'au bout du tableau de neurone pour la remise à zero
+                {
+
+                  group->x_event = -1;
+                  group->y_event = -1;
+                  if (group->param_neuro_pandora[group->neuro_select].selected == FALSE)
+                  {
+                    group->neuro_select = -1; // on remet le groupe à -1 uniquement si à la fin le chiffre ne correspond plus à rien.
+                  }
+
+                }
+              }
+            }
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) ((u * largeurNeuron + 0.5) + (largeurNeuron - 1) / 2);
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_y = (double) ((j * hauteurNeuron + 0.5) + (hauteurNeuron - 1) / 2);
+
             cairo_rectangle(cr, (u + (1 - ndg) / 2) * largeurNeuron + 0.5, (j + (1 - ndg) / 2) * hauteurNeuron + 0.5, (largeurNeuron - 2) * ndg + 1, (hauteurNeuron - 2) * ndg + 1); /* Pour garder un point central */
+            cairo_fill(cr);
+
+            if (group->param_neuro_pandora[i + j * group->columns * incrementation].selected == TRUE) //todo etendre selected et liaison pour tout les modes
+            {
+              cairo_set_source_rgba(cr, RED);
+              cairo_rectangle(cr, (u + (1 - ndg) / 2) * largeurNeuron + 0.5, (j + (1 - ndg) / 2) * hauteurNeuron + 0.5, (largeurNeuron - 2) * ndg + 1, (hauteurNeuron - 2) * ndg + 1); /* Pour garder un point central */
+              cairo_stroke(cr);
+            }
             break;
 
           case DISPLAY_MODE_INTENSITY:
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) ((u * largeurNeuron) + (largeurNeuron - 1) / 2);
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_y = (double) ((j * hauteurNeuron) + (hauteurNeuron - 1) / 2);
+
+            //  group->neurons_place[i + j * group->columns * incrementation].xh=u * largeurNeuron;
+            //  group->neurons_place[i + j * group->columns * incrementation].yh=j * hauteurNeuron;
+            //  group->neurons_place[i + j * group->columns * incrementation].xb=group->neurons_place[i + j * group->columns * incrementation].xh+(largeurNeuron - 1);
+            //  group->neurons_place[i + j * group->columns * incrementation].yb=group->neurons_place[i + j * group->columns * incrementation].yh+(hauteurNeuron - 1);
+
             cairo_set_source_rgba(cr, ndg, ndg, ndg, 1);
             cairo_rectangle(cr, u * largeurNeuron, j * hauteurNeuron, largeurNeuron - 1, hauteurNeuron - 1);
-            cairo_fill(cr);
+            cairo_fill(cr); //TODO : verifier utilité
             break;
 
           case DISPLAY_MODE_BAR_GRAPH:
@@ -1436,7 +1443,112 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
     group->refresh_freq = FALSE;
 
     gtk_container_set_reallocate_redraws(GTK_CONTAINER(group->widget), TRUE);
-
+    //gtk_cairo_transform_to_window (cr,GTK_WIDGET(group->widget),GDK_WINDOW(zone_neurons));
+    draw_all_links(zone_neurons, cr, group->drawing_area);
   }
 
+}
+
+void draw_links(GtkWidget *zone_neuron, cairo_t *cr, void *data, int x_zone, int y_zone, int xd_zone, int yd_zone, float info)
+{
+  GtkWidget *widget = (GtkWidget*) data;
+  gint x_fin = 0;
+  gint y_fin = 0;
+  gint xd_fin = 0;
+  gint yd_fin = 0;
+  float largeur = info * 5.0;
+  char text[TEXT_MAX];
+  (void) data;
+
+  if (data != NULL)
+  {
+
+    gtk_widget_translate_coordinates(zone_neuron, widget, x_zone, y_zone, &x_fin, &y_fin);
+    gtk_widget_translate_coordinates(zone_neuron, widget, xd_zone, yd_zone, &xd_fin, &yd_fin);
+
+  }
+  else
+  {
+    x_fin = x_zone;
+    y_fin = y_zone;
+    xd_fin = xd_zone;
+    yd_fin = yd_zone;
+  }
+
+  if (largeur <= 0.1 && largeur >= -0.1)
+  {
+    cairo_set_source_rgba(cr, DARKGREEN);
+    largeur = 1.0;
+  }
+  else if (largeur < -0.1)
+  {
+    cairo_set_source_rgba(cr, DARKBLUE);
+    largeur = -largeur;
+  }
+  else cairo_set_source_rgba(cr, RED);
+
+  cairo_move_to(cr, x_fin, y_fin);
+  cairo_line_to(cr, xd_fin, yd_fin);
+  cairo_set_line_width(cr, (double) largeur);
+  cairo_stroke(cr);
+  if (draw_links_info)
+  {
+    cairo_set_source_rgba(cr, BLACK);
+    cairo_move_to(cr, (x_fin + xd_fin) / 2 + 1, (y_fin + yd_fin) / 2 + 1);
+    snprintf(text, TEXT_MAX, "%.2f", info);
+    cairo_show_text(cr, text);
+    cairo_stroke(cr);
+  }
+
+}
+
+gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data)
+{
+  int i = 0, nbr_coeff = 0, j = 0, no_neuron_pointed = 0;
+  gint xdep, ydep, xarr, yarr;
+  float info = 0.0;
+  type_group* group_pointed = NULL;
+  // void * widget_arr, widget_dep;
+
+  for (i = 0; i < number_of_groups_to_display; i++)
+  {
+    if (groups_to_display[i]->neuro_select >= 0)
+    {
+      if (groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].links_ok && groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].selected)
+      {
+        nbr_coeff = groups_to_display[i]->neurons[groups_to_display[i]->neuro_select].nbre_coeff;
+        for (j = 0; j < nbr_coeff; j++)
+        {
+          group_pointed = groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].links_to_draw[j].group_pointed;
+          if (group_pointed->ok_display == 0) break;
+          no_neuron_pointed = groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].links_to_draw[j].no_neuro_rel_pointed;
+          xdep = (gint) (groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].center_x);
+          ydep = (gint) (groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].center_y);
+          xarr = (gint) (group_pointed->param_neuro_pandora[no_neuron_pointed].center_x);
+          yarr = (gint) (group_pointed->param_neuro_pandora[no_neuron_pointed].center_y);
+
+          gtk_widget_translate_coordinates(GTK_WIDGET(groups_to_display[i]->drawing_area), zone_neuron, xdep, ydep, &xdep, &ydep);
+          gtk_widget_translate_coordinates(GTK_WIDGET(group_pointed->drawing_area), zone_neuron, xarr, yarr, &xarr, &yarr);
+
+          info = groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].coeff[j].val;
+          draw_links(zone_neuron, cr, data, xarr, yarr, xdep, ydep, info);
+        }
+
+        //      groups_to_display[i]->param_neuro_pandora->links_to_draw
+      }
+
+    }
+  }
+  return FALSE; // propage l'event
+}
+
+void emit_signal_to_promethe(int no_neuro, type_script* script)
+{
+  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro, script->name);
+  printf("signal emis pour neuronne %d \n", no_neuro);
+}
+void emit_signal_stop_to_promethe(int no_neuro, type_script* script)
+{
+  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro, script->name);
+  printf("signal stop emis pour neuronne %d\n", no_neuro);
 }

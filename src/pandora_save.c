@@ -143,7 +143,7 @@ void continuous_saving(type_group *used_group)
       for (j = 0; j < used_group->columns * incrementation; j += incrementation)
       {
         //colonnes
-        fprintf(used_group->associated_file, "%f ", used_group->neurons[i * used_group->columns * incrementation + j].s1); //TODO pour le moment avec s1 : fonctionne mais un peu par miracle !!! ne devrais pas !!!
+        fprintf(used_group->associated_file, "%f ", used_group->neurons[i * used_group->columns * incrementation + j].s1);
       }
       fprintf(used_group->associated_file, "\n");
     }

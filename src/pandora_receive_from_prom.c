@@ -8,6 +8,7 @@
 #include "pandora_graphic.h"
 #include "pandora_save.h"
 #include "pandora_prompt.h"
+#include "pandora_architecture.h"
 
 /* Variable Globales pour ce fichier*/
 extern gboolean saving_press;
@@ -29,7 +30,7 @@ void server_for_promethes()
   ENetHost* enet_server = NULL;
   char host_name[HOST_NAME_MAX];
   ENetAddress address;
-
+  struct sched_param params;
   enet_time_set(0);
 
   address.host = ENET_HOST_ANY;
@@ -40,7 +41,14 @@ void server_for_promethes()
   if (enet_server != NULL)
   {
     gethostname(host_name, HOST_NAME_MAX);
+    //enet_host_compress_with_range_coder(enet_server);
+    // struct sched_param is used to store the scheduling priority
+
+    // We'll set the priority to the maximum.
+    params.sched_priority = sched_get_priority_max(SCHED_FIFO);
+
     pthread_create(&enet_thread, NULL, (void*(*)(void*)) enet_manager, enet_server);
+    pthread_setschedparam(enet_thread, SCHED_FIFO, &params);
   }
   else
   {
@@ -49,13 +57,13 @@ void server_for_promethes()
   }
 }
 
-
 gboolean queue_draw(gpointer data)
 {
-  type_group* group=(type_group*)data;
-  int i=group->idDisplay;
-  gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[i]->drawing_area));
+  type_group* group = (type_group*) data;
+  int i = group->idDisplay;
   pthread_cond_signal(&cond_copy_arg_group_display);
+  gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[i]->drawing_area));
+
   return FALSE;
 }
 
@@ -64,7 +72,7 @@ void enet_manager(ENetHost *server)
   static int first_call = 1;
   char ip[HOST_NAME_MAX];
   int running = 1;
-  int i;
+  int i, j;
   int script_id, group_id, link_id, net_link_id;
 
   int number_of_groups, number_of_links, number_of_neurons;
@@ -88,18 +96,20 @@ void enet_manager(ENetHost *server)
   type_script *script = NULL;
   type_group *group, *input_group;
   type_neurone *neurons;
-
+  int no_neuro;
+  int number_of_neuro_links;
   long time;
   int phase;
 
   while (running)
   {
     first_call++;
-    /* Wait up to 2000 milliseconds for an event. */
+
     while (enet_host_service(server, &event, 2000) > 0)
     {
       switch (event.type)
       {
+
       case ENET_EVENT_TYPE_CONNECT:
         enet_address_get_host_ip(&event.peer->address, ip, HOST_NAME_MAX);
         printf("A new client connected (ENet) from ip %s:%i.\n", ip, event.peer->address.port);
@@ -120,10 +130,8 @@ void enet_manager(ENetHost *server)
         break;
 
       case ENET_EVENT_TYPE_RECEIVE:
-
         script = event.peer->data;
         current_data = event.packet->data;
-
 
         switch (event.channelID)
         {
@@ -155,6 +163,16 @@ void enet_manager(ENetHost *server)
             group->columns = received_groups_packet[i].taillex;
             group->rows = received_groups_packet[i].tailley;
             group->neurons = MANY_ALLOCATIONS(group->number_of_neurons, type_neurone);
+            group->param_neuro_pandora = MANY_ALLOCATIONS(group->number_of_neurons, type_para_neuro);
+            for (j = 0; j < group->number_of_neurons; j++)
+            {
+              group->param_neuro_pandora[j].links_to_draw = NULL;
+              group->param_neuro_pandora[j].selected = FALSE;
+              group->param_neuro_pandora[j].links_ok = FALSE;
+              group->param_neuro_pandora[j].center_x = 0;
+              group->param_neuro_pandora[j].center_y = 0;
+              group->param_neuro_pandora[j].coeff = NULL;
+            }
             group->knownX = FALSE;
             group->knownY = FALSE;
             group->x = 1;
@@ -163,6 +181,7 @@ void enet_manager(ENetHost *server)
             group->is_currently_in_a_loop = FALSE;
             group->y = 1;
             group->number_of_links = 0;
+            group->number_of_links_second = 0;
             group->val_min = 0;
             group->val_max = 1;
             group->output_display = 1; /* s1 */
@@ -170,6 +189,7 @@ void enet_manager(ENetHost *server)
             else group->display_mode = DISPLAY_MODE_SQUARE;
             group->normalized = 0;
             group->previous = NULL;
+            group->previous_second = NULL;
             group->widget = NULL;
             group->ext = NULL;
             group->image_selected_index = 0;
@@ -196,9 +216,12 @@ void enet_manager(ENetHost *server)
             group->drawing_area = NULL;
             group->ok_display = FALSE;
             group->idDisplay = 0;
-            group->is_watch=FALSE;
-            group->from_file=FALSE;
-            group->neurons_length=20;
+            group->is_watch = FALSE;
+            group->from_file = FALSE;
+            group->neurons_height = 20;
+            group->neurons_width = 20;
+            group->firstNeuron = received_groups_packet[i].premier_ele;
+            group->neuro_select = -1;
           }
 
           current_data = &current_data[groups_size];
@@ -285,6 +308,12 @@ void enet_manager(ENetHost *server)
               group->previous = MANY_REALLOCATIONS(group->previous, group->number_of_links, type_group*);
               group->previous[group->number_of_links - 1] = input_group;
             }
+            else //Si c'est une liaison secondaire
+            {
+              group->number_of_links_second++;
+              group->previous_second = MANY_REALLOCATIONS(group->previous_second, group->number_of_links_second, type_group*);
+              group->previous_second[group->number_of_links_second - 1] = input_group;
+            }
           }
 
           script->y_offset = 0;
@@ -299,36 +328,29 @@ void enet_manager(ENetHost *server)
           if (load_temporary_save == TRUE && (access("./pandora.pandora", R_OK) == 0)) pandora_file_load_script("./pandora.pandora", script);
           //else if((first_call<3) && (access(preferences_filename, R_OK) == 0))
           else if (access(preferences_filename, R_OK) == 0) pandora_file_load_script(preferences_filename, script);
-          //pthread_mutex_lock(&mutex_script_caracteristics);
           script_caracteristics(scripts[script->id], APPLY_SCRIPT_GROUPS_CARACTERISTICS);
-          //pthread_mutex_unlock(&mutex_script_caracteristics);
-          //printf("description traitement fin ! \n");
           enet_packet_destroy(event.packet);
           break;
-          /*
-           if(calculate_executions_times == TRUE)
-           pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_START, 0, script->name);
-           else
-           pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_STOP, 0, script->name);
-           break;
-           */
+
 
         case ENET_UPDATE_NEURON_CHANNEL:
           number_of_neurons = (event.packet->dataLength) / sizeof(type_neurone);
           neurons = (type_neurone*) event.packet->data;
           group_id = neurons->groupe;
-         // printf("update_neuron: group_id=%d",group_id);
+          // printf("update_neuron: group_id=%d",group_id);
 
           if (script == NULL) break;
           if (script->groups == NULL || script->groups == 0x0) break; // securité
           if (script->groups[group_id].ok != TRUE) break; //sécurité 2
 
-          group = &script->groups[group_id]; //TODO : voir avec arnaud !
+          group = &script->groups[group_id];
 
           /* printf("RTT: %i\n", event.peer->lastRoundTripTime); */
           //Réception du paquet
           memcpy(group->neurons, event.packet->data, sizeof(type_neurone) * number_of_neurons);
+
           // gdk_threads_enter();
+
           if (group->selected_for_save == 1 && saving_press == 1)
           {
 
@@ -337,7 +359,6 @@ void enet_manager(ENetHost *server)
           }
           //gdk_threads_leave();
           group->counter++;
-
 
           // pthread_mutex_lock(&mutex_script_caracteristics);
           //if((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && group->drawing_area != NULL && group->widget != NULL)
@@ -359,6 +380,8 @@ void enet_manager(ENetHost *server)
           break;
 
         case ENET_UPDATE_EXT_CHANNEL:
+
+
           group_id = *((int*) current_data);
           current_data = &current_data[sizeof(int)];
 
@@ -367,7 +390,8 @@ void enet_manager(ENetHost *server)
           group = &script->groups[group_id];
           if (group->ok != TRUE) break; //sécurité
 
-          if (group->ext == NULL) /*Th first time we allocate the data to receive images */
+
+          if (group->ext == NULL) //Th first time we allocate the data to receive images
           {
             prom_images = ALLOCATION(prom_images_struct);
             memcpy(prom_images, current_data, sizeof(prom_images_struct));
@@ -378,6 +402,7 @@ void enet_manager(ENetHost *server)
             }
             group->ext = prom_images;
           }
+
           else
           {
             prom_images = (prom_images_struct*) group->ext;
@@ -391,9 +416,8 @@ void enet_manager(ENetHost *server)
             current_data = &current_data[image_size];
           }
 
-          /* Clean up the packet now that we're done using it. */
+          // Clean up the packet now that we're done using it.
           group->counter++;
-
 
           //pthread_mutex_lock(&mutex_script_caracteristics);
 
@@ -408,9 +432,13 @@ void enet_manager(ENetHost *server)
             //gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[group->idDisplay]->drawing_area));
             // group_expose_neurons(group, TRUE, TRUE);
           }
-          enet_packet_destroy(event.packet);
+          printf("on reçoit des données images \n");
+
           //  pthread_mutex_unlock(&mutex_script_caracteristics);
+
+          enet_packet_destroy(event.packet);
           break;
+
         case ENET_UPDATE_PHASES_INFO_CHANNEL:
           current_data = event.packet->data;
           group_id = *((int *) current_data);
@@ -446,12 +474,12 @@ void enet_manager(ENetHost *server)
             group->stats.last_time_phase_3 = time;
             group->stats.somme_temps_executions += diff(group->stats.last_time_phase_0, group->stats.last_time_phase_3);
             group->stats.somme_tot += diff(group->stats.last_time_phase_0, group->stats.last_time_phase_3);
-           // printf("comptage !\n");
+            // printf("comptage !\n");
           }
           if (diff(group->stats.first_time, time) > 2000000)
           {
             // affichage
-           // printf("on rentre dans l'affichage\n");
+            // printf("on rentre dans l'affichage\n");
             group->stats.initialiser = TRUE;
             sprintf(group->stats.message, "%ld", (group->stats.nb_executions > 0 ? group->stats.somme_temps_executions / group->stats.nb_executions : 0));
             /*
@@ -460,7 +488,8 @@ void enet_manager(ENetHost *server)
              //send_info_to_top(group);
              gdk_threads_leave();
              */
-            g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, (GSourceFunc) architecture_display_update_group, (gpointer) group, NULL);
+
+            g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, (GSourceFunc) queue_draw_archi, NULL, NULL);
             /*attente que la copie du groupes soit bien réalisé coté architecture_display_update_group*/
             pthread_mutex_lock(&mutex_copy_arg_group_display);
             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
@@ -472,8 +501,30 @@ void enet_manager(ENetHost *server)
             pthread_cond_wait(&cond_copy_arg_top, &mutex_copy_arg_top);
             pthread_mutex_unlock(&mutex_copy_arg_top);
 
-
           }
+
+          enet_packet_destroy(event.packet);
+
+          break;
+        case ENET_UPDATE_LINKS:
+          current_data = event.packet->data;
+          number_of_neuro_links = (event.packet->dataLength - sizeof(int)) / (sizeof(type_coeff));
+          no_neuro = *((int*) current_data);
+          current_data = &(current_data[sizeof(int)]);
+
+          // coeffs = (type_coeff*)current_data;
+          //coeffs=links->coeffs;
+
+          if (script == NULL) break;
+          if (script->groups == NULL || script->groups == 0x0) break; // securité
+
+          group = search_associated_group(no_neuro, script);
+
+          if (group == NULL) break;
+          if (group->ok != TRUE) break;
+
+          if (number_of_neuro_links) create_links(group, no_neuro, current_data, number_of_neuro_links, script);
+
           enet_packet_destroy(event.packet);
           break;
         }
@@ -597,4 +648,44 @@ void verify_group(type_group *group)
   group->calculate_x = FALSE;
 
   group->knownX = TRUE;
+}
+
+type_group* search_associated_group(int no_neuro, type_script* script)
+{
+  int i = 0;
+  for (i = 0; i < script->number_of_groups; i++)
+  {
+    if (no_neuro >= (script->groups[i].firstNeuron) && no_neuro < (script->groups[i].firstNeuron + script->groups[i].number_of_neurons))
+    {
+      return &(script->groups[i]);
+    }
+  }
+  return NULL;
+
+}
+
+void create_links(type_group *group, int no_neuro, enet_uint8 *current_data, int number_of_neuro_links, type_script* script)
+{
+  int no_neuro_rel;
+  int i;
+  type_coeff* coeffs = NULL;
+
+  no_neuro_rel = no_neuro - (group->firstNeuron);
+  if (!(group->param_neuro_pandora[no_neuro_rel].links_ok))
+  {
+    group->param_neuro_pandora[no_neuro_rel].coeff = MANY_REALLOCATIONS(group->param_neuro_pandora[no_neuro_rel].coeff,number_of_neuro_links,type_coeff);
+    // group->neurons[no_neuro_rel].coeff=MANY_REALLOCATIONS(group->neurons[no_neuro_rel].coeff,number_of_neuro_links,type_coeff);
+    group->param_neuro_pandora[no_neuro_rel].links_to_draw = MANY_REALLOCATIONS(group->param_neuro_pandora[no_neuro_rel].links_to_draw,number_of_neuro_links,type_link_draw);
+    group->param_neuro_pandora[no_neuro_rel].links_ok = TRUE;
+  }
+
+  memcpy(group->param_neuro_pandora[no_neuro_rel].coeff, current_data, number_of_neuro_links * sizeof(type_coeff));
+  coeffs = group->param_neuro_pandora[no_neuro_rel].coeff;
+
+  for (i = 0; i < number_of_neuro_links; i++)
+  {
+    group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].group_pointed = search_associated_group(coeffs[i].entree, script);
+    group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].no_neuro_rel_pointed = (coeffs[i].entree - group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].group_pointed->firstNeuron);
+  }
+
 }

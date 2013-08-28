@@ -10,7 +10,6 @@
 
 #include "common.h"
 #include "pandora.h" // pour les type_script group etc...
-
 #define diff(a,b) (a > b ? a-b : b-a)
 #define permut(a,b,tmp) {tmp = a; a = b; b = tmp;} // TODO : probablement à supprimer
 /* "En-tête" de variables globales */
@@ -23,5 +22,6 @@ void enet_manager(ENetHost *server);
 void verify_script(type_script *script);
 void verify_group(type_group *group);
 void sort_list_groups_by_rate(type_group **groups, int number_of_groups);
-
+type_group* search_associated_group(int no_neuro, type_script* script);
+void create_links(type_group *group, int no_neuro, enet_uint8 *current_data, int number_of_neuro_links, type_script* script);
 #endif /* PANDORA_RECEIVE_FROM_PROM_H_ */

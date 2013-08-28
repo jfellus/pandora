@@ -12,18 +12,12 @@
 #include "pandora.h"
 
 /** Structures **/
-
-typedef struct graphic {
-  int draw_links;
-  int draw_net_links;
-  float x_scale, y_scale, zx_scale, zy_scale;
-} type_graphic;
-
 typedef struct new_group_argument {
   type_group *group;
   float posx;
   float posy;
   GtkWidget *zone_neuron;
+  gboolean blocked;
 } new_group_argument;
 
 typedef struct group_expose_argument {
@@ -31,15 +25,28 @@ typedef struct group_expose_argument {
   gboolean freq;
 } group_expose_argument;
 
-/** "En-tete" de variables globales **/
+typedef struct type_link_draw {
+  type_group* group_pointed; //groupe correspondant au lien en cours
+  int no_neuro_rel_pointed; //numéro de neuronne relativement au groupe
+  int x_dep; //départ et arrivé du trait du lien
+  int y_dep;
+  int x_arr;
+  int y_arr;
 
-extern type_graphic graphic;
-extern GdkColor couleurs[];
+// type_link_draw* elem_suivant;
+} type_link_draw;
+
+/** "En-tete" de variables globales **/
+extern gdouble move_neurons_old_x, move_neurons_old_y;
+extern gboolean move_neurons_start;
+extern gboolean open_neurons_start;
+extern type_group *move_neurons_group;
+extern type_link_draw links_to_draw;
 
 float niveauDeGris(float val, float valMin, float valMax);
 float CoordonneeYPoint(float val, float valMin, float valMax, float hauteurNeurone);
 float coordonneeYZero(float valMin, float valMax, float hauteurNeurone);
-void group_expose_neurons(type_group *group, gboolean lock_gdk_threads, gboolean update_frequence);
+//void group_expose_neurons(type_group *group, gboolean lock_gdk_threads, gboolean update_frequence);
 
 void group_update_frequence_values(type_group *group);
 void draw_big_graph(type_group *group, cairo_t *cr, float frequence);
@@ -47,11 +54,6 @@ void update_big_graph_data(type_group *group);
 void update_graph_data(type_group *group);
 
 void graph_get_line_color(int num, float *r, float *g, float *b);
-void architecture_set_view_point(GtkWidget *scrollbars, gdouble x, gdouble y);
-void architecture_get_group_position(type_group *group, float *x, float *y);
-void architecture_display_update(GtkWidget *architecture_display, cairo_t *cr, void *data);
-
-gboolean architecture_display_update_group(gpointer *user_data);
 
 gboolean group_display_new_threaded(gpointer data);
 gboolean group_expose_refresh(GtkWidget *widget, cairo_t *cr, gpointer user_data);
@@ -63,7 +65,15 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
 void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *zone_neurons);
 void group_display_destroy(type_group *group);
 
-int zoom_neurons(type_group* group, gboolean direction);
-gboolean neuron_zooming(GtkWidget *pwidget, GdkEvent  *user_event, gpointer user_data);
-float determine_ideal_length(type_group* group);
+void zoom_neurons(type_group* group, gboolean direction, float *final_height, float *final_width);
+gboolean neuron_zooming(GtkWidget *pwidget, GdkEvent *user_event, gpointer user_data);
+void determine_ideal_length(type_group* group, float* largeur, float* hauteur);
+gboolean button_press_neurons(GtkWidget *widget, GdkEvent *event, type_group *group);
+gboolean button_press_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *group);
+gboolean button_release_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *group);
+void draw_links(GtkWidget *zone_neuron, cairo_t *cr, void *data, int x_zone, int y_zone, int xd_zone, int yd_zone, float info);
+void emit_signal_stop_to_promethe(int no_neuro, type_script* script);
+void emit_signal_to_promethe(int no_neuro, type_script* script);
+gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data);
+float calcul_pallier(float actual_length, gboolean direction);
 #endif /* GRAPHIC_H */

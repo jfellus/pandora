@@ -90,6 +90,8 @@ enum {
 
 //------------------------------------------------STRUCTURES---------------------------------------------------------
 
+typedef struct type_link_draw type_link_draw;
+
 typedef struct coordonnees {
   int x;
   int y;
@@ -123,6 +125,18 @@ typedef struct group_display_save {
   int normalized;
 } type_group_display_save;
 
+typedef struct type_para_neuro {
+
+  gboolean selected;
+  double center_x;
+  double center_y;
+  gboolean links_ok;
+  type_link_draw *links_to_draw;
+  type_coeff* coeff;
+// int number_of_links_to_draw;
+
+} type_para_neuro;
+
 typedef struct group {
   int id;
   struct script *script;
@@ -132,12 +146,16 @@ typedef struct group {
   int rows;
   int columns;
   type_neurone *neurons; //Tableau des neurones du groupe
+  type_para_neuro *param_neuro_pandora; //Tableau des parametre supplémentaire associés aux neuronnes.
+
   int x, y, calculate_x;
   int is_in_a_loop, is_currently_in_a_loop;
   gboolean knownX; //TRUE si la coordonnée x est connue
   gboolean knownY;
   int number_of_links;
+  int number_of_links_second;
   struct group **previous; //Adresses des groupes ayant des liaisons vers celui-ci
+  struct group **previous_second; //Adresses des groupes ayant des liaisons secondaires vers celui-ci
 
   int firstNeuron; ///Numéro du premier neurone de ce groupe dans le grand tableau de tous les neurones du script
   int nb_update_since_next;
@@ -177,9 +195,15 @@ typedef struct group {
 
   int idDisplay;
   gboolean is_watch;
-  float neurons_length;
+  float neurons_width;
+  float neurons_height;
+
   // variables utilisées pour le calcul du taux d'activité de chaque groupe.
   stat_group_execution stats;
+  int x_event;
+  int y_event;
+  struct timespec press_time;
+  int neuro_select;
 } type_group;
 
 typedef struct script_display_save {
@@ -210,17 +234,9 @@ typedef struct script_link {
 
 /* En-tête de Variables Globales */
 
-//TODO : continuer à reporter les variables  ici
 extern char bus_id[BUS_ID_MAX];
 extern int refresh_mode;
 extern pthread_mutex_t mutex_script_caracteristics;
-extern gboolean architecture_display_dragging_currently;
-extern gdouble architecture_display_cursor_x;
-extern gdouble architecture_display_cursor_y;
-extern gdouble new_x;
-extern gdouble new_y;
-extern gdouble old_x;
-extern gdouble old_y;
 
 extern int period;
 extern gboolean load_temporary_save;
@@ -259,6 +275,22 @@ extern pthread_mutex_t mutex_loading;
 extern pthread_cond_t cond_loading;
 extern pthread_cond_t cond_copy_arg_top;
 extern pthread_mutex_t mutex_copy_arg_top;
+extern pthread_cond_t cond_copy_arg_group_display;
+extern pthread_mutex_t mutex_copy_arg_group_display;
+extern pthread_mutex_t mutex_script_caracteristics;
+
+extern char bus_id[];
+extern char bus_ip[];
+
+extern GtkWidget *window;
+extern GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale;
+extern GtkWidget *vpaned, *scrollbars;
+extern GtkWidget *neurons_frame, *zone_neurons;
+extern gboolean saving_press;
+extern gboolean draw_links_info;
+
+extern pthread_t new_window_thread;
+extern type_group *open_group;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_pandora(int argc, char** argv);
@@ -299,6 +331,7 @@ void updateGroup(type_group *g, float learningSpeed, float execTime);
 
 void script_update_display(type_script *script);
 void script_destroy(type_script *script);
+void window_title_update();
 
 //Autres
 gboolean neurons_refresh_display();
@@ -321,9 +354,11 @@ void destroy_tab_2(int **tab, int nbRows);
 void on_search_group(int index);
 gboolean neurons_refresh_display_without_change_values();
 gboolean neurons_display_refresh_when_semi_automatic();
-gboolean button_press_neurons(GtkStatusIcon *status_icon, GdkEvent *event, type_group *group);
+//gboolean button_press_neurons(GtkStatusIcon *status_icon, GdkEvent *event, type_group *group);
 
 void zoom_out(GdkDevice *pointer);
 void zoom_in(GdkDevice *pointer);
 void phases_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData);
+void on_group_display_clicked(GtkButton *button, type_group *group);
+void on_button_draw_links_info_pressed(GtkToggleButton *pWidget, gpointer pData);
 #endif

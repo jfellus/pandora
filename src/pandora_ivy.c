@@ -18,10 +18,9 @@
 #include <unistd.h> /* gethostname */
 #include <limits.h> /* HOST_NAME_MAX */
 
-  char broadcast[BROADCAST_MAX];
-  char computer_name[HOST_NAME_MAX];
-  char ivy_prom_name[SIZE_OF_IVY_PROM_NAME]; /* utiliser un define, peut être le mettre en commun a themis */
-
+char broadcast[BROADCAST_MAX];
+char computer_name[HOST_NAME_MAX];
+char ivy_prom_name[SIZE_OF_IVY_PROM_NAME]; /* utiliser un define, peut être le mettre en commun a themis */
 
 /* Variables Globales pour ce fichier */
 extern char bus_id[BUS_ID_MAX];
