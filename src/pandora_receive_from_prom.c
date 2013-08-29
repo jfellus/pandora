@@ -18,6 +18,11 @@ extern pthread_cond_t cond_copy_arg_group_display;
 extern pthread_mutex_t mutex_copy_arg_group_display;
 extern type_group *groups_to_display[];
 pthread_t enet_thread;
+//pthread_attr_t custom_sched_attr;
+
+pthread_attr_t custom_sched_attr;
+int fifo_max_prio, fifo_min_prio;
+struct sched_param fifo_param;
 
 /**
  *
@@ -30,7 +35,6 @@ void server_for_promethes()
   ENetHost* enet_server = NULL;
   char host_name[HOST_NAME_MAX];
   ENetAddress address;
-  struct sched_param params;
   enet_time_set(0);
 
   address.host = ENET_HOST_ANY;
@@ -41,14 +45,26 @@ void server_for_promethes()
   if (enet_server != NULL)
   {
     gethostname(host_name, HOST_NAME_MAX);
-    //enet_host_compress_with_range_coder(enet_server);
+   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button))) enet_host_compress_with_range_coder(enet_server);
     // struct sched_param is used to store the scheduling priority
 
     // We'll set the priority to the maximum.
-    params.sched_priority = sched_get_priority_max(SCHED_FIFO);
 
-    pthread_create(&enet_thread, NULL, (void*(*)(void*)) enet_manager, enet_server);
-    pthread_setschedparam(enet_thread, SCHED_FIFO, &params);
+
+
+      pthread_attr_init(&custom_sched_attr);
+      pthread_attr_setinheritsched(&custom_sched_attr, PTHREAD_EXPLICIT_SCHED);
+      pthread_attr_setschedpolicy(&custom_sched_attr, SCHED_BATCH);
+      fifo_max_prio = sched_get_priority_max(SCHED_BATCH);
+      fifo_min_prio = sched_get_priority_min(SCHED_BATCH);
+      fifo_param.sched_priority = fifo_max_prio;
+      pthread_attr_setschedparam(&custom_sched_attr, &fifo_param);
+      //pthread_create(&(threads[i]), &custom_sched_attr, ....);
+
+    //params.sched_priority = sched_get_priority_max(SCHED_FIFO);
+
+    pthread_create(&enet_thread, &custom_sched_attr, (void*(*)(void*)) enet_manager, enet_server);
+    pthread_setschedparam(enet_thread, SCHED_BATCH, &fifo_param);
   }
   else
   {
@@ -540,6 +556,12 @@ void enet_manager(ENetHost *server)
         printf("ENET: none event \n");
         break;
       }
+      enet_host_flush(server);
+      enet_host_flush(server);
+      enet_host_flush(server);
+      enet_host_flush(server);
+      enet_host_flush(server);
+      enet_host_flush(server);
     }
   }
 }

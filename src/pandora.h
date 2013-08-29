@@ -291,6 +291,7 @@ extern gboolean draw_links_info;
 
 extern pthread_t new_window_thread;
 extern type_group *open_group;
+extern GtkWidget *compress_button;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_pandora(int argc, char** argv);
@@ -318,6 +319,7 @@ void save_preferences_as(GtkWidget *pWidget, gpointer pData);
 void pandora_load_preferences(GtkWidget *pWidget, gpointer pData);
 void defaultScale(GtkWidget *pWidget, gpointer pData);
 void on_toggled_saving_button(GtkWidget *save_button, gpointer pdata);
+void on_toggled_compress_button(GtkWidget *compress_button, gpointer pData);
 
 //"Constructeurs"
 void init_script(type_script *s, char *name, char *machine, int z, int nbGroups, int id);

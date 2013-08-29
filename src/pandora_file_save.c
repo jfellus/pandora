@@ -68,6 +68,7 @@ void pandora_file_save(const char *filename)
   xml_set_int(preferences_node, "z_x_scale", gtk_range_get_value(GTK_RANGE(zxScale)));
   xml_set_int(preferences_node, "z_y_scale", gtk_range_get_value(GTK_RANGE(zyScale)));
   xml_set_int(preferences_node, "architecture_window_height", gtk_paned_get_position(GTK_PANED(vpaned)));
+  xml_set_int(preferences_node, "compress", (int)gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button)));
 
   for (script_id = 0; script_id < number_of_scripts; script_id++)
   {
@@ -92,6 +93,7 @@ void pandora_file_save(const char *filename)
         xml_set_float(group_node, "max", group->val_max);
         xml_set_float(group_node, "neurons_height", group->neurons_height);
         xml_set_float(group_node, "neurons_width", group->neurons_width);
+
         xml_set_int(group_node, "normalized", group->normalized);
 
         gtk_widget_get_allocation(widget, &allocation);
@@ -133,6 +135,8 @@ void pandora_file_load(const char *filename)
   if (xml_try_to_get_int(preferences_node, "z_x_scale", &value)) gtk_range_set_value(GTK_RANGE(zxScale), value);
   if (xml_try_to_get_int(preferences_node, "z_y_scale", &value)) gtk_range_set_value(GTK_RANGE(zyScale), value);
   if (xml_try_to_get_int(preferences_node, "architecture_window_height", &value)) gtk_paned_set_position(GTK_PANED(vpaned), value);
+  if (xml_try_to_get_int(preferences_node, "compress", &value)) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(compress_button), (gboolean)value);
+  else gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(compress_button), FALSE);
 
   for (script_id = 0; script_id < number_of_scripts; script_id++)
   {

@@ -153,7 +153,7 @@ gboolean group_expose_refresh(GtkWidget *widget, cairo_t *cr, gpointer user_data
     pthread_mutex_unlock(&mutex_script_caracteristics);
 
   }
-  return FALSE;
+  return TRUE;
 }
 
 void group_update_frequence_values(type_group *group)
@@ -1442,9 +1442,10 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
     }
     group->refresh_freq = FALSE;
 
-    gtk_container_set_reallocate_redraws(GTK_CONTAINER(group->widget), TRUE);
+
     //gtk_cairo_transform_to_window (cr,GTK_WIDGET(group->widget),GDK_WINDOW(zone_neurons));
     draw_all_links(zone_neurons, cr, group->drawing_area);
+    gtk_container_set_reallocate_redraws(GTK_CONTAINER(group->widget), TRUE);
   }
 
 }
@@ -1510,6 +1511,7 @@ gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data)
   type_group* group_pointed = NULL;
   // void * widget_arr, widget_dep;
 
+  //TODO : faire le test d'existence de lien soit par la mise en place d'une variable nbr de lien totale soit autrement.
   for (i = 0; i < number_of_groups_to_display; i++)
   {
     if (groups_to_display[i]->neuro_select >= 0)

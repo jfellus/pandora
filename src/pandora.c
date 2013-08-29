@@ -27,6 +27,7 @@ GtkWidget *check_button_draw_connections, *check_button_draw_net_connections;
 GtkWidget *pVBoxScripts = NULL; //Panneau des scripts
 GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale; //Échelles
 GtkBuilder *builder = NULL;
+GtkWidget *compress_button;
 
 /*Indiquent quel est le mode d'affichage en cours (Off-line, Sampled ou Snapshots)*/
 const char *displayMode = NULL;
@@ -303,6 +304,20 @@ void on_toggled_saving_button(GtkWidget *save_button, gpointer pData)
     saving_press = 0;
     destroy_saving_ref(scripts); //on ferme tout les fichiers et on remet les on_saving à 0
     gtk_widget_queue_draw(architecture_display); // pour remettre à jour l'affichage quand tout les on_saving sont à 0
+  }
+}
+
+void on_toggled_compress_button(GtkWidget *compress_button, gpointer pData)
+{
+  (void) pData;
+
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button)))
+  {
+    gtk_button_set_label(GTK_BUTTON(compress_button), "Deactivate compression (need restart)");
+  }
+  else //Si le bouton est désactivé
+  {
+    gtk_button_set_label(GTK_BUTTON(compress_button), "Activate compression (need restart)");
   }
 }
 
@@ -1472,17 +1487,19 @@ void script_destroy(type_script *script)
  */
 gboolean neurons_refresh_display()
 {
-  int i;
+//int i;
   if (refresh_mode != REFRESH_MODE_AUTO) return FALSE;
 
   pthread_mutex_lock(&mutex_script_caracteristics);
   gtk_widget_queue_draw(GTK_WIDGET(zone_neurons));
+ /*
   for (i = 0; i < number_of_groups_to_display; i++)
   {
     groups_to_display[i]->refresh_freq = TRUE;
-    gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[i]->drawing_area));
+    gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[i]->widget));
     //group_expose_neurons(groups_to_display[i], TRUE, TRUE);
   }
+*/
   pthread_mutex_unlock(&mutex_script_caracteristics);
   return TRUE;
 }
@@ -1841,6 +1858,9 @@ void on_click_extract_area(GtkWidget *button, gpointer pdata)
 
 }
 
+
+
+
 gboolean on_resize_neuron_frame(GtkWidget *widget, GdkRectangle *allocation, gpointer user_data)
 {
   GtkWidget *separator = (GtkWidget*) user_data;
@@ -2004,6 +2024,12 @@ void pandora_window_new()
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button_draw_links_info), FALSE);
   gtk_box_pack_start(GTK_BOX(h_box_global), button_draw_links_info, FALSE, FALSE, 0);
   g_signal_connect(G_OBJECT(button_draw_links_info), "toggled", G_CALLBACK(on_button_draw_links_info_pressed), NULL);
+
+  //Creation du bouton de compression
+  compress_button = gtk_toggle_button_new_with_label("Activate compression (need restart)");
+  g_signal_connect(G_OBJECT(compress_button), "toggled", G_CALLBACK(on_toggled_compress_button), NULL);
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(compress_button), FALSE);
+  gtk_box_pack_start(GTK_BOX(h_box_network), compress_button, FALSE, FALSE, 0);
 
   //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(windowed_area_button), FALSE);
   // gtk_box_pack_start(GTK_BOX(h_box_global), windowed_area_button, FALSE, FALSE, 0);
@@ -2313,7 +2339,7 @@ int main(int argc, char** argv)
     }
   }
 
-  prom_bus_init(bus_ip);
+
 
 //g_thread_init(NULL); /* useless since glib 2.32 */
   gdk_threads_init();
@@ -2333,8 +2359,7 @@ int main(int argc, char** argv)
     exit(EXIT_FAILURE);
   }
 
-//Lancement du thread d'écoute et de gestion des informations reçues du réseau
-  server_for_promethes();
+
 
 //Création de la fenetre GTK principale, disposition des boutons etc...
   pandora_window_new();
@@ -2355,6 +2380,15 @@ int main(int argc, char** argv)
     pandora_file_load(chemin);
     load_temporary_save = TRUE;
   }
+
+    prom_bus_init(bus_ip);
+
+  //Lancement du thread d'écoute et de gestion des informations reçues du réseau
+    server_for_promethes();
+
+
+
+
 
 //Appelle la fonction de raffraichissement, voir la fonction lié à l'event refresh_mode_combo_box_changed pour plus de details
   refresh_mode = REFRESH_MODE_AUTO;
