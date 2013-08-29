@@ -17,21 +17,21 @@ gboolean send_info_to_top(gpointer *user_data)
 {
   long int time = 0;
   prompt_lign lign;
-  type_group group;
-  group = *(type_group*) user_data;
+  type_group* group;
+  group = (type_group*) user_data;
 
   //la copie est réalisé on envoie le signal de libération d'enet
 
-  time = (long int) ((double) (group.stats.somme_tot) / (double) (group.stats.nb_executions_tot));
+  time = (long int) ((double) (group->stats.somme_tot) / (double) (group->stats.nb_executions_tot));
 
   strcpy(&(lign.text_lign[0]), ""); //sécurité
-  strncat(&(lign.text_lign[0]), &(group.name[0]), GROUP_NAME_MAX - 1);
+  strncat(&(lign.text_lign[0]), &(group->name[0]), GROUP_NAME_MAX - 1);
   lign.time_to_prompt = time;
   lign.prompt = TRUE;
-  lign.group_id = group.id;
+  lign.group_id = group->id;
 
   insert_lign(lign, (prompt_lign*) prompt_buf); //TODO remonter le concept objet jusqu'au main (promp_buf ici)
-  pthread_cond_signal(&cond_copy_arg_top);
+ // pthread_cond_signal(&cond_copy_arg_top);
   prompt(prompt_buf, p_buf);
 
   return FALSE;

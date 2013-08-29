@@ -273,10 +273,6 @@ extern pthread_t enet_thread;
 
 extern pthread_mutex_t mutex_loading;
 extern pthread_cond_t cond_loading;
-extern pthread_cond_t cond_copy_arg_top;
-extern pthread_mutex_t mutex_copy_arg_top;
-extern pthread_cond_t cond_copy_arg_group_display;
-extern pthread_mutex_t mutex_copy_arg_group_display;
 extern pthread_mutex_t mutex_script_caracteristics;
 
 extern char bus_id[];

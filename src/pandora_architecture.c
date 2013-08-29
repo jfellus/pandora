@@ -570,6 +570,6 @@ gboolean queue_draw_archi(gpointer data)
 {
   (void) data;
   gtk_widget_queue_draw(GTK_WIDGET(architecture_display));
-  pthread_cond_signal(&cond_copy_arg_group_display);
+  //pthread_cond_signal(&cond_copy_arg_group_display);
   return FALSE;
 }

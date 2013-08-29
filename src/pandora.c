@@ -83,10 +83,6 @@ GtkListStore* currently_saving_list;
 pthread_t new_window_thread;
 pthread_mutex_t mutex_loading = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_loading = PTHREAD_COND_INITIALIZER;
-pthread_cond_t cond_copy_arg_top = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t mutex_copy_arg_top = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond_copy_arg_group_display = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t mutex_copy_arg_group_display = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_script_caracteristics = PTHREAD_MUTEX_INITIALIZER;
 gboolean draw_links_info = FALSE;
 
@@ -1323,7 +1319,6 @@ gboolean script_caracteristics(type_script *script, int action)
           pthread_mutex_unlock(&mutex_script_caracteristics);
           g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) group_display_new_threaded, (gpointer) arguments, NULL);
 
-          //g_main_context_invoke (NULL,(GSourceFunc)group_display_new_threaded,(gpointer)(&arguments));//TODO : resoudre ce probleme !
           //Il est important d'attendre car sinon on envoie une fonction à executer dans la boucle principale puis on la renvoie sans attendre que la précédente ai finie, ce qui cause des problemes, il est notemment compliqué de passer des arguments différents car on les modifie lors de la boucle suivante. //TODO : envisager un tableau d'argument aussi grand que la longueur de la boucle for? Aurais l'avantage de ne pas pénaliser le script enet.
           pthread_mutex_lock(&mutex_loading);
           pthread_cond_wait(&cond_loading, &mutex_loading);
@@ -2345,9 +2340,7 @@ int main(int argc, char** argv)
   gdk_threads_init();
 
   pthread_mutex_init(&mutex_script_caracteristics, NULL);
-  pthread_mutex_init(&mutex_copy_arg_top, NULL);
   pthread_mutex_init(&mutex_loading, NULL);
-  pthread_mutex_init(&mutex_copy_arg_group_display, NULL);
 
 // Initialisation de GTK+
   gtk_init(&argc, &argv);

@@ -12,10 +12,6 @@
 
 /* Variable Globales pour ce fichier*/
 extern gboolean saving_press;
-extern pthread_cond_t cond_copy_arg_top;
-extern pthread_mutex_t mutex_copy_arg_top;
-extern pthread_cond_t cond_copy_arg_group_display;
-extern pthread_mutex_t mutex_copy_arg_group_display;
 extern type_group *groups_to_display[];
 pthread_t enet_thread;
 //pthread_attr_t custom_sched_attr;
@@ -77,7 +73,7 @@ gboolean queue_draw(gpointer data)
 {
   type_group* group = (type_group*) data;
   int i = group->idDisplay;
-  pthread_cond_signal(&cond_copy_arg_group_display);
+  //pthread_cond_signal(&cond_copy_arg_group_display);
   gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[i]->drawing_area));
 
   return FALSE;
@@ -384,9 +380,12 @@ void enet_manager(ENetHost *server)
             //printf("affich inet\n");
             //printf("semi auto: %d Auto: %d",id_semi_automatic,refresh_timer_id);
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
+
+            /*
             pthread_mutex_lock(&mutex_copy_arg_group_display);
             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
             pthread_mutex_unlock(&mutex_copy_arg_group_display);
+            */
             //gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[group->idDisplay]->drawing_area));
             //gtk_widget_queue_draw (GTK_WIDGET(group->widget));
           }
@@ -442,13 +441,15 @@ void enet_manager(ENetHost *server)
             group->refresh_freq = TRUE;
 
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
+
+/*
             pthread_mutex_lock(&mutex_copy_arg_group_display);
             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
             pthread_mutex_unlock(&mutex_copy_arg_group_display);
+  */
             //gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[group->idDisplay]->drawing_area));
             // group_expose_neurons(group, TRUE, TRUE);
           }
-          printf("on reçoit des données images \n");
 
           //  pthread_mutex_unlock(&mutex_script_caracteristics);
 
@@ -505,18 +506,20 @@ void enet_manager(ENetHost *server)
              gdk_threads_leave();
              */
 
-            g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, (GSourceFunc) queue_draw_archi, NULL, NULL);
+            g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw_archi, NULL, NULL);
             /*attente que la copie du groupes soit bien réalisé coté architecture_display_update_group*/
+           /*
             pthread_mutex_lock(&mutex_copy_arg_group_display);
             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
             pthread_mutex_unlock(&mutex_copy_arg_group_display);
-
-            g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, (GSourceFunc) send_info_to_top, (gpointer) (&(scripts[script->id]->groups[group_id])), NULL);
+*/
+            g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) send_info_to_top, (gpointer) (&(scripts[script->id]->groups[group_id])), NULL);
             /*attente que la copie du groupes soit bien réalisé coté send_info_to_top*/
+           /*
             pthread_mutex_lock(&mutex_copy_arg_top);
             pthread_cond_wait(&cond_copy_arg_top, &mutex_copy_arg_top);
             pthread_mutex_unlock(&mutex_copy_arg_top);
-
+*/
           }
 
           enet_packet_destroy(event.packet);
