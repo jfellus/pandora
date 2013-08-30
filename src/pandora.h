@@ -293,7 +293,6 @@ extern GtkWidget *compress_button;
 void init_pandora(int argc, char** argv);
 //extern void prom_bus_init(const char *ip);
 void script_update_positions(type_script *script);
-void group_expose_neurons(type_group *group, gboolean lock_gdk_threads, gboolean update_frequence);
 void resize_group(type_group *group);
 
 //Signaux

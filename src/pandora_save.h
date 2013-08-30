@@ -12,6 +12,8 @@
 #define MAX_LENGHT_PATHNAME  100
 #define MAX_LENGHT_FILENAME  50
 
+/* En-tête de fonctions */
+
 void continuous_saving(type_group *used_group);
 
 void destroy_saving_ref(type_script *scripts_used[NB_SCRIPTS_MAX]);

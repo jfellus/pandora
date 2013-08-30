@@ -4,7 +4,9 @@
  *  Created on: 15 juil. 2013
  *      Author: Nils Beaussé
  */
-
+/**
+ * Ce fichier contient les include standard necessaire au fonctionnement de Pandora. Simplifiant le probleme des ordres d'inclusion.
+ */
 #ifndef PANDORA_COMMON_H_
 #define PANDORA_COMMON_H_
 

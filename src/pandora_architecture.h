@@ -22,7 +22,7 @@ typedef struct graphic {
   float x_scale, y_scale, zx_scale, zy_scale;
 } type_graphic;
 
-/** "En-tete" de variables globales **/
+/** "En-tête" de variables globales **/
 extern type_graphic graphic;
 extern GtkWidget *architecture_display;
 extern gboolean architecture_display_dragging_currently;
@@ -30,6 +30,7 @@ extern gdouble architecture_display_cursor_x;
 extern gdouble architecture_display_cursor_y;
 extern gdouble new_x, new_y, old_x, old_y;
 
+/** En-tête de fonctions **/
 void zoom_in(GdkDevice *pointer);
 void zoom_out(GdkDevice *pointer);
 void architecture_display_button_pressed(GtkWidget *pWidget, GdkEvent *user_event, gpointer pdata);

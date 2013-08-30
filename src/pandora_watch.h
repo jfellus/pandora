@@ -8,6 +8,6 @@
 #ifndef PANDORA_WATCH_H_
 #define PANDORA_WATCH_H_
 
-
+// Voir pandora_watch.c pour description du fichier.
 
 #endif /* PANDORA_WATCH_H_ */

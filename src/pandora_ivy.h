@@ -21,9 +21,10 @@ typedef struct ivyServer {
   char appName[30];
 } ivyServer;
 
+/* "En-tête" de variables globales */
 extern sem_t ivy_semaphore;
-extern int ivyServerNb;
 
+/* En tete de fonctions */
 void pandora_bus_send_message(char *id, const char *format, ...);
 void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEvent event);
 void prom_bus_init(const char *ip);

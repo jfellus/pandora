@@ -16,7 +16,10 @@
 #include "pandora_architecture.h"
 
 /* Variables globales (C'est mal !) */
-
+/* TODO : Beaucoups de ces variables globales peuvent etre mise en local en utilisant les astuces adéquates, certaine au moins en statiques.
+ *(Astuce : il est possible de lier des variables à un objets GTK, utilisant ainsi l'archi GTK pour encapsuler).
+ * D'autre peuvent etre encapsulé dans des structures à theme, ce qui simplifierais la lecture et l'utilisation des mutex.
+ */
 char label_text[LABEL_MAX];
 
 GtkWidget *window = NULL; //La fenêtre de l'application Pandora
@@ -91,6 +94,7 @@ extern prompt_lign prompt_buf[NB_LIGN_MAX];
 int refresh_mode = 0;
 
 /** Fonctions diverses **/
+//TODO : Travaux à continuer : Certaines de ces fonctions peuvent etre deplacé dans des fichiers déja créé et plus adapté.
 
 float**** createTab4(int nbRows, int nbColumns)
 {
@@ -1487,14 +1491,14 @@ gboolean neurons_refresh_display()
 
   pthread_mutex_lock(&mutex_script_caracteristics);
   gtk_widget_queue_draw(GTK_WIDGET(zone_neurons));
- /*
-  for (i = 0; i < number_of_groups_to_display; i++)
-  {
-    groups_to_display[i]->refresh_freq = TRUE;
-    gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[i]->widget));
-    //group_expose_neurons(groups_to_display[i], TRUE, TRUE);
-  }
-*/
+  /*
+   for (i = 0; i < number_of_groups_to_display; i++)
+   {
+   groups_to_display[i]->refresh_freq = TRUE;
+   gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[i]->widget));
+   //group_expose_neurons(groups_to_display[i], TRUE, TRUE);
+   }
+   */
   pthread_mutex_unlock(&mutex_script_caracteristics);
   return TRUE;
 }
@@ -1853,9 +1857,6 @@ void on_click_extract_area(GtkWidget *button, gpointer pdata)
 
 }
 
-
-
-
 gboolean on_resize_neuron_frame(GtkWidget *widget, GdkRectangle *allocation, gpointer user_data)
 {
   GtkWidget *separator = (GtkWidget*) user_data;
@@ -2172,7 +2173,6 @@ void pandora_window_new()
   //Création d'une Hbox qui contiendra les boutons suivants
   hbox_barre = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 1);
 
-
   // Creation des deux boutons de reduction des panneaux gauche et droits.
   hide_see_scales_button = gtk_toggle_button_new();
   arrow_im = gtk_image_new_from_stock(GTK_STOCK_GO_BACK, GTK_ICON_SIZE_MENU);
@@ -2334,8 +2334,6 @@ int main(int argc, char** argv)
     }
   }
 
-
-
 //g_thread_init(NULL); /* useless since glib 2.32 */
   gdk_threads_init();
 
@@ -2351,8 +2349,6 @@ int main(int argc, char** argv)
     printf("An error occurred while initializing ENet.\n");
     exit(EXIT_FAILURE);
   }
-
-
 
 //Création de la fenetre GTK principale, disposition des boutons etc...
   pandora_window_new();
@@ -2374,14 +2370,10 @@ int main(int argc, char** argv)
     load_temporary_save = TRUE;
   }
 
-    prom_bus_init(bus_ip);
+  prom_bus_init(bus_ip);
 
   //Lancement du thread d'écoute et de gestion des informations reçues du réseau
-    server_for_promethes();
-
-
-
-
+  server_for_promethes();
 
 //Appelle la fonction de raffraichissement, voir la fonction lié à l'event refresh_mode_combo_box_changed pour plus de details
   refresh_mode = REFRESH_MODE_AUTO;

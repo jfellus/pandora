@@ -36,13 +36,14 @@ typedef struct type_link_draw {
 // type_link_draw* elem_suivant;
 } type_link_draw;
 
-/** "En-tete" de variables globales **/
+/** "En-tête" de variables globales **/
 extern gdouble move_neurons_old_x, move_neurons_old_y;
 extern gboolean move_neurons_start;
 extern gboolean open_neurons_start;
 extern type_group *move_neurons_group;
 extern type_link_draw links_to_draw;
 
+/** En-tête de fonctions **/
 float niveauDeGris(float val, float valMin, float valMax);
 float CoordonneeYPoint(float val, float valMin, float valMax, float hauteurNeurone);
 float coordonneeYZero(float valMin, float valMax, float hauteurNeurone);
@@ -61,7 +62,7 @@ const char* tcolor(type_script *script);
 void color(cairo_t *cr, type_group *g);
 void clearColor(cairo_t *cr, type_group g);
 
-void group_expose_neurons_test(type_group *group, gboolean update_frequence, cairo_t *cr);
+void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t *cr);
 void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *zone_neurons);
 void group_display_destroy(type_group *group);
 
@@ -76,4 +77,6 @@ void emit_signal_stop_to_promethe(int no_neuro, type_script* script);
 void emit_signal_to_promethe(int no_neuro, type_script* script);
 gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data);
 float calcul_pallier(float actual_length, gboolean direction);
+void test_selection(type_group* group, int u,int i,int j, float largeurNeuron, float hauteurNeuron,int incrementation);
+void destroy_links(type_group* group);
 #endif /* GRAPHIC_H */

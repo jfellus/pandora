@@ -1,4 +1,4 @@
-/*
+/**
  * pandora_file_save.h
  *
  *  Created on: 5 août 2013
@@ -7,9 +7,13 @@
 
 #ifndef PANDORA_FILE_SAVE_H_
 #define PANDORA_FILE_SAVE_H_
+
 #include "common.h"
 #include "pandora.h"
 
+/*
+ * En-tete de fonctions
+ */
 const char* whitespace_callback_pandora(mxml_node_t *node, int where);
 void pandora_file_save(const char *filename);
 void pandora_file_load(const char *filename);

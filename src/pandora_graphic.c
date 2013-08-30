@@ -135,6 +135,7 @@ gboolean group_display_new_threaded(gpointer data)
 
   return FALSE;
 }
+
 /**Cette fonction est appelé par l'evenement draw de chaque groupe affichés et permet de les raffraichir si besoin**/
 gboolean group_expose_refresh(GtkWidget *widget, cairo_t *cr, gpointer user_data)
 {
@@ -148,7 +149,7 @@ gboolean group_expose_refresh(GtkWidget *widget, cairo_t *cr, gpointer user_data
     ref_freq = group->refresh_freq;
 
     pthread_mutex_lock(&mutex_script_caracteristics);
-    group_expose_neurons_test(group, ref_freq, cr);
+    group_expose_neurons(group, ref_freq, cr);
     //group_expose_neurons(group, FALSE, FALSE);
     pthread_mutex_unlock(&mutex_script_caracteristics);
 
@@ -801,7 +802,7 @@ void group_display_destroy(type_group *group)
 {
 
   int i;
-
+  destroy_links(group);
   if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, group->script->name);
   else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name);
 
@@ -829,6 +830,7 @@ void group_display_destroy(type_group *group)
   group->drawing_area = NULL;
   group->ok_display = FALSE;
   group->from_file = FALSE;
+
 }
 
 const char* tcolor(type_script *script)
@@ -855,9 +857,7 @@ const char* tcolor(type_script *script)
 }
 
 /**
- *
  * Donne au pinceau la couleur foncée correspondant à une certaine valeur de z
- *
  */
 void color(cairo_t *cr, type_group *group)
 {
@@ -889,9 +889,7 @@ void color(cairo_t *cr, type_group *group)
 }
 
 /**
- *
  * Donne au pinceau la couleur claire correspondant à une certaine valeur de z
- *
  */
 void clearColor(cairo_t *cr, type_group group)
 {
@@ -997,7 +995,7 @@ gboolean button_press_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *
   return FALSE;
 }
 
-void group_expose_neurons_test(type_group *group, gboolean update_frequence, cairo_t *cr)
+void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t *cr)
 {
   //Attention : il est tres important de garder cet ordre pour les mutex, notemment le fait de ne pas entourer gdk_threads_enter, au risque de provoquer des dead-end due à plusieurs mutex
   float ndg = 0, val, tmp = 0, x, y0, yVal, min = group->val_min, max = group->val_max, frequence = 0;
@@ -1262,70 +1260,9 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
           case DISPLAY_MODE_SQUARE:
 
             cairo_set_source_rgba(cr, WHITE);
-            if (group->x_event > 0) //si l'event de selection n'a pas déja été traité
-            {
-              if (group->x_event >= (u * largeurNeuron + 0.5) && group->x_event < (u * largeurNeuron + 0.5 + (largeurNeuron - 2) + 1) && group->y_event >= (j * hauteurNeuron + 0.5) && group->y_event < (j * hauteurNeuron + 0.5 + (hauteurNeuron - 2) + 1))
-              {
-                // on est selectionné
-                if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est allé jusqu'au bout du tableau de neurone pour la remise à zero
-                {
-                  group->x_event = -1;
-                  group->y_event = -1;
-                }
-                if ((group->neuro_select >= 0) && (group->neuro_select != (i + j * group->columns * incrementation)))
-                {
-                  group->param_neuro_pandora[group->neuro_select].selected = FALSE;
-                  emit_signal_stop_to_promethe((group->firstNeuron + group->neuro_select), group->script);
-                  emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script);
-                }
-
-                if (group->neuro_select < 0)
-                {
-                  emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script); //déduit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
-                  group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
-                  group->neuro_select = i + j * group->columns * incrementation;
-                }
-                else if (group->neuro_select >= 0 && group->neuro_select == (i + j * group->columns * incrementation))
-                {
-                  emit_signal_stop_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script);
-                  group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
-                  group->neuro_select = -1;
-
-                }
-                else
-                {
-                  group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
-                  group->neuro_select = i + j * group->columns * incrementation;
-                }
-
-              }
-              else
-              {
-
-                if ((group->neuro_select >= 0) && (group->neuro_select != (i + j * group->columns * incrementation)) && (group->param_neuro_pandora[i + j * group->columns * incrementation].selected))
-                {
-                  emit_signal_stop_to_promethe((group->firstNeuron + i + j * group->columns * incrementation), group->script);
-                }
-                // emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script);
-
-                //emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script); //déduit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
-                group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
-
-                if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est allé jusqu'au bout du tableau de neurone pour la remise à zero
-                {
-
-                  group->x_event = -1;
-                  group->y_event = -1;
-                  if (group->param_neuro_pandora[group->neuro_select].selected == FALSE)
-                  {
-                    group->neuro_select = -1; // on remet le groupe à -1 uniquement si à la fin le chiffre ne correspond plus à rien.
-                  }
-
-                }
-              }
-            }
-            group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) ((u * largeurNeuron + 0.5) + (largeurNeuron - 1) / 2);
-            group->param_neuro_pandora[i + j * group->columns * incrementation].center_y = (double) ((j * hauteurNeuron + 0.5) + (hauteurNeuron - 1) / 2);
+            test_selection(group, u, i, j, largeurNeuron, hauteurNeuron, incrementation);
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) ((u * largeurNeuron + 0.5) + (largeurNeuron + 1) / 2);
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_y = (double) ((j * hauteurNeuron + 0.5) + (hauteurNeuron) / 2);
 
             cairo_rectangle(cr, (u + (1 - ndg) / 2) * largeurNeuron + 0.5, (j + (1 - ndg) / 2) * hauteurNeuron + 0.5, (largeurNeuron - 2) * ndg + 1, (hauteurNeuron - 2) * ndg + 1); /* Pour garder un point central */
             cairo_fill(cr);
@@ -1339,13 +1276,9 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
             break;
 
           case DISPLAY_MODE_INTENSITY:
+            test_selection(group, u, i, j, largeurNeuron, hauteurNeuron, incrementation);
             group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) ((u * largeurNeuron) + (largeurNeuron - 1) / 2);
             group->param_neuro_pandora[i + j * group->columns * incrementation].center_y = (double) ((j * hauteurNeuron) + (hauteurNeuron - 1) / 2);
-
-            //  group->neurons_place[i + j * group->columns * incrementation].xh=u * largeurNeuron;
-            //  group->neurons_place[i + j * group->columns * incrementation].yh=j * hauteurNeuron;
-            //  group->neurons_place[i + j * group->columns * incrementation].xb=group->neurons_place[i + j * group->columns * incrementation].xh+(largeurNeuron - 1);
-            //  group->neurons_place[i + j * group->columns * incrementation].yb=group->neurons_place[i + j * group->columns * incrementation].yh+(hauteurNeuron - 1);
 
             cairo_set_source_rgba(cr, ndg, ndg, ndg, 1);
             cairo_rectangle(cr, u * largeurNeuron, j * hauteurNeuron, largeurNeuron - 1, hauteurNeuron - 1);
@@ -1353,6 +1286,7 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
             break;
 
           case DISPLAY_MODE_BAR_GRAPH:
+            test_selection(group, u, i, j, largeurNeuron, hauteurNeuron, incrementation);
             // couleur rouge si la valeur est négative
             if (val < 0) cairo_set_source_rgba(cr, 1, 0.2, 0.25, 1);
             y0 = coordonneeYZero(min, max, hauteurNeuron);
@@ -1365,13 +1299,21 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
             }
             yVal = yVal - y0; // hauteur du rectangle à afficher.
             y0 += j * hauteurNeuron + 1;
+
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) (((u * largeurNeuron) + (largeurNeuron - 1) / 2));
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_y = (double) (((y0 + yVal / 2)));
+
             cairo_rectangle(cr, u * largeurNeuron, y0, largeurNeuron - 1, yVal);
             cairo_fill(cr);
             if (val < 0) cairo_set_source_rgba(cr, WHITE);
             break;
 
           case DISPLAY_MODE_TEXT:
+            test_selection(group, u, i, j, largeurNeuron, hauteurNeuron, incrementation);
             sprintf(label_text, "%f", val);
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) (((u * largeurNeuron) + (largeurNeuron - 5) / 2));
+            group->param_neuro_pandora[i + j * group->columns * incrementation].center_y = (double) (((j * hauteurNeuron + hauteurNeuron / 2)));
+
             cairo_rectangle(cr, u * largeurNeuron, j * hauteurNeuron, largeurNeuron - 5, hauteurNeuron);
             cairo_save(cr);
             cairo_clip(cr);
@@ -1381,6 +1323,7 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
             break;
 
           case DISPLAY_MODE_GRAPH:
+            test_selection(group, u, i, j, largeurNeuron, hauteurNeuron, incrementation);
             values = group->tabValues[j][u];
             indexDernier = group->indexDernier[j][u];
             indexAncien = group->indexAncien[j][u];
@@ -1441,7 +1384,6 @@ void group_expose_neurons_test(type_group *group, gboolean update_frequence, cai
 
     }
     group->refresh_freq = FALSE;
-
 
     //gtk_cairo_transform_to_window (cr,GTK_WIDGET(group->widget),GDK_WINDOW(zone_neurons));
     draw_all_links(zone_neurons, cr, group->drawing_area);
@@ -1544,13 +1486,93 @@ gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data)
   return FALSE; // propage l'event
 }
 
+void destroy_links(type_group* group)
+{
+  int no_neuro_rel = 0;
+  int no_neuro_abs = 0;
+  no_neuro_rel = group->neuro_select;
+
+  group->param_neuro_pandora[no_neuro_rel].links_ok = FALSE;
+  group->param_neuro_pandora[no_neuro_rel].selected = FALSE;
+  group->neuro_select = -1;
+
+  no_neuro_abs = group->firstNeuron + no_neuro_rel;
+
+  emit_signal_to_promethe(no_neuro_abs, group->script);
+
+}
+
 void emit_signal_to_promethe(int no_neuro, type_script* script)
 {
   pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro, script->name);
-  printf("signal emis pour neuronne %d \n", no_neuro);
 }
 void emit_signal_stop_to_promethe(int no_neuro, type_script* script)
 {
   pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro, script->name);
-  printf("signal stop emis pour neuronne %d\n", no_neuro);
+}
+void test_selection(type_group* group, int u, int i, int j, float largeurNeuron, float hauteurNeuron, int incrementation)
+{
+  if (group->x_event > 0) //si l'event de selection n'a pas déja été traité
+  {
+    if (group->x_event >= (u * largeurNeuron + 0.5) && group->x_event < (u * largeurNeuron + 0.5 + (largeurNeuron - 2) + 1) && group->y_event >= (j * hauteurNeuron + 0.5) && group->y_event < (j * hauteurNeuron + 0.5 + (hauteurNeuron - 2) + 1))
+    {
+      // on est selectionné
+      if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est allé jusqu'au bout du tableau de neurone pour la remise à zero
+      {
+        group->x_event = -1;
+        group->y_event = -1;
+      }
+      if ((group->neuro_select >= 0) && (group->neuro_select != (i + j * group->columns * incrementation)))
+      {
+        group->param_neuro_pandora[group->neuro_select].selected = FALSE;
+        emit_signal_stop_to_promethe((group->firstNeuron + group->neuro_select), group->script);
+        emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script);
+      }
+
+      if (group->neuro_select < 0)
+      {
+        emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script); //déduit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
+        group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
+        group->neuro_select = i + j * group->columns * incrementation;
+      }
+      else if (group->neuro_select >= 0 && group->neuro_select == (i + j * group->columns * incrementation))
+      {
+        emit_signal_stop_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script);
+        group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
+        group->neuro_select = -1;
+
+      }
+      else
+      {
+        group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
+        group->neuro_select = i + j * group->columns * incrementation;
+      }
+
+    }
+    else
+    {
+
+      if ((group->neuro_select >= 0) && (group->neuro_select != (i + j * group->columns * incrementation)) && (group->param_neuro_pandora[i + j * group->columns * incrementation].selected))
+      {
+        emit_signal_stop_to_promethe((group->firstNeuron + i + j * group->columns * incrementation), group->script);
+      }
+      // emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script);
+
+      //emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script); //déduit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
+      group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
+
+      if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est allé jusqu'au bout du tableau de neurone pour la remise à zero
+      {
+
+        group->x_event = -1;
+        group->y_event = -1;
+        if (group->param_neuro_pandora[group->neuro_select].selected == FALSE)
+        {
+          group->neuro_select = -1; // on remet le groupe à -1 uniquement si à la fin le chiffre ne correspond plus à rien.
+        }
+
+      }
+    }
+  }
+
 }

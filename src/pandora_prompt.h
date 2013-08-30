@@ -13,14 +13,16 @@
 
 #define NB_LIGN_MAX 30
 
-extern GtkTextBuffer * p_buf;
-
 typedef struct prompt_lign {
   char text_lign[GROUP_NAME_MAX];
   double time_to_prompt;
   gboolean prompt;
   int group_id;
 } prompt_lign;
+
+/* "En-tête" de variables globales */
+extern GtkTextBuffer * p_buf;
+extern prompt_lign prompt_buf[];
 
 gboolean send_info_to_top(gpointer *user_data);
 void init_top(prompt_lign *buf, GtkTextBuffer *text_buf);

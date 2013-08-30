@@ -8,10 +8,12 @@
 #include "pandora_prompt.h"
 #include <glib/gprintf.h>
 
+/**
+ * Gere l'affichage dans la fenetre prompt sur la droite.
+ */
+
 GtkTextBuffer * p_buf;
 prompt_lign prompt_buf[NB_LIGN_MAX];
-
-extern pthread_cond_t cond_copy_arg_top;
 
 gboolean send_info_to_top(gpointer *user_data)
 {
@@ -31,7 +33,7 @@ gboolean send_info_to_top(gpointer *user_data)
   lign.group_id = group->id;
 
   insert_lign(lign, (prompt_lign*) prompt_buf); //TODO remonter le concept objet jusqu'au main (promp_buf ici)
- // pthread_cond_signal(&cond_copy_arg_top);
+  // pthread_cond_signal(&cond_copy_arg_top);
   prompt(prompt_buf, p_buf);
 
   return FALSE;

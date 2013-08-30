@@ -10,10 +10,12 @@
 #include "pandora_graphic.h"
 #include "common.h"
 
+/* variables globales necessaires pour ce fichier */
 extern GtkWidget *architecture_display;
 extern char path_named[MAX_LENGHT_PATHNAME];
 extern GtkListStore* currently_saving_list;
 
+// Ferme tout les fichiers de tout les scripts.
 void destroy_saving_ref(type_script *scripts_used[NB_SCRIPTS_MAX])
 {
   int N = 0;
@@ -38,6 +40,9 @@ void destroy_saving_ref(type_script *scripts_used[NB_SCRIPTS_MAX])
 
 }
 
+//TODO : ces deux fonctions peuvent etre mergé en une avec les arguments adéquats.
+
+// Ferme les fichiers associé à un script lors de sa cloture.
 void destroy_saving_ref_one(type_script* script_used)
 {
   int N = 0;
@@ -57,6 +62,7 @@ void destroy_saving_ref_one(type_script* script_used)
 
 }
 
+// Créé le fichier de sauvegarde
 void file_create(type_group *used_group)
 {
   char file_path_ori[MAX_LENGHT_PATHNAME];
@@ -118,6 +124,7 @@ void file_create(type_group *used_group)
 
 }
 
+// Sauvegarde le groupe en cours : TODO : pour l'instant la valeur s1 uniquement est sauvegarder, il reste à faire une fenetre de configuration de la sauvegarde pour savoir quelle valeur de neuronne utiliser.
 void continuous_saving(type_group *used_group)
 {
 

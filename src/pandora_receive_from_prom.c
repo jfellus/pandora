@@ -21,11 +21,10 @@ int fifo_max_prio, fifo_min_prio;
 struct sched_param fifo_param;
 
 /**
- *
  * Crée dans Pandora un serveur, qui va écouter le réseau et accepter les connexions des Prométhés
- *
  */
 
+//Créé le serveur pour enet à partir des informations donnée par Ivy, crée ensuite le thread qui va écouter.
 void server_for_promethes()
 {
   ENetHost* enet_server = NULL;
@@ -41,21 +40,19 @@ void server_for_promethes()
   if (enet_server != NULL)
   {
     gethostname(host_name, HOST_NAME_MAX);
-   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button))) enet_host_compress_with_range_coder(enet_server);
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button))) enet_host_compress_with_range_coder(enet_server);
     // struct sched_param is used to store the scheduling priority
 
     // We'll set the priority to the maximum.
 
-
-
-      pthread_attr_init(&custom_sched_attr);
-      pthread_attr_setinheritsched(&custom_sched_attr, PTHREAD_EXPLICIT_SCHED);
-      pthread_attr_setschedpolicy(&custom_sched_attr, SCHED_BATCH);
-      fifo_max_prio = sched_get_priority_max(SCHED_BATCH);
-      fifo_min_prio = sched_get_priority_min(SCHED_BATCH);
-      fifo_param.sched_priority = fifo_max_prio;
-      pthread_attr_setschedparam(&custom_sched_attr, &fifo_param);
-      //pthread_create(&(threads[i]), &custom_sched_attr, ....);
+    pthread_attr_init(&custom_sched_attr);
+    pthread_attr_setinheritsched(&custom_sched_attr, PTHREAD_EXPLICIT_SCHED);
+    pthread_attr_setschedpolicy(&custom_sched_attr, SCHED_BATCH);
+    fifo_max_prio = sched_get_priority_max(SCHED_BATCH);
+    fifo_min_prio = sched_get_priority_min(SCHED_BATCH);
+    fifo_param.sched_priority = fifo_max_prio;
+    pthread_attr_setschedparam(&custom_sched_attr, &fifo_param);
+    //pthread_create(&(threads[i]), &custom_sched_attr, ....);
 
     //params.sched_priority = sched_get_priority_max(SCHED_FIFO);
 
@@ -69,16 +66,17 @@ void server_for_promethes()
   }
 }
 
+//Permet de gerer l'appel à gtk_widget_queue_draw en dehors d'enet_manager.
 gboolean queue_draw(gpointer data)
 {
   type_group* group = (type_group*) data;
   int i = group->idDisplay;
-  //pthread_cond_signal(&cond_copy_arg_group_display);
   gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[i]->drawing_area));
 
   return FALSE;
 }
 
+// Thread créé par server_for_promethe, permet d'écouter constemment et de dispatché les informations reçu selon leur nature.
 void enet_manager(ENetHost *server)
 {
   static int first_call = 1;
@@ -344,7 +342,6 @@ void enet_manager(ENetHost *server)
           enet_packet_destroy(event.packet);
           break;
 
-
         case ENET_UPDATE_NEURON_CHANNEL:
           number_of_neurons = (event.packet->dataLength) / sizeof(type_neurone);
           neurons = (type_neurone*) event.packet->data;
@@ -371,7 +368,7 @@ void enet_manager(ENetHost *server)
           }
           //gdk_threads_leave();
           group->counter++;
-
+          group->refresh_freq = TRUE;
           // pthread_mutex_lock(&mutex_script_caracteristics);
           //if((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && group->drawing_area != NULL && group->widget != NULL)
           if ((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
@@ -382,10 +379,10 @@ void enet_manager(ENetHost *server)
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
 
             /*
-            pthread_mutex_lock(&mutex_copy_arg_group_display);
-            pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
-            pthread_mutex_unlock(&mutex_copy_arg_group_display);
-            */
+             pthread_mutex_lock(&mutex_copy_arg_group_display);
+             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
+             pthread_mutex_unlock(&mutex_copy_arg_group_display);
+             */
             //gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[group->idDisplay]->drawing_area));
             //gtk_widget_queue_draw (GTK_WIDGET(group->widget));
           }
@@ -396,7 +393,6 @@ void enet_manager(ENetHost *server)
 
         case ENET_UPDATE_EXT_CHANNEL:
 
-
           group_id = *((int*) current_data);
           current_data = &current_data[sizeof(int)];
 
@@ -404,7 +400,6 @@ void enet_manager(ENetHost *server)
           if (script->groups == NULL || script->groups == 0x0) break; // securité
           group = &script->groups[group_id];
           if (group->ok != TRUE) break; //sécurité
-
 
           if (group->ext == NULL) //Th first time we allocate the data to receive images
           {
@@ -435,18 +430,18 @@ void enet_manager(ENetHost *server)
           group->counter++;
 
           //pthread_mutex_lock(&mutex_script_caracteristics);
-
+          group->refresh_freq = TRUE;
           if ((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
           {
             group->refresh_freq = TRUE;
 
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
 
-/*
-            pthread_mutex_lock(&mutex_copy_arg_group_display);
-            pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
-            pthread_mutex_unlock(&mutex_copy_arg_group_display);
-  */
+            /*
+             pthread_mutex_lock(&mutex_copy_arg_group_display);
+             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
+             pthread_mutex_unlock(&mutex_copy_arg_group_display);
+             */
             //gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[group->idDisplay]->drawing_area));
             // group_expose_neurons(group, TRUE, TRUE);
           }
@@ -508,18 +503,18 @@ void enet_manager(ENetHost *server)
 
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw_archi, NULL, NULL);
             /*attente que la copie du groupes soit bien réalisé coté architecture_display_update_group*/
-           /*
-            pthread_mutex_lock(&mutex_copy_arg_group_display);
-            pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
-            pthread_mutex_unlock(&mutex_copy_arg_group_display);
-*/
+            /*
+             pthread_mutex_lock(&mutex_copy_arg_group_display);
+             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
+             pthread_mutex_unlock(&mutex_copy_arg_group_display);
+             */
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) send_info_to_top, (gpointer) (&(scripts[script->id]->groups[group_id])), NULL);
             /*attente que la copie du groupes soit bien réalisé coté send_info_to_top*/
-           /*
-            pthread_mutex_lock(&mutex_copy_arg_top);
-            pthread_cond_wait(&cond_copy_arg_top, &mutex_copy_arg_top);
-            pthread_mutex_unlock(&mutex_copy_arg_top);
-*/
+            /*
+             pthread_mutex_lock(&mutex_copy_arg_top);
+             pthread_cond_wait(&cond_copy_arg_top, &mutex_copy_arg_top);
+             pthread_mutex_unlock(&mutex_copy_arg_top);
+             */
           }
 
           enet_packet_destroy(event.packet);
@@ -569,7 +564,7 @@ void enet_manager(ENetHost *server)
   }
 }
 
-void sort_list_groups_by_rate(type_group **groups, int number_of_groups) // utilisation de l'algorithme de tri rapide. // TODO probablemen à supprimer
+void sort_list_groups_by_rate(type_group **groups, int number_of_groups) // utilisation de l'algorithme de tri rapide. // TODO A supprimer ou a adapter dans la fonction top de pandora_prompt.
 {
   int i = 1, j = number_of_groups - 1;
   type_group *tmp;
@@ -675,6 +670,7 @@ void verify_group(type_group *group)
   group->knownX = TRUE;
 }
 
+// Déduit d'une neuronne envoyée et des groupes en présence le groupe auquel cette neuronne appartient dans pandora.
 type_group* search_associated_group(int no_neuro, type_script* script)
 {
   int i = 0;
@@ -689,6 +685,7 @@ type_group* search_associated_group(int no_neuro, type_script* script)
 
 }
 
+// Crée les liens neuronnes à neuronnes quand necessaire.
 void create_links(type_group *group, int no_neuro, enet_uint8 *current_data, int number_of_neuro_links, type_script* script)
 {
   int no_neuro_rel;

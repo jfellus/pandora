@@ -7,6 +7,8 @@
 	Sommaire
 	--------
 
+0. Instalation
+
 1. Lancement de Pandora
 
 2. Utilisation de Pandora
@@ -19,7 +21,7 @@
 
 
 	0. Instalation
-	------------------
+	--------------
 	La nouvelle version de Pandora utilise GTK3+ normalement installée par défaut sous ubuntu, toutefois pensez à le verifier en cas de problème.
 	Cette version utilise également la derniere mise-à-jour de Mini-XML (mxml) sous sa version 2.7. Il est donc recommandé de la mettre à jour également :
 		
@@ -43,42 +45,115 @@
 
 	
 	1. Lancement de Pandora
-	---------------------
+	-----------------------
 
 	Pour démarer Pandora il faut lui donner un "-i" (bus id).
 	Ce "-i" correspond au "-i" utilisé par les prométhés que l'on souhaite écouter.
 	utilisation : pandora -inom_du_bus_id
 
 	Il est aussi possible de passer en argument un fichier de type (*.pandora) qui permet de charger vos préférences. (bus id, échelles, groupes observés, ...).
-	utilisation : pandora nom_du_fichier.pandora
+	utilisation : pandora nom_du_fichier.pandora (Il est possible de faire la meme chose en le chargeant via le menu file de l'IHM de Pandora)
 
 	Si je combine les deux, le bus id passé en option sera prioritaire.
 	utilisation : pandora nom_du_fichier.pandora -inom_du_bus_id_qui_sera_utilisé
 
 	
 	Pandora peut également se lancer en un clic depuis l'interface Themis ou vos scripts ont été ouverts, les parametres seront alors automatiquement spécifiés pour assurer la connexion.
-	En cas de non-passage d'un fichier de preference en parametre, Pandora en creera un par defaut, la sauvegarde et le chargement de la derniere interface utilisée sont automatiques. 
+	En cas de non-passage d'un fichier de preference en parametre, Pandora en creera un par defaut, la sauvegarde et le chargement de la derniere interface utilisée sont automatiques 		(Attention toutefois, il faut bien que pandora soit lancé dans le meme répertoire car ses sauvegarde auto sont faites dans le repertoire d'utilisation, sinon pensez à sauvegarder les 		preferences à la main). 
 
 
 	2. Utilisation de Pandora
-	-----------------------
+	-------------------------
 
 	Les scripts en cours d'utilisation sont automatiquement chargées. (à condition de partager le meme bus_id specifiable des deux cotés)
 	Pandora est séparé en 5 zones distinctes : 
 
-		- Le menu à onglet et le menu classique
+
+	- Le menu à onglet et le menu classique
 
 		Le menu classique permet de forcer le chargement ou la sauvegarde d'un fichier de preference en particulier si besoin est.
-		Le menu à onglet contient différentes zones de boutons regroupé par themes : Reseau, général et sauvegarde
-			Reseau : Contiendra les fonctions d'analyse des performances reseau inter-script, de l'impact de pandora sur prométhé et du temps de transmission.
+		Le menu à onglet contient différentes zones de boutons regroupés par themes : Reseau, général et sauvegarde
+			Reseau (Network) : Contiendra les fonctions d'analyse des performances reseau inter-script, de l'impact de pandora sur prométhé et du temps de transmission. Contient 
 			General : Contient une fonction d'affichage des termps d'execution pour chaque boites, permettant de reperer les plus lourdes.
-			Sauvegarde : Contient les fonctions de sauvegarde de l'activité de vos boites et de conversion sous d'autres formats.
+			Sauvegarde (Save) : Contient les fonctions de sauvegarde de l'activité de vos boites et de conversion sous d'autres formats.
+		
+		Les fonctions contenues dans ces volets seront detaillées dans la partie 3.		
 
-		- La zone d'architecture
 
-		- La zone d'affichage des groupes de neuronnes
+	- La zone d'architecture
+		
+		C'est ici que vos scripts s'affichent automatiquement. Il y a une couleur par script, choisie automatiquement. Les liaisons principales sont vont d'une boites à l'autre. Chaque 			boites representant un groupe, avec nom et fonction.
 
-		- Le panneaux latéral droit
+		En cliquant sur un groupe vous le selectionnez, et vous mettez en évidence ses liaisons principale qui deviennet alors rouges. Vous faites également apparaitre en bleu fin 			courbé ses liaisons secondaires.
 
-		- Le panneau latéral gauche
+		Les liaisons reseaux entre scripts apparaissent en pointillés rouge. 
+
+		En cliquant droit sur un groupe vous demandez à Pandora l'affichage de ce groupe dans la zone des groupes de neuronnes. 
+		Vous pouvez deplacer un groupe en le selectionnant puis avec CTRL+Fleche directionnelle haut/bas. Une colonne represente l'avancement temporel dans le script, on ne peut donc 			pas changer le groupe de colonne. ATTENTION : Bug non critique : Cette fonctionnalité peut parfois buggé en entrainant le groupe trop bas (dans ce cas il suffit de le remonter)
+
+		Il est possible de zoomer en avant ou en arriere avec CTRL+Roulette souris, cela ne change pas les tailles des boites ni de l'écriture mais l'espacement des groupes. (voir 			TODO-List)
+
+		Il est possible de deplacer la zone via les fleches directionnelles ou via un drag and drop ou encore avec la roulette de la souris. ATTENTION : Bug non critique : le 			deplacement par drag and drop entraine parfois des "sauts" assez desagreable, preferez lui les fleches directionnelles si possible. 
+
+
+	- Le panneau latéral gauche (ce panneau peut s'ouvrir et se fermer via la petite fleche verte en haut à gauche)
+	
+		Dans ce panneaux vous pouvez regler plusieurs parametres et visualiser certaines informations : 
+
+		-> Le "refresh mode" permet de definir le mode d'affichage des groupes dans la zone des groupes de neuronnes . ATTENTION : Fonctionnalité obsolete, non-adapté aux dernieres 			modification et source de bug. il est conseillé de toujours le laisser en "auto". Le mode manual doit pouvoir fonctionner toutefois, il est utile dans certain cas. 
+	
+			Auto : raffraichis l'affichage des neuronnes à la valeur indiquée par le curseur refresh, ce n'est que l'affichage graphique, cela ne signifie pas que les données vont 			arriver à cette frequence. 
+	
+			Semi-Auto (obsolete, source de bug critique) : raffraichis l'affichage dés qu'une information arrive à pandora. 
+	
+			Manual (Non testé recemment, doit fonctionner) : raffraichis l'affichage des neuronnes uniquement sur demande.
+
+		-> Le curseur refresh : definis la frequence a laquelle les neuronnes sont mis à jour graphiquement.
+	 
+		-> La zone scale.
+
+			Xscale et Yscale : definis les echelles pour la zone d'architecture. Sont automatiquement changées lors d'un zoom mais peuvent etre ajusté à la main.
+			Xgap et Ygap : definis les écarts en X et Y lorsque les scripts sont supperposés (voir La zone "open script" plus bas dans le meme panneau).
+ 			ATTENTION, bug : Les indices par defauts lors de l'ouverture d'un nouveau pandora ne sont pas justes, il faut appuyer sur le bouton default scale ou changer les indices 				à la main ou par zoom pour que le lien entre indices et zone d'architecture soit fait.
+
+		-> Le bouton stop graphs : arrete le dessin de la zone architecture, jamais utilisé.
+
+		-> Le bouton default scale : la fonction zoom n'étant pas très reversible (on peut se retrouver avec des echelle bizarre si on zoom et dezoom beaucoups) ce bouton permet de 			rétablir l'echelle par defaut.
+		
+		-> Les cases à cocher "draw links" et "draw net links", permettent de dessiner dans la zone d'architecture les liens principaux (ou pas) et les liens net (ou pas).
+
+		-> La zone "open script" affiche les scripts qui communiquent avec pandora et sont present dans la zone d'affichage des scripts.
+			- Le nom du scripts est precédé d'une cache à cocher qui permet d'afficher ou non le script en question dans la zone d'architecture. 
+			- Vient ensuite une zone ou on peut attribuer un numéro à ce script, cela permet de dire sur quelle "couche" est présent le script pour les emplier (voir xgap ygap plus 				haut) 
+			- La loupe permet de rechercher un script par son nom ou sa fonction (attention : "f_grab_image, par exemple, n'est pas un nom, mais une fonction. Le nom est souvent 				laissé par defaut dans coeos et est donc alors un numéro.
+		
+	- Le panneaux latéral droit (ce panneau peut s'ouvrir et se fermer via la petite fleche verte en haut à droite)
+		
+		Le principal champs de ce panneau est le champs "prompt" qui affiche des informations en lien avec la fonction start "calculate execution time",voir la description de cette 			fonction pour plus de details.
+
+	- La zone d'affichage des groupes de neuronnes 
+
+		C'est la zone la plus importante de pandora, lorsque vous cliquez droit sur un groupe dans la zone architecture son contenu s'affiche ici dans un cadre.
+		Ce cadre comporte en en-tete: le nom, la fonction du groupe ainsi que la fréquence de raffraichissement des données.
+		
+		Vous pouvez alors : 
+		
+		-> Deplacer le groupe, par un simple drag and drop (la zone est plus grande que ce que vous voyez à la base, notez les barre de scrolling).
+		-> Double cliquer dessus pour afficher une fenetre qui vous permet :
+			- De selectionner la valeur à representer (S, S1 etc...)
+			- De changer l'echelle grace à range. (auto donne parfois des resultats etrange car il ajuste l'echelle, il est conseiller de definir à la main les valeurs mini et maxi 				(souvent 0 et 1 et definis comme tel par defaut) pour un resultat identique à l'affichage de promethe).
+			- Cliquer sur une neuronne pour la selectionner. Les liens vers les précédents de la neuronne s'affichent alors dynamiquement (!) . Leur largeur dépends de leur valeur. 				Leur couleur de leur signe : rouge : coef positif, vert : coef proche de 0, bleu : coef négatif 
+				-> Une seule neuronne selectionné par boite
+				-> Re-Cliquer sur la neuronne efface les liens.
+				-> detruire la boite source efface les liens mais detruire les/la boite d'on viennent les liens n'efface pas les liens, ils reaparaitrons si on reaffiche les 					boites de destination. 
+				-> Il est possible d'afficher les valeurs au dessus des liens grace à la fonction "draw_links_info" dans le volet "general".
+
+		La zone elle meme possede quelques fonctionnalités : 
+		-> Il est possible de s'y deplacer via la roulette de la souris ou via les barres de scrolling.
+		-> Il est possible de l'extraire de la fenetre principale grace au bouton à coté du nom de la zone "neuron'frame". Vous pouvez alors, par exemple, mettre cette fenetre 		d'observation sur un autre écran. 
+
+
+
+	3. Detail des fonctions des volets.
+	-----------------------------------
 		

@@ -1,4 +1,4 @@
-/*
+/**
  * pandora_file_save.c
  *
  *  Created on: 5 août 2013
@@ -8,7 +8,8 @@
 #include "pandora_file_save.h"
 #include "pandora_graphic.h"
 #include "pandora_architecture.h"
-/*
+
+/**
  * Mise en page du xml dans le fichier de sauvegarde des préférences (*.jap)
  */
 const char* whitespace_callback_pandora(mxml_node_t *node, int where)
@@ -44,6 +45,7 @@ const char* whitespace_callback_pandora(mxml_node_t *node, int where)
   return (NULL);
 }
 
+// Sauvegarde des preferences dans un fichier XML
 void pandora_file_save(const char *filename)
 {
   int script_id, i, width, height;
@@ -68,7 +70,7 @@ void pandora_file_save(const char *filename)
   xml_set_int(preferences_node, "z_x_scale", gtk_range_get_value(GTK_RANGE(zxScale)));
   xml_set_int(preferences_node, "z_y_scale", gtk_range_get_value(GTK_RANGE(zyScale)));
   xml_set_int(preferences_node, "architecture_window_height", gtk_paned_get_position(GTK_PANED(vpaned)));
-  xml_set_int(preferences_node, "compress", (int)gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button)));
+  xml_set_int(preferences_node, "compress", (int) gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button)));
 
   for (script_id = 0; script_id < number_of_scripts; script_id++)
   {
@@ -109,6 +111,7 @@ void pandora_file_save(const char *filename)
   mxmlDelete(tree);
 }
 
+// Chargement des preferences depuis un fichier XML
 void pandora_file_load(const char *filename)
 {
   int script_id, group_id, value, value2;
@@ -135,7 +138,7 @@ void pandora_file_load(const char *filename)
   if (xml_try_to_get_int(preferences_node, "z_x_scale", &value)) gtk_range_set_value(GTK_RANGE(zxScale), value);
   if (xml_try_to_get_int(preferences_node, "z_y_scale", &value)) gtk_range_set_value(GTK_RANGE(zyScale), value);
   if (xml_try_to_get_int(preferences_node, "architecture_window_height", &value)) gtk_paned_set_position(GTK_PANED(vpaned), value);
-  if (xml_try_to_get_int(preferences_node, "compress", &value)) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(compress_button), (gboolean)value);
+  if (xml_try_to_get_int(preferences_node, "compress", &value)) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(compress_button), (gboolean) value);
   else gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(compress_button), FALSE);
 
   for (script_id = 0; script_id < number_of_scripts; script_id++)
@@ -175,6 +178,7 @@ void pandora_file_load(const char *filename)
   }
 }
 
+// Chargement des preferences specifiques à un script.
 void pandora_file_load_script(const char *filename, type_script *script)
 {
   int group_id;
@@ -240,7 +244,7 @@ void pandora_file_load_script(const char *filename, type_script *script)
 
 /**
  *
- * Enregistrer les préférences dans un fichier
+ * Enregistrer les préférences dans un fichier, appel les fonctions au dessus
  *
  */
 void save_preferences(GtkWidget *pWidget, gpointer pData)
@@ -342,7 +346,7 @@ void save_preferences_as(GtkWidget *pWidget, gpointer pData)
 
 /**
  *
- * Ouvrir un fichier de préférences
+ * Ouvrir un fichier de préférences, appel les fonctions au dessus
  *
  */
 void pandora_load_preferences(GtkWidget *pWidget, gpointer pData)

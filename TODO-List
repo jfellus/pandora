@@ -1,0 +1,131 @@
+TODO LIST de Pandora (Japet) . Nils Beaussé 30/08/2013
+
+
+
+
+- Encapsulation : Un travail a été commencé pour encapsuler au maximum les variables du programme, mais il reste encore enormement de variables globale.
+	-> Certaine peuvent etre directement utilisé en local, elles resultent d'oublis à corriger.
+	-> Certaine peuvent etre lié à un objet GTK (voir la doc de g_object_set_data pour ça) et ainsi utiliser l'archi GTK pour faire transiter des données quand c'est logique.
+	-> Certaine peuvent ne sont utilisé que dans un fichier et peuvent donc etre passé en static.
+	-> D'autre peuvent etre mise dans des structures, ce qui rends le code plus lisible et rends l'utilisation de mutex/semaphore sur un groupe de donnée plus clair (exemple : le mutex script caracteristic qui n'est pas clair quant au groupe de variable qu'il encapsule).
+	-> Dans la mesure du possible il serait bien de faire un effort pour ne pas rajouter de variables globales, à defaut d'en enlever.
+
+
+- Fragmentation modulaire du code : Dans la ligne du point 1, un travail a été commencé pour séparer le code en modules thematiques afin d'eviter un pandora.c qui faisait 5000 ligne et qui reste considerablement gros.
+Cela permet d'alleger le code, de bien comprendre les divers processus et dans une certaine mesure de gagner en optimisation.
+Pour des raisons de propreté il est conseillé de continuer à tenir des Header pour chaque fichier avec les meme conventions standards.
+	-> Declaration des variables globales dans le .c : Declarations de leur "en tete" avec un "extern" dans le .h (ce qui simplifie le coté modulaire).
+	-> Declaration des variables globales qui sont externe au fichier avec un "extern" dans le .c
+	-> Conventions classiques -> en tete de fonction, define pour la multi inclusion dans le .h etc...
+	-> Les include doivent se faire au maximum dans le .c pour des raisons d'optimisation de compilation et uniquement dans le .h lorsque les header/structure/define etc... doivent avoir recours à une structure/objet/type exterieur (quoique souvent on puissent se debrouiller avec un extern mais on ne pas non plus mettre en extern tout GTK, par exemple).
+
+
+- Suppression des deprecated GTK restant. Notemment les gtk_thread_* qui doivent etre abandonné pour la gestion des threads. Pour remplacer ceci, il faut utiliser un g_idle_add_full et faire attention à la donnée qui est passé (il ne faut pas que la fonction appelante efface la donnée (en se fermant par exemple) alors que la boucle GTK n'a pas eu le temps d'executer la fonction passé par g_idle_add_full : solution : variable globale ou plus proprement un ALLOCATION avec un free dans la fonction appelé.
+ 
+
+- Dans le fichier color.h il est possible de supprimer le dernier tableau de couleur une fois verifié qu'elles ne sont plus utilisé (si elles sont encore utilisé à certain endroit il est possible de changer la façon de definir la couleur pour utiliser le second tableau RGBA plus parlant).
+
+
+- Certains include de common.h ne sont peut etre plus utile. A verifier. 
+
+
+- Certaines preferences peuvent etre ajouté à la sauvegarde XML dans pandora_file_save.c : Neuronne selectionné pour affichage des liens, position de la fenetre secondaire si celle  ci est separé du reste etc...
+
+
+- A corriger :Les Xscale Yscale Xgap Ygap du panneau gauche sont bien car ils permettent de remettre les valeurs par defaut ou de personnaliser son zoom, petit bug : en l'absence de fichier de preference .pandora elles se mettent à 0 au lieu de prendre les valeurs auto reeles. 
+
+
+- Le zoom sur l'architecture, ainsi que le deplacement de celle-ci sont loins d'etre optimum, on remarque d'ailleurs des saut du dessin si on deplace l'architecture avec un drag and drop.
+Plusieurs pistes :
+	-> Utiliser OpenGl pour un affichage de la zone cairo sur un objet OpenGL, permettant un zoom et un deplacement très fluide et peu consommateur en ressource. (Desavantage : necessite OpenGl activé sur le PC, donc les pilotes qui fonctionnent etc... ce qui n'est pas le cas de certains PC du labo actuellement)
+	-> A terme il peut etre très avantageux d'utiliser une routine openGL pour faire l'ensemble de l'affichage de l'architecture. Permettant d'avoir accés à des fonctions assez bien tel que : 	- redeplacement des boites simples et leger par drag and drop.
+	- changement des formes de boites, de ce qu'il y a écris dedans, de leur affichages ou non etc...
+Le tout permettant, pourquoi pas, d'exporter des images très agréables du scripts utilisé pour des rapport/articles/theses etc... permettant un gain de temps assez important.
+
+
+- A améliorer : Les fonctions d'affichages de l'architectures et celle des neuronnes sont loins d'etre optimales et loins d'etre lisible. 
+
+
+- Certaines fonctionnalités sont realisées dans l'affichage de l'architecture et des neuronnes alors qu'elle ne devrais pas : notemment les tests de selections d'un objets. Qui devrait etre externalisés.
+
+
+- Sans changer toute l'architecture comme suggéré dans les points precedents, il s'avere que le deplacement de groupe existe mais est buggé. Un drag and drop des groupes serait sympa à autoriser, de preference en affichant un leger quadrillage pour mettre en evidence les "cases" utilisé et en surbrillance la colonne temporelle utilisé. Si l'utilisateur tente de deplacer le groupe sur une zone non-autorisé car ne respectant pas le meme point temporelle que son emplacement precedents l'utilisateur se verrais demander confirmation, mais on l'autoriserais quand meme.
+(ces preferences de positionnement devraient etre sauvegardé)
+
+
+- La fonctions de top qui trie et moyenne les performances de chaques groupes pourait etre configurable :
+	-> Il faudrais laisser le choix entre moyennage infini (cas actuel) et moyennage du meme type que celui affiché sur les boites. Pour permettre de trier les boites meme sur une moyenne de courte durée. (ou mieux : donner le choix à l'utilisateur avec un curseur et un bouton cochable "infini").
+	-> il existe une fonction precedente inutilisé de tri-rapide dans pandora (elle est resté pour cette raison) mais qui n'est pas utilisé dans la fonction top, ou le tri n'est pas optimisé. Il serait bien d'adapter cette fonction ou d'utiliser une autre méthode d'optimisation de tri.
+
+
+- Il peut etre interessant d'ajouter dans le volet Network des fonctions d'analyses des performances reseau, packet perdu etc... qui sont déja donnée dans les structures ENET, il reste juste à creer l'emplacement d'affichage.
+
+
+- Pour le moment les liens affiché quand on clique sur une neuronne ne sont que les precedents (les liens qui vont vers la neuronne). Il serait interessant d'afficher les suivants. 
+
+
+- Pour le moment la seule maniere de supprimer un groupe affiché est de faire un clic droit sur la fenetre d'affichage. Il serait interessant de pouvoir le supprimer par un clic droit sur le groupe dans la zone d'architecture.
+
+
+- Il existe un bug pour l'affichage des long groupe de neuronne. Si on zoom sur le groupe (ctrl+clic sur la zone d'affichage du groupe) et que celui ci dépasse des deux cotés de la zone d'affichage. Alors si on essaie de le deplacer les routines qui controle le positionnement du groupe vont tenter de le remettre dans les limites de la zone d'affichage (zone_neuron) mais ne le pouront pas. Entrainant une disparition du groupe sans pouvoir le supprimer. La resolution du point precedent permettrait d'apporter une solution provisoire mais il serait bien tester les conditions au bordures, comme lors du deplacements en drag and drop lors du zoom. De deplacer le groupe si celui ci dépasse d'un coté et d'arreter le zoom si les deux bordures sont atteinte.
+
+
+- Le mode d'affichage semi-auto cause trop de bug et n'a plus raison d'etre, il a été decidé de n'utiliser que le mode auto. Il serait donc bon de supprimer ce mode, les fonctions associées etc... Ce qui poura reduire de beaucoups certaine partie du code.
+
+
+- Le mode d'affichage auto ne se raffraichis "qu'a" 50Hz maximum, ce qui n'est pas forcement adapté à une bonne synchronisation avec un écran de PC moderne. Monter la valeur à 70Hz serait interessant. Mieux encore : detecter la valeur de raffraichissement de l'écran, fixer la valeur maximum de raffraichissement sur celle ci et proposer une option de Vsync serait très propre et donnerais l'assurance d'un affichage ideal.
+
+- La recherche de script ne prends en compte que les noms exactes, ils serait bien d'avoir une véritable fonction de recherche qui donnent le nom le plus proche trouvé ou une liste (utile dans le cas frequent ou la personne connait la fonction mais l'orthographie mal). 
+
+
+- supprimer ou rajouter des fonctions au labels inutilisé : "Sampled mode" sur le panneau latéral gauche et "Legends" sur le panneau lateral droit. 
+
+
+- Changer le mode d'affichage du prompt du panneau lateral droit pour permettre de cliquer sur le groupe et de voir la vue se centrer dessus dans l'architecture. (doit changer de widget pour faire ça (car il ne me semble pas que celui prennent en compte les lignes, ce n'est qu'un texte avec des /n, et donc le gros du systeme de prompt).
+
+
+- La fenetre qui s'affiche en double cliquant sur un groupe n'est pas compatible GTK 2 et provoque donc des bugs. Il serait bon de la refaire "à la main" et non en utilisant un gtkbuilder.
+
+
+	PERFORMANCES RESEAU : 
+
+
+- Les performances reseau peuvent etre reglées par plusieurs points : 
+	- Les flags ENET à l'emission (prom_kernel/prom_send_to_pandora.c)
+	- la compression ou non (déja mise en option)
+	- La valeur du Usleep dans le thread d'envoie des donnée coté promethe (prom_kernel/prom_send_to_pandora.c)
+	- Le type de liste dont on test le contenu lors de l'emission dans le thread d'envoi des données. Il y en a 4, outgoingReliablecommand est la liste d'envoi des donnée reliable. outgoingUnreliableCommand est celle d'envoie des commandes non-reliables, sentReliablecommand contient les donnée envoyées en attente de réponse, sentUnreliablecommand idem pour les données non-reliable.
+		-> En théorie faire le test sur les 4 listes assurent une synchronisation parfaites de pandora et promethe si tout les envoies sont reliable. Toutefois cela impact les performances du script. Un test sur les deux premieres est le compromis actuellement trouvé.
+
+-> Il serait interessant de laisser l'utilisateur definir tout ceci via une fenetre de configuration reseau coté Pandora. Pour l'instant seule la compression est reglable et necessite le redemarage de Pandora. L'idéal serait d'avoir des valeurs par defaut qui correspondent au cas le plus general possible (ce qui est le cas maintenant dansle code) tout en permettant à l'utilisateur de regler ces parametres via une fenetre de config. Encore mieux serait de pouvoir appliquer les changements sans devoir redemarrer pandora.
+
+
+- Envoi de donnée ciblé : Actuellement meme si l'utilisateur affiche la valeur S1 des neuronnes pour un groupe, toutes les valeurs sont transmises par le reseau puis pandora fais le choix.
+Au vu des tests de performance reseau qui montre qu'un simple affichage d'image + un saw surcharge la bande passante, meme avec la compression. Il serait interessant que ce soit pandora qui demande la valeur à envoyer à promethe et que celui ci n'envoie que ça. De preferance les meme types de valeurs dans un blocs, afin d'ameliorer grandement la compression.
+
+
+- Compression images : Un choix supplémentaire à la compression des packets peut etre donnée à l'utilisateur : la compression d'image avec perte pour les vidéos. Si l'utilisateur se moque de la qualité de l'image arrivant, le choix d'une compression JPG pourait etre avantageuse. Par defaut l'option serait desactivé.
+
+
+- L'affichage des liaisons reseau entre scripts n'a pas été controlé et peut etre buggé. Le coté esthetique n'a pas été changé non plus contrairement au reste, ils sont en gros pointillé très espacé qui peuvent nuire à la compréhenssion. Il serait bien de changer ça.
+
+
+	SAUVEGARDE : 
+
+
+- Outre les idée émises concernant la sauvegarde de l'architecture sous une forme exploitable. Les fonctions de sauvegarde permettent actuellement de récuperer et d'exploiter, voir d'enregistrer en video des tableaux de neuronne via un script ipython d'exemple et un script qui permet une conversion matlab. Par contre elles n'enregistrent que S1 pour le moment.
+Il serait interessant de creer un bouton d'option de sauvegarde permettant d'enregistrer ce que l'utilisateur souhaite comme valeur. (Attention, si l'envoie ciblé est realisé il faut adapté en consequence, l'utilisateur peut vouloir afficher une valeur et en sauvegarder une autre (par exemple) donc deux envois de série de packet).
+
+
+- Pour le moment le format utilisé est simple pour la conversion via ipython. Mais il n'est pas compatible avec le format promethe, donc les scripts écris par les uns pour le formats promethe ne sont pas utilisable sur ceux de pandora et vice-versa. Pourtant il n'en est pas loin : deux solutions : 
+	-> écrire une fonction de conversion sauvegarde promethe <-> sauvegarde pandora.
+	-> revoir directement la sauvegarde coté pandora et l'extraction des valeurs sous forme de tableau par les fonctions ipython (peut ne pas marcher, reshape étant une fonction assez haut niveau).
+
+
+- Il peut etre interessant d'adapter le tout pour sauvegarder les vidéos transmisent. Il suffit de permettrent au script de prendre en entrée des images. Dans ce cas il existent une fonction simple toute faites sous ipython qui permet la compression/conversion d'un tableau d'image sous format mpeg grace à ffmpeg (elle doit etre en commentaire dans le code exemple a la fin, sinon voir doc ipython etc...). 
+
+
+- Il peut etre également interessant de permettre de sauvegarder ce tableau sous forme de fichiers avec les images numéroté. Permettant de remettre une vidéo dans un script sans avoir besoin de la caméra avec f_load_image_sequential. 
+ 
+
+

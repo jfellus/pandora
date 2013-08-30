@@ -5,8 +5,10 @@
  * 
  */
 
+/**
+ * Ce fichier contient les différents define permettant de simplifier la gestion des couleurs.
+ */
 //--------------------------------------------------COULEURS---------------------------------------------------------
-
 //Pour le dessin (et le texte dans les zones de dessin)
 #define BLACK 	0.0, 0.0, 0.0,1.0	//Grille
 #define WHITE 	1, 1, 1,1.0	//Fond
