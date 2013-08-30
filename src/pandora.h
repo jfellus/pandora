@@ -72,7 +72,7 @@
 #define SAVE_SCRIPT_GROUPS_CARACTERISTICS 2
 
 #define STAT_HISTORIC_MAX_NUMBER 50
-#define MAX_LENGHT_PATHNAME 100
+#define MAX_LENGHT_PATHNAME 200
 #define CHEMIN "./pandora.pandora"
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 

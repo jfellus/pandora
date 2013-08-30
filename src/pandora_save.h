@@ -9,7 +9,7 @@
 #define PANDORA_SAVE_N
 
 #include "pandora.h" // Pour les types script/group etc...
-#define MAX_LENGHT_PATHNAME  100
+#define MAX_LENGHT_PATHNAME  200
 #define MAX_LENGHT_FILENAME  50
 
 /* En-tête de fonctions */

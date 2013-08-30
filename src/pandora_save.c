@@ -65,9 +65,9 @@ void destroy_saving_ref_one(type_script* script_used)
 // Créé le fichier de sauvegarde
 void file_create(type_group *used_group)
 {
-  char file_path_ori[MAX_LENGHT_PATHNAME];
-  char file_path[MAX_LENGHT_PATHNAME];
-  char num[4];
+  char file_path_ori[MAX_LENGHT_PATHNAME]="";
+  char file_path[MAX_LENGHT_PATHNAME]="";
+  char num[4]="";
   FILE* test = NULL;
   int i = 0;
   GtkTreeIter iter;
@@ -118,7 +118,7 @@ void file_create(type_group *used_group)
   {
     // On affiche un message d'erreur et on quitte
     used_group->on_saving = 0;
-    printf("Impossible d'ouvrir ou de creer les fichiers de sauvegarde %s", file_path);
+    printf("Impossible d'ouvrir ou de creer les fichiers de sauvegarde %s \n", file_path);
 
   }
 

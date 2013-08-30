@@ -78,10 +78,10 @@ int stop; // continue l'enregistrement pour le graphe ou non.
 
 //Pour la sauvegarde
 gboolean saving_press = 0;
-char path_named[MAX_LENGHT_PATHNAME] = "save/";
-char python_path[MAX_LENGHT_PATHNAME] = "$HOME/simulateur/japet/save/default_script.py";
-char matlab_path[MAX_LENGHT_PATHNAME] = "$HOME/simulateur/japet/save/convert_matlab.py";
-GtkListStore* currently_saving_list;
+char path_named[MAX_LENGHT_PATHNAME] = "";
+char python_path[MAX_LENGHT_PATHNAME] = "~/bin_leto_prom/simulator/japet/save/default_script.py";
+char matlab_path[MAX_LENGHT_PATHNAME] = "~/bin_leto_prom/simulator/japet/save/convert_matlab.py";
+GtkListStore* currently_saving_list=NULL;
 
 pthread_t new_window_thread;
 pthread_mutex_t mutex_loading = PTHREAD_MUTEX_INITIALIZER;
@@ -324,7 +324,7 @@ void on_toggled_compress_button(GtkWidget *compress_button, gpointer pData)
 void on_click_save_path_button(GtkWidget *save_button, gpointer pData) //TODO mettre dans le repertoire de l'utilisateur (ce serait bien que le bureau soir également dans ce répertoire)
 {
 
-  GtkWidget *selection;
+  GtkWidget *selection=NULL;
 
   (void) pData;
   (void) save_button;
@@ -340,7 +340,7 @@ void on_click_save_path_button(GtkWidget *save_button, gpointer pData) //TODO me
 
   if (gtk_dialog_run(GTK_DIALOG (selection)) == GTK_RESPONSE_OK)
   {
-    char *filename;
+    char *filename=NULL;
     filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (selection));
     strcpy(path_named, filename);
     strcat(path_named, "/");
@@ -1705,7 +1705,7 @@ void call_python_inter(GtkWidget *python_window, int arg, gpointer pdata)
   GtkTreeIter iter;
   gchar entry[MAX_LENGHT_FILENAME];
 
-  (void) python_window;
+ // (void) python_window;
   if (arg == GTK_RESPONSE_OK) gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(pdata), call_python, NULL);
   if (arg == GTK_RESPONSE_DELETE_EVENT) gtk_widget_destroy(python_window);
   if (arg == GTK_RESPONSE_ACCEPT)
@@ -1759,6 +1759,7 @@ void on_click_call_dialog(GtkWidget *pWidget, gpointer pdata)
   python_window = NULL;
 
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+  gtk_box_set_homogeneous(GTK_BOX(vbox),FALSE);
   path_list = gtk_tree_view_new_with_model(GTK_TREE_MODEL(currently_saving_list));
   selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(path_list));
   gtk_tree_selection_set_mode(selection, GTK_SELECTION_MULTIPLE);
@@ -1779,6 +1780,9 @@ void on_click_call_dialog(GtkWidget *pWidget, gpointer pdata)
 
   pScrollbar = gtk_scrolled_window_new(NULL, NULL);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(pScrollbar), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+
+  gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(pScrollbar),150);
+  gtk_widget_set_size_request (pScrollbar,-1,100);
   gtk_container_add(GTK_CONTAINER(pScrollbar), path_list);
 
   gtk_box_pack_start(GTK_BOX(vbox), pScrollbar, TRUE, TRUE, 1);
@@ -1786,7 +1790,7 @@ void on_click_call_dialog(GtkWidget *pWidget, gpointer pdata)
   text_entry = gtk_entry_new();
   gtk_entry_set_max_length(GTK_ENTRY(text_entry), MAX_LENGHT_FILENAME);
   g_object_set_data(G_OBJECT(python_window), "text_entry", (gpointer) text_entry);
-  gtk_box_pack_start(GTK_BOX(vbox), text_entry, FALSE, TRUE, 1);
+  gtk_box_pack_start(GTK_BOX(vbox), text_entry, FALSE, FALSE, 1);
   // gtk_box_pack_start(GTK_BOX(GTK_DIALOG(python_window)->vbox),pScrollbar,TRUE,TRUE,1);
 
   content_area = gtk_dialog_get_content_area(GTK_DIALOG (python_window));
@@ -1998,12 +2002,12 @@ void pandora_window_new()
 
   //Creation du bouton d'appel python
   call_python_button = gtk_button_new_with_label("Call python script");
-  g_signal_connect(G_OBJECT(call_python_button), "clicked", G_CALLBACK(on_click_call_dialog), (gpointer )IDdialog_python);
+  g_signal_connect(G_OBJECT(call_python_button), "clicked", G_CALLBACK(on_click_call_dialog), (gpointer)IDdialog_python);
   gtk_box_pack_start(GTK_BOX(h_box_save), call_python_button, FALSE, FALSE, 0);
 
   //Creation du bouton de conversion matlab
   convert_matlab_button = gtk_button_new_with_label("Convert to Matlab");
-  g_signal_connect(G_OBJECT(convert_matlab_button), "clicked", G_CALLBACK(on_click_call_dialog), (gpointer )IDdialog_matlab);
+  g_signal_connect(G_OBJECT(convert_matlab_button), "clicked", G_CALLBACK(on_click_call_dialog), (gpointer)IDdialog_matlab);
   gtk_box_pack_start(GTK_BOX(h_box_save), convert_matlab_button, FALSE, FALSE, 0);
 
   //Creation du bouton de config

@@ -127,5 +127,5 @@ Il serait interessant de creer un bouton d'option de sauvegarde permettant d'enr
 
 - Il peut etre également interessant de permettre de sauvegarder ce tableau sous forme de fichiers avec les images numéroté. Permettant de remettre une vidéo dans un script sans avoir besoin de la caméra avec f_load_image_sequential. 
  
-
+- Actuellement il n'existe pas de bouton define matlab_convert path comme il existe un bouton define script path. Obligeant à reecrire en dure dans le code si il y a un soucis d'emplacement. Il serait bien d'avoir une fenetre à l'ouverture de define script path avec : matlab path et script path, leur chemin actuel (editable pour ceux qui veulent) et une icone pour parcourir.
 
