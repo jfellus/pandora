@@ -13,7 +13,9 @@
 
 2. Utilisation de Pandora
 
+3. Detail des fonctions des volets
 
+4. Options reglable dans le code
 
 
 
@@ -157,3 +159,130 @@
 	3. Detail des fonctions des volets.
 	-----------------------------------
 		
+
+	General : Ici sont réunie les fonctions diverses du code qui n'ont leurs places dans aucun des deux autres onglets : 
+
+		- "Draw Links info" : Une fois pressé ce bouton permet d'afficher les poids au dessus des coefficients.
+		- "" : Une fois pressée ce bouton permet de lancer le calcul des temps d'execution de chaque boites. Pensez à ouvrir le panneau latéral droit, la zone d'affichage "top" classera 				chaque 	boites du pire temps d'execution au meilleur. 
+			Le classement et l'affichage dans la zone "top" se font sur un temps infinis. Comprendre : La moyenne est faite entre le moment ou on presse le bouton et le moment 				présent, permettant un affinage des résulats. Les valeurs "instantanée" sont elles, affichés sur chaque boites.
+
+	Network :
+
+		- "" : Ce bouton permet de changer le mode de communication avec promethe, si le bouton est pressé les données seront compressé, sinon non.
+			-> presser le bouton occasionne un retard qui peut se ressentir comme un nivellement des performances sur les scripts extremements rapide.
+			-> Presser le bouton occasionne une diminution par 2 (environs) des transits réseau. Il est donc recommandés de l'utiliser en Wifi pour de bien meilleure performances, 				attendu que pour le moment d'autres solutions pour limiter les transferts reseau ou augmenter la bande passantes wifi ne sont pas encores mises en place.
+	
+			-> Ainsi il est recommandé :
+				- De ne pas faire de compression en local
+				- De toujours lancer la compression sur une communication Wifi (sans se poser de questions si il s'agit d'un script lourd. Si le script est léger il est 						recommandé de tester les deux options).
+
+	Un mot sur le transfert de vidéo, et plus generalement, de donnée via promethe : Suite aux test pour pandora, il s'est avéré que le transfert de vidéo via promethe ralentit énormement 	le script. 
+	Si vous observez les données via pandora, pensez à desactiver les boites qui effectuent l'affichage coté promethe (le script peut gagner un *50 en vitesse dans certaine situation). Plus 		generalement, pensez à ne pas surchargez le reseau avec des transmissions de données à la fois via l'affichage classique promethe et via pandora. Cela peut donner des résultats étranges 		sur les faibles bandes passantes.
+
+
+	Saving : Ici sont reunies les fonctions de sauvegardes permettant de capturer les flux de données transmis de promethe vers pandora et de les envoyer vers des scripts Python (iPython) 	qui peuvent les interpreter.
+	
+	Pour ce faire :
+
+		- Cliquez sur "define save path" et selectionner le repertoire ou seront mis les sauvegardes. 
+
+		- La touche CTRL appuyée, cliquez sur les groupes que vous desirez sauvegarder. Si tout se passe bien il devrait etre entouré d'un liserais bleu.
+
+		- Il est recommandé d'afficher les groupes que vous desirez sauvegarder afin de faire transiter les données, l'envoie automatique meme sans affichage ne marchant pas à tout les 				coups. 
+
+		- Lancez la sauvegarde avec le bouton "launch saving". Si tout se passe bien, les groupes devrait s'entourer d'un liserais jaune, indiquant que des données sont reçues et en 				cours de sauvegarde. 
+		
+	-> Attention, il faut parfois attendre quelques seconde, la sauvegarde ne se lance QUE quand des données sont reçues pour la premieres fois. Avec certains groupes à faible taux 			de raffraichissement cela peut prendre quelques secondes selon le script.
+
+	- Une fois que vous voulez arreter de capturer le flux, vous pouvez clore la sauvegarde en reapuyant sur le meme bouton.
+		-> Les fichiers sont alors fermés, il s'agit de fichiers textes au format simple (mais pas encore compatible avec le format promethe -> voir Todo-list) qui peuvent etre lisible 			par un script Python ou tout autre programme.
+
+
+		-> Afin de faciliter l'exploitation des données, un scripts exemple est fournit, il se trouve dans le repertoire japet/save sous le nom de default_script.py.
+		-> Plusieurs façons de le lancer : 
+
+			- Via l'interface Pandora -> Launch Python script -> Selectionnez les fichiers et Launch. (en cas de probleme d'emplacement du script ou si vous voulez mettre votre 				script personnel, vous pouvez redefinir le chemin du script via le bouton "define script path".
+
+			- Via la consolee : "Python default_script.py nom_du_fichier_de_sauvegarde"   (il se peut que des packets soit manquant, assurez vous de les installer).
+
+		- Le script exemple convertit le fichier en entrée en tableau 3D -> Une dimension pour le temps (la "profondeur") deux pour le tableau de neuronne. Facilitant son 			exploitation. Un exemple d'exploitation simple (affichage vidéo basique) est donnés.
+		
+		- Le script exemple convertit également les indices temporels en vecteur, afin de pouvoir les recuperer. (Attention : voir Todo-list : fonctionnalité à améliorer)
+
+		- Le bouton "matlab" de pandora lance un script similaire (qui se lance de la meme maniere en console et est dans le meme repertoire que default_script.py) et qui convertit 			la matrices 3D et le vecteur en format matlab. Permettant de les recuperer avec tout outil gerant le format matlab. 
+
+
+
+	4. Options reglables dans le code
+	---------------------------------
+
+
+	Il est possible de parametrer certains point directement dans le code au besoin, ces parametres n'étant pour l'instant pas modifiable via Pandora, ils sont données ici : 
+	
+	Parametrage réseau : 
+	-------------------
+	
+	Dans prom_kernel/prom_send_to_pandora.c : fonction "send_neuron_to_pandora" -> Toute les occurences de enet_packet_create contiennent des flags sous la forme :
+	"flag1 | flag2 | flag3" etc... 
+
+	Ces flags sont : 
+
+	ENET_PACKET_FLAG_RELIABLE 	
+	packet must be received by the target peer and resend attempts should be made until the packet is delivered
+
+	ENET_PACKET_FLAG_UNSEQUENCED 	
+	packet will not be sequenced with other packets not supported for reliable packets
+	
+	ENET_PACKET_FLAG_NO_ALLOCATE 	
+	packet will not allocate data, and user must supply it instead
+	
+	ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT 	
+	packet will be fragmented using unreliable (instead of reliable) sends if it exceeds the MTU
+	
+	ENET_PACKET_FLAG_SENT 	
+	whether the packet has been sent from all queues it has been entered into 
+
+	Les flags ENET_PACKET_FLAG_NO_ALLOCATE ne doivent pas etre touché, toutefois il est possible d'ajouter ou de retirer d'autre flags selon le canal que vous voulez toucher (image, liens 	ou neuronnes), les effets sont les suivants : 
+
+
+
+	ENET_PACKET_FLAG_RELIABLE  : Vous assurent que packet est bien arrivé, tentent de le renvoyer si ce n'est pas le cas : Peut occasionner des ralentissements du script mais vous assurent 		qu'aucune données n'est "perdu" lors de la visualisation si cela vous importe.
+	Nota : En pratique ce flag n'agit que sur les petit packet, donc les petits groupes à afficher/ les liens etc... car tout packet trop gros est fragmenté et comme chaque fragment est 		necessaire pour reconstituer le packet ils sont alors tous automatiquement RELIABLE meme sans ce flag. Dans le contexte de pandora cela signifie qu'implicitement la plupart des packets 		sont reliable.
+
+	ON : Certitude sur la reception entiere des données. (Attention, selon votre cas cela peut etre assez peu utile, exemple : manquer une image sur 30 par seconde...)
+	OFF : Gain en performance sur les petit packets.
+
+	Recommandé : OFF sauf cas particulier.
+
+	ENET_PACKET_FLAG_UNSEQUENCED : dit à ENET de ne pas verifier l'ordre d'envoie des packets : 
+		-> Dans pandora, tout les groupes sont sur le meme "channel" d'envoie, donc, par exemple, si un groupe est traité après un autre, enet s'assurera automatiquement que les 			packets du groupe 1 partent avant ceux du groupe 2. Ce qui n'est pas forcement important du point de vue de l'utilisateur vu la vitesse de la plupart des scripts observé.
+
+	OFF : Certitude sur l'ordre de réception des données (pas forcement utile dans le cas géneral).
+	ON : Pertes de performance possible.
+
+	Recommandé : ON pour tout ce qui est petit ou de peu d'importances (à eviter pour les images) mais pensez à faire des tests.
+
+	ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT : Comme vu precemment, les gros packet sont automatiquent coupé en petit packet reliable afin d'assurer qu'il est possible de reconsituer le packet 		final.
+
+	OFF : Vous assure que les données sont reçues pour les gros packet fragmentés.
+	ON : Gain en performance sur les gros packets, risque de grosse perte de données (Exemple "metaphore" -> Si un pixel n'arrive pas, on n'attends pas son arrivé et on n'arrete pas le 		scripts pour re-envoyer le petit pixel, mais l'image entiere saute...) . Peut pauser probleme sur un reseau ou la qualité fait que les pertes de packets arrivent regulierement 	    (typiquement : wifi). (Cas general : ne pas le mettre).
+
+	Recommandé : OFF, sauf utilisation en local ou sur un reseau de bonne qualité. ON : sur les données de peu d'importances.
+
+
+	
+	D'autres parametrage sont possible dans la fonction pandora_enet_manager : 
+	
+	- La valeur dans le usleep controle la frequence d'appel d'enet entre deux envoies de la totalité des packets. En cas de probleme d'envois qui stagnerais d'un coté qui ne soitt pas dues 	à une faible bande passante, il est possible de baisser cette valeur. Attention : en théorie ça n'aurais que peu d'impact et plus la valeur est faible plus le thread monopolise un coeur 	pour lui seul. Recommandé : Ne pas y toucher.
+
+	- Dans le while (!enet_list_empty(&(pandora_host->peers[i].outgoingReliableCommands)) || !enet_list_empty(&(pandora_host->peers[i].outgoingUnreliableCommands)))
+	Cette boucle verifie l'état des liste outgoingReliableCommands et outgoingUnreliableCommands afin d'etre sur qu'elle soit vide. 
+	Ces listes contiennent les packets en attente d'envois pour les packets "reliable" et "non-reliable" (voir plus haut). Normalement il n'y a pas de raison de les enlever, mais il est 		possible de rajouter deux listes (de la meme maniere que celle ci) : 
+
+	sentReliableCommands et sentUnreliableCommands. Ces deux listes contiennent les packets envoyer mais en attente d'une confirmation de reception de la part de pandora. 
+	Dans le cadre d'un reglage "tout reliable" avec comme objectif de synchroniser parfaitement et avec certitude pandora et promethe, rajouter ces deux listes à la verifications ajoutent 	une certitudes supplémentaire. Cela arretera le script tant que pandora ne réponds pas -> Attention, une tel fiabilité n'a pas encore montré son utilité dans les tests et peut entrainer 		une fortes baisse de performance coté pandora et promethe.
+
+	Parametrage saving : 
+	-------------------
+
+	Il est possible de modifier le fichier par defaut pour le script de conversion matlab, le chemin est dans un tableau de char global dans le fichier pandora.c 
