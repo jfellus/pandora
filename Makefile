@@ -1,9 +1,9 @@
 default:
-	$(MAKE) install --jobs=$(NUMBER_OF_CORES)
+	$(MAKE) install --jobs=$(NUMBER_OF_CORES) --silent
 
 include ../scripts/variables.mk
-CC:=prom_colorgcc
-#As we use silent we do not need promcolor_gcc
+CC:=gcc
+
 CFLAGS:= -Wextra -W -Wall -Wno-variadic-macros -fkeep-inline-functions -Wwrite-strings -Wfloat-equal -Wunknown-pragmas -Wdeclaration-after-statement -D_REENTRANT -DDAEMON_COM -DLinux -D_GNU_SOURCE -std=c99
 GTK_LIBS:= -pthread -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgio-2.0 -lpangoft2-1.0 -lpangocairo-1.0 -lgdk_pixbuf-2.0 -lcairo -lpango-1.0 -lfreetype -lfontconfig -lgobject-2.0 -lgthread-2.0 -lrt -lglib-2.0  
 PACKAGES:= gtk+-3.0 gmodule-2.0 gthread-2.0
