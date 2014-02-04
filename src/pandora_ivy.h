@@ -17,7 +17,7 @@
 #include "common.h"
 
 typedef struct ivyServer {
-  char ip[18];
+  char ip[30];
   char appName[30];
 } ivyServer;
 

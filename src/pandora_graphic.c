@@ -1492,8 +1492,11 @@ void destroy_links(type_group* group)
   int no_neuro_abs = 0;
   no_neuro_rel = group->neuro_select;
 
-  group->param_neuro_pandora[no_neuro_rel].links_ok = FALSE;
-  group->param_neuro_pandora[no_neuro_rel].selected = FALSE;
+  if(no_neuro_rel!=-1) {
+    group->param_neuro_pandora[no_neuro_rel].links_ok = FALSE;
+    group->param_neuro_pandora[no_neuro_rel].selected = FALSE;
+  } else
+    printf("WARNING : no_neuro_rel==-1 cannot destroy links...\n");
   group->neuro_select = -1;
 
   no_neuro_abs = group->firstNeuron + no_neuro_rel;
