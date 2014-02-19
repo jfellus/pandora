@@ -235,6 +235,7 @@ typedef struct script_link {
 /* En-tête de Variables Globales */
 
 extern char bus_id[BUS_ID_MAX];
+extern double start_time; /* time of start in seconds */
 extern int refresh_mode;
 extern pthread_mutex_t mutex_script_caracteristics;
 

@@ -307,7 +307,6 @@ void enet_manager(ENetHost *server)
                 net_links[net_link_id].type = type;
 
                 number_of_net_links++; /* Ce nom de lien n'a pas ete trouvé */
-
               }
 
             }
@@ -334,9 +333,7 @@ void enet_manager(ENetHost *server)
           }
           script_update_display(script);
 
-          //     if((first_call<3) && load_temporary_save == TRUE && (access("./pandora.pandora", R_OK) == 0))
           if (load_temporary_save == TRUE && (access("./pandora.pandora", R_OK) == 0)) pandora_file_load_script("./pandora.pandora", script);
-          //else if((first_call<3) && (access(preferences_filename, R_OK) == 0))
           else if (access(preferences_filename, R_OK) == 0) pandora_file_load_script(preferences_filename, script);
           script_caracteristics(scripts[script->id], APPLY_SCRIPT_GROUPS_CARACTERISTICS);
           enet_packet_destroy(event.packet);
@@ -354,11 +351,9 @@ void enet_manager(ENetHost *server)
 
           group = &script->groups[group_id];
 
-          /* printf("RTT: %i\n", event.peer->lastRoundTripTime); */
           //Réception du paquet
           memcpy(group->neurons, event.packet->data, sizeof(type_neurone) * number_of_neurons);
 
-          // gdk_threads_enter();
 
           if (group->selected_for_save == 1 && saving_press == 1)
           {
@@ -366,28 +361,14 @@ void enet_manager(ENetHost *server)
             continuous_saving(group);
 
           }
-          //gdk_threads_leave();
           group->counter++;
           group->refresh_freq = TRUE;
-          // pthread_mutex_lock(&mutex_script_caracteristics);
-          //if((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && group->drawing_area != NULL && group->widget != NULL)
           if ((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
           {
             group->refresh_freq = TRUE;
-            //printf("affich inet\n");
-            //printf("semi auto: %d Auto: %d",id_semi_automatic,refresh_timer_id);
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
 
-            /*
-             pthread_mutex_lock(&mutex_copy_arg_group_display);
-             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
-             pthread_mutex_unlock(&mutex_copy_arg_group_display);
-             */
-            //gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[group->idDisplay]->drawing_area));
-            //gtk_widget_queue_draw (GTK_WIDGET(group->widget));
           }
-          //group_expose_neurons(group, TRUE, TRUE);
-          // pthread_mutex_unlock(&mutex_script_caracteristics);
           enet_packet_destroy(event.packet);
           break;
 
@@ -397,11 +378,11 @@ void enet_manager(ENetHost *server)
           current_data = &current_data[sizeof(int)];
 
           if (script == NULL) break;
-          if (script->groups == NULL || script->groups == 0x0) break; // securité
+          if (script->groups == NULL || script->groups == 0x0) break; /* securité */
           group = &script->groups[group_id];
-          if (group->ok != TRUE) break; //sécurité
+          if (group->ok != TRUE) break; /*sécurité*/
 
-          if (group->ext == NULL) //Th first time we allocate the data to receive images
+          if (group->ext == NULL) /*The first time we allocate the data to receive images*/
           {
             prom_images = ALLOCATION(prom_images_struct);
             memcpy(prom_images, current_data, sizeof(prom_images_struct));
@@ -426,27 +407,14 @@ void enet_manager(ENetHost *server)
             current_data = &current_data[image_size];
           }
 
-          // Clean up the packet now that we're done using it.
           group->counter++;
-
-          //pthread_mutex_lock(&mutex_script_caracteristics);
           group->refresh_freq = TRUE;
           if ((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
           {
             group->refresh_freq = TRUE;
 
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
-
-            /*
-             pthread_mutex_lock(&mutex_copy_arg_group_display);
-             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
-             pthread_mutex_unlock(&mutex_copy_arg_group_display);
-             */
-            //gtk_widget_queue_draw(GTK_WIDGET(groups_to_display[group->idDisplay]->drawing_area));
-            // group_expose_neurons(group, TRUE, TRUE);
           }
-
-          //  pthread_mutex_unlock(&mutex_script_caracteristics);
 
           enet_packet_destroy(event.packet);
           break;
@@ -491,30 +459,11 @@ void enet_manager(ENetHost *server)
           if (diff(group->stats.first_time, time) > 2000000)
           {
             // affichage
-            // printf("on rentre dans l'affichage\n");
             group->stats.initialiser = TRUE;
             sprintf(group->stats.message, "%ld", (group->stats.nb_executions > 0 ? group->stats.somme_temps_executions / group->stats.nb_executions : 0));
-            /*
-             gdk_threads_enter();
-             architecture_display_update_group(architecture_display, group); //TODO : fait partie de la grande verif des affichage à modifier
-             //send_info_to_top(group);
-             gdk_threads_leave();
-             */
 
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw_archi, NULL, NULL);
-            /*attente que la copie du groupes soit bien réalisé coté architecture_display_update_group*/
-            /*
-             pthread_mutex_lock(&mutex_copy_arg_group_display);
-             pthread_cond_wait(&cond_copy_arg_group_display, &mutex_copy_arg_group_display);
-             pthread_mutex_unlock(&mutex_copy_arg_group_display);
-             */
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) send_info_to_top, (gpointer) (&(scripts[script->id]->groups[group_id])), NULL);
-            /*attente que la copie du groupes soit bien réalisé coté send_info_to_top*/
-            /*
-             pthread_mutex_lock(&mutex_copy_arg_top);
-             pthread_cond_wait(&cond_copy_arg_top, &mutex_copy_arg_top);
-             pthread_mutex_unlock(&mutex_copy_arg_top);
-             */
           }
 
           enet_packet_destroy(event.packet);
