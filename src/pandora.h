@@ -8,7 +8,7 @@
 
 #ifndef PANDORA_H
 #define PANDORA_H
-#define ETIS	//À commenter quand on n'est pas à l'ETIS
+#define ETIS	//������ commenter quand on n'est pas ������ l'ETIS
 //------------------------------------------------BIBLIOTHEQUES------------------------------------------------------
 
 #include "common.h"
@@ -21,32 +21,32 @@
 
 #define COLOR_MAX 7
 
-//Si ces limites se révèlent trop restrictives (ou trop larges), éditer les valeurs de cette rubrique
-#define NB_WINDOWS_MAX 30 //Nombre maximal de petites fenêtres affichables dans le bandeau du bas
-#define NB_ROWS_MAX 4 //Nombre maximal de lignes de petites fenêtres affichant des neurones
-#define NB_BUFFERED_MAX 100 //Nombre maximal d'instantanés stockés
+//Si ces limites se r������v������lent trop restrictives (ou trop larges), ������diter les valeurs de cette rubrique
+#define NB_WINDOWS_MAX 30 //Nombre maximal de petites fen������tres affichables dans le bandeau du bas
+#define NB_ROWS_MAX 4 //Nombre maximal de lignes de petites fen������tres affichant des neurones
+#define NB_BUFFERED_MAX 100 //Nombre maximal d'instantan������s stock������s
 #define NB_PLANES_MAX 7
-//Le nombre maximal de plans affichables simultanément dans la zone 3D est limité à 7. Cette limite là est un peu plus
-//compliquée à modifier car il faudrait définir de nouvelles couleurs pour chaque valeur de z > 6.
-//De toute façon, 8 plans superposés seraient difficilement lisibles (7, déjà...).
+//Le nombre maximal de plans affichables simultan������ment dans la zone 3D est limit������ ������ 7. Cette limite l������ est un peu plus
+//compliqu������e ������ modifier car il faudrait d������finir de nouvelles couleurs pour chaque valeur de z > 6.
+//De toute fa������on, 8 plans superpos������s seraient difficilement lisibles (7, d������j������...).
 
-#define SCRIPT_NAME_MAX 30 //Longueur maximale (en caractères) du nom d'un script
+#define SCRIPT_NAME_MAX 30 //Longueur maximale (en caract������res) du nom d'un script
 #define GROUP_NAME_MAX 30
 
-#define IP_LENGTH_MAX 16  //Une adresse IPv4 comporte 15 caractères, + 1 pour le '\0' final
+#define IP_LENGTH_MAX 16  //Une adresse IPv4 comporte 15 caract������res, + 1 pour le '\0' final
 #define SCRIPT_LINKS_MAX 128
 
 //-------------------------------------------------CONSTANTES----------------------------------------------------------
 
-#define MESSAGE_MAX 256 //Utilisé par la fonction fatal_error dans pandora.c
+#define MESSAGE_MAX 256 //Utilis������ par la fonction fatal_error dans pandora.c
 #define SHOWCOLOR_SIZE 20
-#define GRID_WIDTH 0.2 //Épaisseur des lignes de la grille
-#define RECEPTION_DELAY 2 //Délai (en secondes) pendant lequel Pandora attend les scripts qu'il a demandé
-//Dimension du rectangle représentant un groupe
+#define GRID_WIDTH 0.2 //������paisseur des lignes de la grille
+#define RECEPTION_DELAY 2 //D������lai (en secondes) pendant lequel Pandora attend les scripts qu'il a demand������
+//Dimension du rectangle repr������sentant un groupe
 #define LARGEUR_GROUPE 96
 #define HAUTEUR_GROUPE 40
 
-//Échelles par défaut
+//������chelles par d������faut
 #define REFRESHSCALE_DEFAULT 30
 #define XSCALE_DEFAULT 128
 #define XSCALE_MIN 10
@@ -56,7 +56,7 @@
 #define YSCALE_MAX 350
 #define XGAP_DEFAULT 32
 #define YGAP_DEFAULT 24
-#define DIGITS_DEFAULT 4 //Nombre de caractères pour afficher les valeurs d'un neurone
+#define DIGITS_DEFAULT 4 //Nombre de caract������res pour afficher les valeurs d'un neurone
 #define LABEL_MAX 128
 
 #define GRAPH_HEIGHT 160
@@ -140,24 +140,24 @@ typedef struct type_para_neuro {
 typedef struct group {
   int id;
   struct script *script;
-  char name[SIZE_NO_NAME]; //TODO réduire le 1024... ne sert à rien
+  char name[SIZE_NO_NAME]; //TODO r������duire le 1024... ne sert ������ rien
   char function[TAILLE_CHAINE];
   int number_of_neurons;
   int rows;
   int columns;
   type_neurone *neurons; //Tableau des neurones du groupe
-  type_para_neuro *param_neuro_pandora; //Tableau des parametre supplémentaire associés aux neuronnes.
+  type_para_neuro *param_neuro_pandora; //Tableau des parametre suppl������mentaire associ������s aux neuronnes.
 
   int x, y, calculate_x;
   int is_in_a_loop, is_currently_in_a_loop;
-  gboolean knownX; //TRUE si la coordonnée x est connue
+  gboolean knownX; //TRUE si la coordonn������e x est connue
   gboolean knownY;
   int number_of_links;
   int number_of_links_second;
   struct group **previous; //Adresses des groupes ayant des liaisons vers celui-ci
   struct group **previous_second; //Adresses des groupes ayant des liaisons secondaires vers celui-ci
 
-  int firstNeuron; ///Numéro du premier neurone de ce groupe dans le grand tableau de tous les neurones du script
+  int firstNeuron; ///Num������ro du premier neurone de ce groupe dans le grand tableau de tous les neurones du script
   int nb_update_since_next;
   float val_min, val_max;
   void *widget, *drawing_area, *label;
@@ -167,15 +167,15 @@ typedef struct group {
   int output_display, display_mode, previous_display_mode, previous_output_display;
   int normalized, image_selected_index;
 
-  /// enregistrement des valeurs S, S1 et S2, utilisées pour tracer le graphe. [ligne][colonne][s(0), s1(1) ou s2(2)][numValeur]
+  /// enregistrement des valeurs S, S1 et S2, utilis������es pour tracer le graphe. [ligne][colonne][s(0), s1(1) ou s2(2)][numValeur]
   float ****tabValues;
   int **indexDernier, **indexAncien;
   GtkWidget *button_vbox;
-  int **afficher; // utilisé pour le mode big graph uniquement.
+  int **afficher; // utilis������ pour le mode big graph uniquement.
   data_courbe *courbes;
   int number_of_courbes;
 
-  /// variables utilisées pour la fréquence moyenne
+  /// variables utilis������es pour la fr������quence moyenne
   float frequence_values[FREQUENCE_MAX_VALUES_NUMBER];
   int frequence_index_last, frequence_index_older;
 
@@ -198,7 +198,7 @@ typedef struct group {
   float neurons_width;
   float neurons_height;
 
-  // variables utilisées pour le calcul du taux d'activité de chaque groupe.
+  // variables utilis������es pour le calcul du taux d'activit������ de chaque groupe.
   stat_group_execution stats;
   int x_event;
   int y_event;
@@ -232,7 +232,7 @@ typedef struct script_link {
   int type;
 } type_script_link;
 
-/* En-tête de Variables Globales */
+/* En-t������te de Variables Globales */
 
 extern char bus_id[BUS_ID_MAX];
 extern double start_time; /* time of start in seconds */
@@ -241,29 +241,29 @@ extern pthread_mutex_t mutex_script_caracteristics;
 
 extern int period;
 extern gboolean load_temporary_save;
-extern char preferences_filename[PATH_MAX]; //fichier de préférences (*.jap)
+extern char preferences_filename[PATH_MAX]; //fichier de pr������f������rences (*.jap)
 extern int stop; // continue l'enregistrement pour le graphe ou non.
 extern gboolean calculate_executions_times;
 
-extern int number_of_scripts; //Nombre de scripts à afficher
+extern int number_of_scripts; //Nombre de scripts ������ afficher
 char scriptsNames[NB_SCRIPTS_MAX][SCRIPT_NAME_MAX]; //Tableau des noms des scripts
-extern type_script *scripts[NB_SCRIPTS_MAX]; //Tableau des scripts à afficher
-extern int newScriptNumber; //Numéro donné à un script quand on l'ouvre
+extern type_script *scripts[NB_SCRIPTS_MAX]; //Tableau des scripts ������ afficher
+extern int newScriptNumber; //Num������ro donn������ ������ un script quand on l'ouvre
 extern int zMax; //la plus grande valeur de z parmi les scripts ouverts
-extern int buffered; //Nombre d'instantanés actuellement en mémoire
+extern int buffered; //Nombre d'instantan������s actuellement en m������moire
 
 extern int usedWindows;
-extern type_group *selected_group; //Pointeur sur le groupe actuellement sélectionné
-extern int selectedWindow; //Numéro de la fenêtre sélectionnée (entre 0 et NB_WINDOWS_MAX-1). NB_WINDOWS_MAX indique qu'aucune fenêtre n'est sélectionnée
+extern type_group *selected_group; //Pointeur sur le groupe actuellement s������lectionn������
+extern int selectedWindow; //Num������ro de la fen������tre s������lectionn������e (entre 0 et NB_WINDOWS_MAX-1). NB_WINDOWS_MAX indique qu'aucune fen������tre n'est s������lectionn������e
 
 extern GtkWidget *pHBox2; //Panneau des neurones
-extern GtkWidget *pFrameNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de petites fenêtres pour les neurones
-extern GtkWidget *zoneNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de zones où dessiner des neurones
-extern type_group *windowGroup[NB_WINDOWS_MAX]; //Adresse des groupe affiché dans la zoneNeurones de même indice
-extern int windowValue[NB_WINDOWS_MAX]; //Numéro disant quelle valeur des neurones du groupe il faut afficher dans la fenêtre de même indice (0 : s, 1 : s1, 2 : s2, 3 : pic)
+extern GtkWidget *pFrameNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de petites fen������tres pour les neurones
+extern GtkWidget *zoneNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de zones o������ dessiner des neurones
+extern type_group *windowGroup[NB_WINDOWS_MAX]; //Adresse des groupe affich������ dans la zoneNeurones de m������me indice
+extern int windowValue[NB_WINDOWS_MAX]; //Num������ro disant quelle valeur des neurones du groupe il faut afficher dans la fen������tre de m������me indice (0 : s, 1 : s1, 2 : s2, 3 : pic)
 
-extern int nbColonnesTotal; //Nombre total de colonnes de neurones dans les fenêtres du bandeau du bas
-extern int nbLignesMax; //Nombre maximal de lignes de neurones à afficher dans l'une des fenêtres du bandeau du bas
+extern int nbColonnesTotal; //Nombre total de colonnes de neurones dans les fen������tres du bandeau du bas
+extern int nbLignesMax; //Nombre maximal de lignes de neurones ������ afficher dans l'une des fen������tres du bandeau du bas
 extern type_group *groups_to_display[NB_WINDOWS_MAX];
 extern int number_of_groups_to_display;
 
@@ -289,6 +289,8 @@ extern gboolean draw_links_info;
 extern pthread_t new_window_thread;
 extern type_group *open_group;
 extern GtkWidget *compress_button;
+
+extern gint format_mode;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_pandora(int argc, char** argv);
@@ -322,9 +324,9 @@ void init_script(type_script *s, char *name, char *machine, int z, int nbGroups,
 void new_neuron(int script_id);
 void destroyAllScripts();
 void group_init(type_group *g, int group_id, type_script *myScript, char *name, char *function, float learningSpeed, int nbNeurons, int rows, int columns, int nbLinksTo);
-//Mise un jour d'un neurone quand Prométhé envoie de nouvelles données
+//Mise un jour d'un neurone quand Prom������th������ envoie de nouvelles donn������es
 void neuron_update(type_neurone *n, float s, float s1, float s2, float pic);
-//Mise un jour d'un groupe quand Prométhé envoie de nouvelles données
+//Mise un jour d'un groupe quand Prom������th������ envoie de nouvelles donn������es
 void updateGroup(type_group *g, float learningSpeed, float execTime);
 
 void script_update_display(type_script *script);
@@ -357,6 +359,9 @@ gboolean neurons_display_refresh_when_semi_automatic();
 void zoom_out(GdkDevice *pointer);
 void zoom_in(GdkDevice *pointer);
 void phases_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData);
+void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData);
 void on_group_display_clicked(GtkButton *button, type_group *group);
 void on_button_draw_links_info_pressed(GtkToggleButton *pWidget, gpointer pData);
+void format_combo_box_changed(GtkComboBox *comboBox, gpointer data);
+
 #endif

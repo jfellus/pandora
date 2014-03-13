@@ -2,7 +2,7 @@
  * pandora_save.h
  *
  *  Created on: 2 juil. 2013
- *      Author: Nils Beaussé
+ *      Author: Nils Beauss��
  **/
 
 #include "pandora_save.h"
@@ -30,15 +30,15 @@ void destroy_saving_ref(type_script *scripts_used[NB_SCRIPTS_MAX])
       {
         fclose(scripts_used[indScript]->groups[indGroup].associated_file);
         scripts_used[indScript]->groups[indGroup].associated_file = NULL;
-        scripts_used[indScript]->groups[indGroup].on_saving = 0; //par sécurité mais normalement c'est fait ailleurs.
+        scripts_used[indScript]->groups[indGroup].on_saving = 0; //par s��curit�� mais normalement c'est fait ailleurs.
       }
     }
   }
 }
 
-//TODO : ces deux fonctions peuvent etre mergé en une avec les arguments adéquats.
+//TODO : ces deux fonctions peuvent etre merg�� en une avec les arguments ad��quats.
 
-// Ferme les fichiers associé à un script lors de sa cloture.
+// Ferme les fichiers associ�� �� un script lors de sa cloture.
 void destroy_saving_ref_one(type_script* script_used)
 {
   int N = 0;
@@ -50,15 +50,15 @@ void destroy_saving_ref_one(type_script* script_used)
     if (script_used->groups[indGroup].on_saving == 1)
     {
       fclose(script_used->groups[indGroup].associated_file);
-      printf("\n\nCloture du fichier associé à %s\n\n", script_used->groups[indGroup].name);
-      script_used->groups[indGroup].on_saving = 0; //par sécurité mais normalement c'est fait ailleurs.
+      printf("\n\nCloture du fichier associ�� �� %s\n\n", script_used->groups[indGroup].name);
+      script_used->groups[indGroup].on_saving = 0; //par s��curit�� mais normalement c'est fait ailleurs.
     }
 
   }
 
 }
 
-// Créé le fichier de sauvegarde
+// Cr���� le fichier de sauvegarde
 void file_create(type_group *used_group)
 {
   char file_path_ori[MAX_LENGHT_PATHNAME] = "";
@@ -76,7 +76,7 @@ void file_create(type_group *used_group)
   strcat(file_path, "_");
   strcat(file_path, used_group->script->name);
 
-  //on test si un fichier a cet emplacement existe déja
+  //on test si un fichier a cet emplacement existe d��ja
   strcpy(file_path_ori, file_path);
   do // fonctionne mais peut bugger si il fait trop de fois la boucle
   {
@@ -105,10 +105,10 @@ void file_create(type_group *used_group)
   if (used_group->associated_file != NULL )
   {
     used_group->on_saving = 1;
- //   fprintf(used_group->associated_file, "%d\n%d\n", used_group->rows, used_group->columns);
+    if (format_mode == 0) fprintf(used_group->associated_file, "%d\n%d\n", used_group->rows, used_group->columns);
 
     gtk_widget_queue_draw(architecture_display);
-    //architecture_display_update(architecture_display,NULL); // pour remettre à jour l'affichage quand les groupes sont on saving
+    //architecture_display_update(architecture_display,NULL); // pour remettre �� jour l'affichage quand les groupes sont on saving
 
   }
   else
@@ -119,7 +119,7 @@ void file_create(type_group *used_group)
   }
 }
 
-// Sauvegarde le groupe en cours : TODO : pour l'instant la valeur s1 uniquement est sauvegarder, il reste à faire une fenetre de configuration de la sauvegarde pour savoir quelle valeur de neuronne utiliser.
+// Sauvegarde le groupe en cours : TODO : pour l'instant la valeur s1 uniquement est sauvegarder, il reste �� faire une fenetre de configuration de la sauvegarde pour savoir quelle valeur de neuronne utiliser.
 void continuous_saving(type_group *group)
 {
 
@@ -130,7 +130,7 @@ void continuous_saving(type_group *group)
   incrementation = group->number_of_neurons / (group->columns * group->rows); /* Microneurones */
   setlocale(LC_NUMERIC, "C");
 
-  if (group->on_saving == 0) // Si le groupe n'est pas déja en train de se sauvegarder alors on doit creer le nom de fichier
+  if (group->on_saving == 0) // Si le groupe n'est pas d��ja en train de se sauvegarder alors on doit creer le nom de fichier
   {
     file_create(group);
   }
@@ -141,7 +141,7 @@ void continuous_saving(type_group *group)
     time = time_stamp.tv_sec + (double)time_stamp.tv_usec / 1000000. - start_time;
     /* if vector */
 
-    if (group->rows == 1 || group->columns == 1)
+    if (format_mode == 1)
     {
       fprintf(group->associated_file, "%lf", time);
       for (i = 0; i < group->rows; i++)
@@ -152,7 +152,7 @@ void continuous_saving(type_group *group)
       fprintf(group->associated_file, "\n");
 
     }
-    else /* Sauvegarde 2D */
+    else if(format_mode == 0)/* Sauvegarde 2D */
     {
       /* Pour python */
       fprintf(group->associated_file, "#Time: %lf\n", time);
