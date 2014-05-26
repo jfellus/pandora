@@ -14,9 +14,12 @@
 #define NB_DIGITS 7
 #define TEXT_LINE_HEIGHT 12
 
-/** Contient les fonctions, variables et evenements associ��s �� la zone nom��e neurons_frame,
+const GdkRGBA colors[] = {{LIGHTGREEN}, {LIGHTMAGENTA}, {DARKYELLOW}, {LIGHTBLUE}, {LIGHTRED}, {LIGHTORANGE}, {LIGHTANISE}};
+
+
+/** Contient les fonctions, variables et evenements associ������s ������ la zone nom������e neurons_frame,
  zone d'affichage des groupes de neuronne
- Contient ��galement les fonctions de dessins globale et �� partager avec pandora_architecture,
+ Contient ������galement les fonctions de dessins globale et ������ partager avec pandora_architecture,
  ceci afin de creer un nouveau fichier ne contenant que peu de chose**/
 
 /* Variables Globales pour ce fichier*/
@@ -97,10 +100,10 @@ void graph_get_line_color(int num, float *r, float *g, float *b)
 }
 
 /**
- *  Affiche les neurones d'une petite fen��tre
+ *  Affiche les neurones d'une petite fen������tre
  */
 
-//transfere les arguments de la structure argument pass��e en parametre a la fonction group_display_new, ��vite de reccreer une fonction.
+//transfere les arguments de la structure argument pass������e en parametre a la fonction group_display_new, ������vite de reccreer une fonction.
 gboolean group_display_new_threaded(gpointer data)
 {
   new_group_argument* argument_recup = NULL;
@@ -110,7 +113,7 @@ gboolean group_display_new_threaded(gpointer data)
   GtkWidget *zone_neuron = NULL;
   gboolean blocked = FALSE;
 
-  //R��cuperation des donn��es.
+  //R������cuperation des donn������es.
   argument_recup = (new_group_argument*) data;
   positionx = argument_recup->posx;
   positiony = argument_recup->posy;
@@ -124,7 +127,7 @@ gboolean group_display_new_threaded(gpointer data)
   pthread_mutex_unlock(&mutex_script_caracteristics);
 
   //pthread_mutex_lock (&mutex_loading);
-  //On signal au programme ayant appel�� que cette appel est termin�� et qu'il peut donc continuer
+  //On signal au programme ayant appel������ que cette appel est termin������ et qu'il peut donc continuer
   free(argument_recup);
   if (blocked)
   {
@@ -136,7 +139,7 @@ gboolean group_display_new_threaded(gpointer data)
   return FALSE;
 }
 
-/**Cette fonction est appel�� par l'evenement draw de chaque groupe affich��s et permet de les raffraichir si besoin**/
+/**Cette fonction est appel������ par l'evenement draw de chaque groupe affich������s et permet de les raffraichir si besoin**/
 gboolean group_expose_refresh(GtkWidget *widget, cairo_t *cr, gpointer user_data)
 {
   gboolean ref_freq = FALSE;
@@ -162,7 +165,7 @@ void group_update_frequence_values(type_group *group)
   float time = g_timer_elapsed(group->timer, NULL);
   g_timer_start(group->timer);
 
-  // calcul de la fr��quence moyenne bas��e sur les FREQUENCE_MAX_VALUES_NUMBER derni��res it��rations.
+  // calcul de la fr������quence moyenne bas������e sur les FREQUENCE_MAX_VALUES_NUMBER derni������res it������rations.
   if (group->frequence_index_last == -1)
   {
     group->frequence_index_last = group->frequence_index_older = 0;
@@ -227,14 +230,14 @@ void draw_big_graph(type_group *group, cairo_t *cr, float frequence)
 
   for (i = 0; i < group->number_of_courbes; i++)
   {
-    // trace la droite d'��quation y=0.
+    // trace la droite d'������quation y=0.
     cairo_set_source_rgba(cr, BLACK);
     cairo_rectangle(cr, 1, coordonneeYZero(min, max, hauteur) + 0.5, largeur - 2, 0.5);
     cairo_fill(cr);
 
-    if (group->courbes[i].show == TRUE) // si il faut tracer la courbe pour ce neurone, l'ex��cution continue.
+    if (group->courbes[i].show == TRUE) // si il faut tracer la courbe pour ce neurone, l'ex������cution continue.
     {
-      // application de la couleur associ��e �� la courbe.
+      // application de la couleur associ������e ������ la courbe.
       graph_get_line_color(i, &r, &g, &b);
       cairo_set_source_rgba(cr, r, g, b, 1);
 
@@ -242,7 +245,7 @@ void draw_big_graph(type_group *group, cairo_t *cr, float frequence)
       indexDernier = group->courbes[i].last_index;
       values = group->courbes[i].values;
 
-      // trace la courbe (les point sont reli��s).
+      // trace la courbe (les point sont reli������s).
       indexTmp = indexDernier;
       tmp = 0;
       k = 0;
@@ -278,9 +281,9 @@ void update_graph_data(type_group *group)
       indexDernier = group->indexDernier[j][u / incrementation];
       indexAncien = group->indexAncien[j][u / incrementation];
 
-      // ajout de la derni��re valeur au tableau des valeurs utilis�� pour tracer le graphe.
+      // ajout de la derni������re valeur au tableau des valeurs utilis������ pour tracer le graphe.
 
-      // si aucune valeur enregistr��e, initialisation du tableau.
+      // si aucune valeur enregistr������e, initialisation du tableau.
       if (indexDernier == -1)
       {
         indexDernier = indexAncien = 0;
@@ -291,7 +294,7 @@ void update_graph_data(type_group *group)
           values[2][k] = group->neurons[i + j * group->columns * incrementation].s2;
         }
       }
-      // si le tableau est plein, remplacement de la valeur la plus ancienne par la valeur �� ajouter. l'enregistrement des valeurs est similaire �� une file circulaire.
+      // si le tableau est plein, remplacement de la valeur la plus ancienne par la valeur ������ ajouter. l'enregistrement des valeurs est similaire ������ une file circulaire.
       else if (indexAncien == indexDernier + 1 || (indexDernier == NB_Max_VALEURS_ENREGISTREES - 1 && indexAncien == 0))
       {
         if (indexDernier == NB_Max_VALEURS_ENREGISTREES - 1)
@@ -313,7 +316,7 @@ void update_graph_data(type_group *group)
         values[1][indexDernier] = group->neurons[i + j * group->columns * incrementation].s1;
         values[2][indexDernier] = group->neurons[i + j * group->columns * incrementation].s2;
       }
-      // si le tableau n'est pas plein, ajout de la valeur �� la suite des valeurs d��ja pr��sentes.
+      // si le tableau n'est pas plein, ajout de la valeur ������ la suite des valeurs d������ja pr������sentes.
       else
       {
         indexDernier++;
@@ -344,7 +347,7 @@ void update_big_graph_data(type_group *group)
     indexAncien = group->courbes[l].old_index;
     indexDernier = group->courbes[l].last_index;
 
-    // si aucune valeur enregistr��e, initialisation du tableau.
+    // si aucune valeur enregistr������e, initialisation du tableau.
     if (indexDernier == -1)
     {
       indexDernier = indexAncien = 0;
@@ -355,7 +358,7 @@ void update_big_graph_data(type_group *group)
         values[2][k] = group->neurons[column + line * group->columns * incrementation].s2;
       }
     }
-    // si le tableau est plein, remplacement de la valeur la plus ancienne par la valeur �� ajouter. l'enregistrement des valeurs est similaire �� une file circulaire.
+    // si le tableau est plein, remplacement de la valeur la plus ancienne par la valeur ������ ajouter. l'enregistrement des valeurs est similaire ������ une file circulaire.
     else if (indexAncien == indexDernier + 1 || (indexDernier == NB_Max_VALEURS_ENREGISTREES - 1 && indexAncien == 0))
     {
       if (indexDernier == NB_Max_VALEURS_ENREGISTREES - 1)
@@ -377,7 +380,7 @@ void update_big_graph_data(type_group *group)
       values[1][indexDernier] = group->neurons[column + line * group->columns * incrementation].s1;
       values[2][indexDernier] = group->neurons[column + line * group->columns * incrementation].s2;
     }
-    // si le tableau n'est pas plein, ajout de la valeur �� la suite des valeurs d��ja pr��sentes.
+    // si le tableau n'est pas plein, ajout de la valeur ������ la suite des valeurs d������ja pr������sentes.
     else
     {
       indexDernier++;
@@ -466,7 +469,7 @@ void zoom_neurons(type_group* group, gboolean direction, float *final_height, fl
     *final_width = 40.0 / (float) group->columns;
   }
 
-  if (abs((int) (*final_height * (float) group->rows - *final_width * (float) group->columns)) < 20) // Si on est pas dans un cas sp��cial on peut mettre les neuronne au format carr��
+  if (abs((int) (*final_height * (float) group->rows - *final_width * (float) group->columns)) < 20) // Si on est pas dans un cas sp������cial on peut mettre les neuronne au format carr������
   {
     if (*final_height > *final_width) *final_height = *final_width;
     if (*final_height < *final_width) *final_width = *final_height;
@@ -514,14 +517,14 @@ float rectifi_pallier(float ideal_neuro)
   //test de bonne utilisation de la fonction
   if (ideal_neuro > 0.0)
   {
-    // si on est au dela de 20 on va de 10 en 10 donc remise du retour �� la dixaine inf��rieure
+    // si on est au dela de 20 on va de 10 en 10 donc remise du retour ������ la dixaine inf������rieure
     if (ideal_neuro > 20.0)
     {
       retour = ideal_neuro / 10.0;
       retour = (float) floor(retour);
       retour = retour * 10;
     }
-    //sinon on va de 2 en 2 donc on commence par en faire un int �� l'unit�� inf��rieur puis on le ramene �� un chiffre pair (inf��rieur d'une unit��)
+    //sinon on va de 2 en 2 donc on commence par en faire un int ������ l'unit������ inf������rieur puis on le ramene ������ un chiffre pair (inf������rieur d'une unit������)
     else if (ideal_neuro >= 2.0)
     {
       retour = (float) floor(ideal_neuro);
@@ -534,7 +537,7 @@ float rectifi_pallier(float ideal_neuro)
     {
       retour = 1;
     }
-    // en dessous de 1 et sup��rieur �� 0 on garde le float trouv��;
+    // en dessous de 1 et sup������rieur ������ 0 on garde le float trouv������;
     else retour = ideal_neuro;
   }
   else
@@ -554,7 +557,7 @@ void determine_ideal_length(type_group* group, float* largeur, float* hauteur)
   float ideal_largeur_neuro = 0.0;
   float ideal_hauteur_neuro = 0.0;
 
-  //On ��tablis des cran sur l'apparence g��nerale comme utilis�� avant
+  //On ������tablis des cran sur l'apparence g������nerale comme utilis������ avant
   if (column == 0) ideal_largeur = 40;
   if (column == 1) ideal_largeur = 100;
   else if (column <= 16) ideal_largeur = 300;
@@ -569,11 +572,11 @@ void determine_ideal_length(type_group* group, float* largeur, float* hauteur)
   else if (rows <= 256) ideal_hauteur = 700;
   else ideal_hauteur = 1000;
 
-  // on en d��duit la largeur et la hauteur des neuronnes
+  // on en d������duit la largeur et la hauteur des neuronnes
   ideal_largeur_neuro = ((float) ideal_largeur) / ((float) column);
   ideal_hauteur_neuro = ((float) ideal_hauteur) / ((float) rows);
 
-  // on remet les neuronnes en carr�� en prenant le plus petit si on est dans un cas classique
+  // on remet les neuronnes en carr������ en prenant le plus petit si on est dans un cas classique
   if (ideal_largeur_neuro >= 1.0 && ideal_hauteur_neuro >= 1)
   {
     if (ideal_hauteur_neuro < ideal_largeur_neuro) ideal_largeur_neuro = ideal_hauteur_neuro;
@@ -620,7 +623,7 @@ gboolean button_press_neurons(GtkWidget *widget, GdkEvent *event, type_group *gr
     move_neurons_old_y = event_button->y;
     move_neurons_start = TRUE;
     move_neurons_group = group;
-    selected_group = group; //Le groupe associ�� �� la fen��tre dans laquelle on a cliqu�� est ��galement s��lectionn��
+    selected_group = group; //Le groupe associ������ ������ la fen������tre dans laquelle on a cliqu������ est ������galement s������lectionn������
     if (event_button->type == GDK_2BUTTON_PRESS) on_group_display_clicked(NULL, group); //Affichage de la petite fenetre etc.. (?)
     break;
 
@@ -671,7 +674,7 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   for (i = 0; i < FREQUENCE_MAX_VALUES_NUMBER; i++)
     group->frequence_values[i] = -1;
 
-//Cr��ation de la petite fen��tre
+//Cr������ation de la petite fen������tre
   group->widget = gtk_aspect_frame_new("", 0, 0, 1, TRUE);
   gtk_widget_set_double_buffered(group->widget, TRUE);
   hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -774,7 +777,7 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   g_signal_connect(G_OBJECT(group->drawing_area), "scroll-event", G_CALLBACK(neuron_zooming), group);
   g_signal_connect(G_OBJECT(group->widget), "button-press-event", G_CALLBACK(button_press_neurons), group);
 
-  //g_signal_connect(G_OBJECT(group->widget), "draw", G_CALLBACK(group_expose_refresh), group); //TODO : supprimer si aucun bug �� long terme
+  //g_signal_connect(G_OBJECT(group->widget), "draw", G_CALLBACK(group_expose_refresh), group); //TODO : supprimer si aucun bug ������ long terme
   g_signal_connect(G_OBJECT(group->drawing_area), "draw", G_CALLBACK(group_expose_refresh), group); //semble fonctionner plutot bien
   g_signal_connect(G_OBJECT(group->drawing_area), "button-press-event", G_CALLBACK(button_press_on_neuron), group);
   g_signal_connect(G_OBJECT(group->drawing_area), "button-release-event", G_CALLBACK(button_release_on_neuron), group);
@@ -811,7 +814,7 @@ void group_display_destroy(type_group *group)
   {
     if (groups_to_display[i] == group)
     {
-      /* Le group en cours est remplac�� par le dernier group de la liste qui ne sera plus pris en compte */
+      /* Le group en cours est remplac������ par le dernier group de la liste qui ne sera plus pris en compte */
       groups_to_display[i] = groups_to_display[number_of_groups_to_display - 1];
       number_of_groups_to_display--;
       group->ok_display = FALSE;
@@ -832,93 +835,6 @@ void group_display_destroy(type_group *group)
   group->ok_display = FALSE;
   group->from_file = FALSE;
 
-}
-
-const char* tcolor(type_script *script)
-{
-  switch (script->color)
-  {
-  case 0:
-    return TDARKGREEN;
-  case 1:
-    return TDARKMAGENTA;
-  case 2:
-    return TDARKYELLOW;
-  case 3:
-    return TDARKBLUE;
-  case 4:
-    return TDARKCYAN;
-  case 5:
-    return TDARKORANGE;
-  case 6:
-    return TDARKGREY;
-  default:
-    return TCOBALT;
-  }
-}
-
-/**
- * Donne au pinceau la couleur fonc��e correspondant �� une certaine valeur de z
- */
-void color(cairo_t *cr, type_group *group)
-{
-  switch (group->script->color)
-//La couleur d'un groupe ou d'une liaison d��pend du plan dans lequel il/elle se trouve
-  {
-  case 0:
-    cairo_set_source_rgba(cr, LIGHTGREEN);
-    break;
-  case 1:
-    cairo_set_source_rgba(cr, LIGHTMAGENTA);
-    break;
-  case 2:
-    cairo_set_source_rgba(cr, DARKYELLOW);
-    break;
-  case 3:
-    cairo_set_source_rgba(cr, LIGHTBLUE);
-    break;
-  case 4:
-    cairo_set_source_rgba(cr, LIGHTRED);
-    break;
-  case 5:
-    cairo_set_source_rgba(cr, LIGHTORANGE);
-    break;
-  case 6:
-    cairo_set_source_rgba(cr, LIGHTANISE);
-    break;
-  }
-}
-
-/**
- * Donne au pinceau la couleur claire correspondant �� une certaine valeur de z
- */
-void clearColor(cairo_t *cr, type_group group)
-{
-  switch (group.script->z)
-//La couleur d'un groupe ou d'une liaison d��pend du plan dans lequel il/elle se trouve
-  {
-  case 0:
-    cairo_set_source_rgba(cr, GREEN);
-    break;
-  case 1:
-    cairo_set_source_rgba(cr, MAGENTA);
-    break;
-  case 2:
-    cairo_set_source_rgba(cr, YELLOW);
-    break;
-  case 3:
-    cairo_set_source_rgba(cr, BLUE);
-    break;
-  case 4:
-    cairo_set_source_rgba(cr, CYAN);
-    break;
-  case 5:
-    cairo_set_source_rgba(cr, ORANGE);
-    break;
-  case 6:
-    cairo_set_source_rgba(cr, GREY);
-    break;
-  }
 }
 
 gboolean button_release_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *group)
@@ -962,7 +878,7 @@ gboolean button_press_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *
   // int neuron_number_display = 0;
 //  int neuron_real_number = 0;
 
-  // cr = gdk_cairo_create(gtk_widget_get_window(widget)); //Cr��e un contexte Cairo associ�� �� la drawing_area "zone"
+  // cr = gdk_cairo_create(gtk_widget_get_window(widget)); //Cr������e un contexte Cairo associ������ ������ la drawing_area "zone"
   //gdk_cairo_set_source_window(cr, gtk_widget_get_window(widget), 0, 0);
   // cairo_destroy(cr);
 
@@ -998,7 +914,7 @@ gboolean button_press_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *
 
 void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t *cr)
 {
-  //Attention : il est tres important de garder cet ordre pour les mutex, notemment le fait de ne pas entourer gdk_threads_enter, au risque de provoquer des dead-end due �� plusieurs mutex
+  //Attention : il est tres important de garder cet ordre pour les mutex, notemment le fait de ne pas entourer gdk_threads_enter, au risque de provoquer des dead-end due ������ plusieurs mutex
   float ndg = 0, val, tmp = 0, x, y0, yVal, min = group->val_min, max = group->val_max, frequence = 0;
   float largeurNeuron, hauteurNeuron;
 //  float r, g, b;
@@ -1034,7 +950,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
       group->previous_output_display = group->output_display;
     }
 
-    //D��but du dessin
+    //D������but du dessin
     //printf("je dessine le groupe no %d\n",group->id);
     //Dimensions d'un neurone
     largeurNeuron = (float) gtk_widget_get_allocated_width(GTK_WIDGET(group->drawing_area)) / (float) group->columns;
@@ -1056,9 +972,9 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
 
     group->counter = 0;
 
-    //cr = gdk_cairo_create(gtk_widget_get_window(GTK_WIDGET(group->drawing_area))); //Cr��e un contexte Cairo associ�� �� la drawing_area "zone" (?????)
+    //cr = gdk_cairo_create(gtk_widget_get_window(GTK_WIDGET(group->drawing_area))); //Cr������e un contexte Cairo associ������ ������ la drawing_area "zone" (?????)
 
-    // si la sortie vaut 3, on affiche l'image ou un indicateur si aucune image a ��t�� re��ue.
+    // si la sortie vaut 3, on affiche l'image ou un indicateur si aucune image a ������t������ re������ue.
 
     if (group->output_display == 3)
     {
@@ -1155,7 +1071,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
     }
     else
     {
-      // si le mode auto est activ��, calcul du minimum et maximum instantan��
+      // si le mode auto est activ������, calcul du minimum et maximum instantan������
       if (group->normalized && group->display_mode != DISPLAY_MODE_BIG_GRAPH && group->display_mode != DISPLAY_MODE_GRAPH)
       {
         for (i = 0 + incrementation - 1; i < group->number_of_neurons; i += incrementation)
@@ -1195,11 +1111,11 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
       cairo_paint(cr);
       cairo_set_source_rgba(cr, WHITE);
 
-      /// variables utilis��es pour l'affichage des graphe.
+      /// variables utilis������es pour l'affichage des graphe.
       sortie = group->output_display;
 
       //update_graph_data(group);
-      // si mode graph et mode auto activ��, calcul du minimum et maximum moyen (bas�� sur les NB_Max_VALEURS_ENREGISTREES derni��res it��rations).
+      // si mode graph et mode auto activ������, calcul du minimum et maximum moyen (bas������ sur les NB_Max_VALEURS_ENREGISTREES derni������res it������rations).
       if (group->normalized && group->display_mode == DISPLAY_MODE_GRAPH)
       {
         min = 0.0;
@@ -1230,7 +1146,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
             }
           }
         }
-        // si le minimum et le maximum sont incorrects, ils sont r��initialis��s.
+        // si le minimum et le maximum sont incorrects, ils sont r������initialis������s.
         if (max < min)
         {
           min = -0.5;
@@ -1239,7 +1155,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
       }
 
       // construction du label du groupe sous la forme :   nom_groupe (en gras) - nom_fonction
-      //                                                   [min | max] - fr��quence moyenne
+      //                                                   [min | max] - fr������quence moyenne
       snprintf(label_text, LABEL_MAX, "<b>%s</b> - %s \n[%.2f | %.2f] - %.3f Hz", group->name, group->function, min, max, frequence);
       gtk_label_set_markup(group->label, label_text);
 
@@ -1294,12 +1210,12 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
 
             cairo_set_source_rgba(cr, ndg, ndg, ndg, 1);
             cairo_rectangle(cr, u * largeurNeuron, j * hauteurNeuron, largeurNeuron - 1, hauteurNeuron - 1);
-            cairo_fill(cr); //TODO : verifier utilit��
+            cairo_fill(cr); //TODO : verifier utilit������
             break;
 
           case DISPLAY_MODE_BAR_GRAPH:
             test_selection(group, u, i, j, largeurNeuron, hauteurNeuron, incrementation);
-            // couleur rouge si la valeur est n��gative
+            // couleur rouge si la valeur est n������gative
             if (val < 0) cairo_set_source_rgba(cr, 1, 0.2, 0.25, 1);
             y0 = coordonneeYZero(min, max, hauteurNeuron);
             yVal = CoordonneeYPoint(val, min, max, hauteurNeuron);
@@ -1309,7 +1225,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
               yVal = y0;
               y0 = tmp;
             }
-            yVal = yVal - y0; // hauteur du rectangle �� afficher.
+            yVal = yVal - y0; // hauteur du rectangle ������ afficher.
             y0 += j * hauteurNeuron + 1;
 
             group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) (((u * largeurNeuron) + (largeurNeuron - 1) / 2));
@@ -1353,10 +1269,10 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
 
             indexTmp = indexDernier;
             tmp = 0;
-            // permet de tracer le graphe dans la zone r��serv��e au neurone (le graphe n'est pas reli��).
+            // permet de tracer le graphe dans la zone r������serv������e au neurone (le graphe n'est pas reli������).
             for (x = ((i - incrementation + 1) / incrementation + 1) * largeurNeuron - 2; x > i * largeurNeuron + 3; x--)
             {
-              // changement de la couleur du trac�� si tmp devient positif ou n��gatif.
+              // changement de la couleur du trac������ si tmp devient positif ou n������gatif.
               if (tmp < 0 && !(values[sortie][indexTmp] < 0))
               {
                 cairo_fill(cr);
@@ -1380,7 +1296,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
               cairo_fill(cr);
               cairo_set_source_rgba(cr, WHITE);
             }
-            /// permet de tracer les traits verticaux (s��paration entre deux graphes situ��s sur la m��me ligne dans le groupe).
+            /// permet de tracer les traits verticaux (s������paration entre deux graphes situ������s sur la m������me ligne dans le groupe).
             if (i < (group->columns - 1) * incrementation)
             {
               cairo_rectangle(cr, ((i - incrementation + 1) / incrementation + 1) * largeurNeuron, j * hauteurNeuron, 0.5, hauteurNeuron);
@@ -1398,12 +1314,12 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
 
     }
 
-    if (group == selected_group) //Si le groupe affich�� dans cette fen��tre est s��lectionn��
+    if (group == selected_group) //Si le groupe affich������ dans cette fen������tre est s������lectionn������
     {
-      //  cairo_set_line_width(cr, 10); Traits plus ��pais
+      //  cairo_set_line_width(cr, 10); Traits plus ������pais
       cairo_set_source_rgba(cr, RED);
       cairo_rectangle(cr, 0, 0, gtk_widget_get_allocated_width(GTK_WIDGET(group->drawing_area)) - 1, gtk_widget_get_allocated_height(GTK_WIDGET(group->drawing_area)) - 1);
-      cairo_stroke(cr); //Le contenu de cr est appliqu�� sur "zoneNeurones"
+      cairo_stroke(cr); //Le contenu de cr est appliqu������ sur "zoneNeurones"
 
     }
     group->refresh_freq = FALSE;
@@ -1538,12 +1454,12 @@ void emit_signal_stop_to_promethe(int no_neuro, type_script* script)
 }
 void test_selection(type_group* group, int u, int i, int j, float largeurNeuron, float hauteurNeuron, int incrementation)
 {
-  if (group->x_event > 0) //si l'event de selection n'a pas d��ja ��t�� trait��
+  if (group->x_event > 0) //si l'event de selection n'a pas d������ja ������t������ trait������
   {
     if (group->x_event >= (u * largeurNeuron + 0.5) && group->x_event < (u * largeurNeuron + 0.5 + (largeurNeuron - 2) + 1) && group->y_event >= (j * hauteurNeuron + 0.5) && group->y_event < (j * hauteurNeuron + 0.5 + (hauteurNeuron - 2) + 1))
     {
-      // on est selectionn��
-      if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est all�� jusqu'au bout du tableau de neurone pour la remise �� zero
+      // on est selectionn������
+      if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est all������ jusqu'au bout du tableau de neurone pour la remise ������ zero
       {
         group->x_event = -1;
         group->y_event = -1;
@@ -1557,7 +1473,7 @@ void test_selection(type_group* group, int u, int i, int j, float largeurNeuron,
 
       if (group->neuro_select < 0)
       {
-        emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script); //d��duit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
+        emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script); //d������duit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
         group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
         group->neuro_select = i + j * group->columns * incrementation;
       }
@@ -1584,17 +1500,17 @@ void test_selection(type_group* group, int u, int i, int j, float largeurNeuron,
       }
       // emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script);
 
-      //emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script); //d��duit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
+      //emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script); //d������duit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
       group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
 
-      if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est all�� jusqu'au bout du tableau de neurone pour la remise �� zero
+      if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est all������ jusqu'au bout du tableau de neurone pour la remise ������ zero
       {
 
         group->x_event = -1;
         group->y_event = -1;
         if (group->param_neuro_pandora[group->neuro_select].selected == FALSE)
         {
-          group->neuro_select = -1; // on remet le groupe �� -1 uniquement si �� la fin le chiffre ne correspond plus �� rien.
+          group->neuro_select = -1; // on remet le groupe ������ -1 uniquement si ������ la fin le chiffre ne correspond plus ������ rien.
         }
 
       }

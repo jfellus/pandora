@@ -144,7 +144,7 @@ void architecture_display_update(GtkWidget *architecture_display, cairo_t *cr, v
             }
             if (group == selected_group) cairo_set_source_rgba(cr, RED);
             else if (group->is_in_a_loop == TRUE) cairo_set_source_rgba(cr, 0.8, 0.8, 0.8, 1);
-            else color(cr, group);
+            else gdk_cairo_set_source_rgba(cr, &colors[group->script->color]);
             cairo_fill_preserve(cr);
             if (group->selected_for_save == 1)
             {
@@ -208,7 +208,7 @@ void architecture_display_update(GtkWidget *architecture_display, cairo_t *cr, v
                 }
                 else
                 {
-                  color(cr, group);
+                  gdk_cairo_set_source_rgba(cr, &colors[group->script->color]);
                   cairo_set_line_width(cr, 1);
                 }
                 cairo_move_to(cr, x_offset + input_group->x * graphic.x_scale + LARGEUR_GROUPE, y_offset + input_group->y * graphic.y_scale + HAUTEUR_GROUPE / 2); //Début de la liaison (à droite du groupe prédécesseur)

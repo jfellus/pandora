@@ -986,7 +986,7 @@ void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
     {
         gtk_button_set_label(GTK_BUTTON(pWidget), "Stop Debug Group Functions");
         pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_OK_DEBUG_GRP_MEM, 0, scripts[i]->name);
-        //printf("ordre d'envoie bien lanc������\n");
+        //printf("ordre d'envoie bien lanc������������������\n");
     }
   }
 
@@ -1155,8 +1155,9 @@ void script_widget_update(type_script *script)
   char label_text[LABEL_MAX];
   //script->label=NULL;
   //script->label=gtk_label_new("");
-  sprintf(label_text, "<span foreground=\"%s\"><b>%s</b></span>", tcolor(script), script->name);
+  sprintf(label_text, "<span><b>%s</b></span>", script->name);
   gtk_label_set_markup(GTK_LABEL(script->label), label_text);
+  gtk_widget_override_color (script->label, GTK_STATE_FLAG_NORMAL, &colors[script->color]);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(script->z_spinnner), script->z);
 }
 
@@ -2097,21 +2098,21 @@ void pandora_window_new()
   // gtk_box_pack_start(GTK_BOX(h_box_global), windowed_area_button, FALSE, FALSE, 0);
   g_signal_connect(G_OBJECT(button_label), "toggled", G_CALLBACK(on_click_extract_area), (gpointer ) neurons_frame);
 
-  /*Cr������ation de deux HBox : une pour le panneau lat������ral et la zone principale, l'autre pour les 6 petites zones*/
+  /*Cr������������������ation de deux HBox : une pour le panneau lat������������������ral et la zone principale, l'autre pour les 6 petites zones*/
   h_box_main = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
   vpaned = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
   gtk_paned_set_position(GTK_PANED(vpaned), 600);
   gtk_box_pack_start(GTK_BOX(v_box_main), h_box_main, TRUE, TRUE, 0);
 
-  /*Panneau lat������ral*/
+  /*Panneau lat������������������ral*/
   pPane = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
   lPane = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
   gtk_box_pack_start(GTK_BOX(h_box_main), pPane, FALSE, TRUE, 0);
 
-//Les ������chelles
+//Les ������������������chelles
   pFrameEchelles = gtk_frame_new("Scales");
   gtk_container_add(GTK_CONTAINER(pPane), pFrameEchelles);
   pVBoxEchelles = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
