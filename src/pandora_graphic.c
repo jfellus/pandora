@@ -28,8 +28,9 @@ gboolean move_neurons_start = FALSE;
 gboolean open_neurons_start = FALSE; //Pour ouvrir un frame_neuron
 type_group *move_neurons_group = NULL; //Pour bouger un frame_neuron
 extern pthread_cond_t cond_loading;
-
-struct timeval tv_start, tv_end;
+#ifdef _SEE_TIME
+  struct timeval tv_start, tv_end;
+#endif
 
 /* TODO optimiser */
 float niveauDeGris(float val, float valMin, float valMax)
@@ -154,12 +155,18 @@ gboolean group_expose_refresh(GtkWidget *widget, cairo_t *cr, gpointer user_data
     ref_freq = group->refresh_freq;
 
     pthread_mutex_lock(&mutex_script_caracteristics);
+#ifdef _SEE_TIME
   gettimeofday(&tv_start, NULL);
+#endif
     group_expose_neurons(group, ref_freq, cr);
+#ifdef _SEE_TIME
   gettimeofday(&tv_end, NULL);
+#endif
     //group_expose_neurons(group, FALSE, FALSE);
     pthread_mutex_unlock(&mutex_script_caracteristics);
+#ifdef _SEE_TIME
   printf("Delay: %d\n", tv_end.tv_usec - tv_start.tv_usec);
+#endif
   }
 
 
@@ -1099,7 +1106,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
           val = 0;
           break;
         }
-        image_data[j * stride + i] = niveauDeGris(val, min, max) * 255;
+        image_data[j * stride + i] = 255 - niveauDeGris(val, min, max) * 255;
       }
     }
 
