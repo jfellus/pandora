@@ -396,6 +396,11 @@ void architecture_display_button_pressed(GtkWidget *pWidget, GdkEvent *user_even
     move_neurons_start = FALSE;
     open_neurons_start = FALSE;
     break;
+  case 2:
+    //Sur un clic du milieu, on supprime le détail du neurone
+    open_group = selected_group;
+    if (open_group != NULL) group_display_destroy(open_group);
+    break;
   case 3:
     open_neurons_start = TRUE;
     move_neurons_start = FALSE;

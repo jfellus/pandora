@@ -363,7 +363,7 @@ void enet_manager(ENetHost *server)
           }
           group->counter++;
           group->refresh_freq = TRUE;
-          if ((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
+          if ((refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
           {
             group->refresh_freq = TRUE;
             g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
@@ -409,7 +409,7 @@ void enet_manager(ENetHost *server)
 
           group->counter++;
           group->refresh_freq = TRUE;
-          if ((refresh_mode == REFRESH_MODE_SEMI_AUTO || refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
+          if ((refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
           {
             group->refresh_freq = TRUE;
 

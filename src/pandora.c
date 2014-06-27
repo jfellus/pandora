@@ -43,10 +43,10 @@ int currentSnapshot = 0;
 int nbSnapshots = 0;
 
 int Index[NB_SCRIPTS_MAX]; /*Tableau des indices : Index[0] = 0, Index[1] = 1, ..., Index[NB_SCRIPTS_MAX-1] = NB_SCRIPTS_MAX-1;
- Ce tableau permet e une fonction signal de retenir la valeur qu'avait i au moment oe on a connecte le signal*/
+ Ce tableau permet à une fonction signal de retenir la valeur qu'avait i au moment oe on a connecte le signal*/
 
-int number_of_scripts = 0; //Nombre de scripts e afficher
-type_script *scripts[NB_SCRIPTS_MAX]; //Tableau des scripts e afficher
+int number_of_scripts = 0; //Nombre de scripts à afficher
+type_script *scripts[NB_SCRIPTS_MAX]; //Tableau des scripts à afficher
 int zMax; //la plus grande valeur de z parmi les scripts ouverts
 int buffered = 0; //Nombre d'instantanes actuellement en memoire
 int period = 0;
@@ -56,13 +56,12 @@ type_group *selected_group = NULL; //Pointeur sur le groupe actuellement selecti
 GtkWidget *neurons_frame, *zone_neurons; //Panneau des neurones
 
 int nbColonnesTotal = 0; //Nombre total de colonnes de neurones dans les fenetres du bandeau du bas
-int nbLignesMax = 0; //Nombre maximal de lignes de neurones e afficher dans l'une des fenetres du bandeau du bas
+int nbLignesMax = 0; //Nombre maximal de lignes de neurones à afficher dans l'une des fenetres du bandeau du bas
 
 gdouble value_hz = 50;
 type_group *open_group = NULL;
 
 guint refresh_timer_id = 0; //id du timer actualement utiliser pour le rafraichissement des frame_neurons ouvertes
-guint id_semi_automatic = 0;
 
 type_script_link net_links[SCRIPT_LINKS_MAX];
 int number_of_net_links = 0;
@@ -100,7 +99,7 @@ extern prompt_lign prompt_buf[NB_LIGN_MAX];
 int refresh_mode = 0;
 
 /** Fonctions diverses **/
-//TODO : Travaux e continuer : Certaines de ces fonctions peuvent etre deplace dans des fichiers deja cree et plus adapte.
+//TODO : Travaux à continuer : Certaines de ces fonctions peuvent etre deplace dans des fichiers deja cree et plus adaptés.
 float**** createTab4(int nbRows, int nbColumns)
 {
   float **** tab = malloc(nbRows * sizeof(float ***));
@@ -307,8 +306,8 @@ void on_toggled_saving_button(GtkWidget *save_button, gpointer pData)
   else //Si le bouton est desactive
   {
     saving_press = 0;
-    destroy_saving_ref(scripts); //on ferme tout les fichiers et on remet les on_saving e 0
-    gtk_widget_queue_draw(architecture_display); // pour remettre e jour l'affichage quand tout les on_saving sont e 0
+    destroy_saving_ref(scripts); //on ferme tout les fichiers et on remet les on_saving à 0
+    gtk_widget_queue_draw(architecture_display); // pour remettre à jour l'affichage quand tout les on_saving sont à 0
   }
 }
 
@@ -354,7 +353,7 @@ void on_script_displayed_toggled(GtkWidget *pWidget, gpointer user_data)
 {
   type_script *script = user_data;
 
-  //Identification du script e afficher ou e masquer
+  //Identification du script à afficher ou à masquer
   script->displayed = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(pWidget));
 
   gtk_widget_queue_draw(architecture_display);
@@ -432,39 +431,6 @@ gboolean on_scale_change_value(GtkWidget *gtk_range, GtkScrollType scroll, gdoub
 
   gtk_widget_queue_draw(architecture_display);
   //architecture_display_update(architecture_display, NULL);
-  return FALSE;
-}
-
-/**
- *
- * Modification d'une echelle
- *
- */
-gboolean refresh_scale_change_value(GtkWidget *pWidget, GtkScrollType scroll, gdouble value, gpointer pData) //TODO : ici ! incoherent avec l'autre fonction ! Modification d'une echelle
-{
-  (void) pWidget;
-  (void) scroll;
-  (void) pData;
-
-  if (refresh_mode == REFRESH_MODE_AUTO)
-  {
-    if (refresh_timer_id != 0)
-    {
-      g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
-      refresh_timer_id = 0;
-    }
-    value_hz = value;
-
-    if (value > 0.1)
-    {
-      refresh_timer_id = g_timeout_add((guint) (1000.0 / value), neurons_refresh_display, NULL);
-    }
-    else
-    {
-      //  g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
-      refresh_timer_id = 0;
-    }
-  }
   return FALSE;
 }
 
@@ -721,7 +687,6 @@ void defaultScale(GtkWidget *pWidget, gpointer pData)
   graphic.zy_scale = YGAP_DEFAULT;
 
   gtk_widget_queue_draw(architecture_display);
-  refresh_scale_change_value(NULL, GTK_SCROLL_NONE, (gdouble) REFRESHSCALE_DEFAULT, NULL); // modifie la frequence de rafraichissement.
 }
 
 void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer data)
@@ -1054,7 +1019,9 @@ void on_group_display_clicked(GtkButton *button, type_group *group)
   gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(group_display_output_combobox), "ext");
 
   gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(group_display_mode_combobox), "squares");
+  gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(group_display_mode_combobox), "circles");
   gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(group_display_mode_combobox), "grey levels");
+  gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(group_display_mode_combobox), "grey levels fast");
   gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(group_display_mode_combobox), "bar graphs");
   gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(group_display_mode_combobox), "texts");
   gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(group_display_mode_combobox), "graphs");
@@ -1062,20 +1029,19 @@ void on_group_display_clicked(GtkButton *button, type_group *group)
 
   gtk_grid_attach(GTK_GRID(grid), group_display_output_combobox, 0, 0, 1, 1);
   gtk_grid_attach(GTK_GRID(grid), group_display_mode_combobox, 1, 0, 1, 1);
-  gtk_grid_attach(GTK_GRID(grid), group_display_auto_checkbox, 2, 1, 1, 1);
 
   gtk_grid_attach(GTK_GRID(grid), group_display_min_spin_button, 0, 1, 1, 1);
   gtk_grid_attach(GTK_GRID(grid), group_display_max_spin_button, 1, 1, 1, 1);
   gtk_grid_attach(GTK_GRID(grid), group_display_auto_checkbox, 2, 1, 1, 1);
 
-  /// partie de la fenetre permettant de pre-selectionner les neurones e afficher dans le graphe
+  /// partie de la fenetre permettant de pre-selectionner les neurones à afficher dans le graphe
   big_graph_frame = gtk_frame_new("Neurons to display (column x row)");
   vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_box_set_homogeneous(GTK_BOX(vbox), TRUE);
   gtk_container_add(GTK_CONTAINER(big_graph_frame), vbox);
   gtk_grid_attach(GTK_GRID(grid), big_graph_frame, 0, 2, 3, 1);
 
-  for (i = 0; i < group->number_of_courbes; i++) // signaux e creer et ajouter aux spinners.
+  for (i = 0; i < group->number_of_courbes; i++) // signaux à creer et ajouter aux spinners.
   {
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
@@ -1142,8 +1108,6 @@ void on_group_display_clicked(GtkButton *button, type_group *group)
   g_signal_connect(G_OBJECT(group_display_output_combobox), "changed", G_CALLBACK(on_group_display_output_combobox_changed), group);
   g_signal_connect(G_OBJECT(group_display_mode_combobox), "changed", G_CALLBACK(on_group_display_mode_combobox_changed), group);
 
-  g_signal_connect(G_OBJECT(group_display_output_combobox), "changed", G_CALLBACK(on_group_display_output_combobox_changed), group);
-  g_signal_connect(G_OBJECT(group_display_mode_combobox), "changed", G_CALLBACK(on_group_display_mode_combobox_changed), group);
   g_signal_connect(G_OBJECT(group_display_min_spin_button), "value_changed", G_CALLBACK(on_group_display_min_spin_button_value_changed), group);
   g_signal_connect(G_OBJECT(group_display_max_spin_button), "value_changed", G_CALLBACK(on_group_display_max_spin_button_value_changed), group);
   g_signal_connect(G_OBJECT(group_display_auto_checkbox), "toggled", G_CALLBACK(on_group_display_auto_checkbox_toggled), group);
@@ -1212,7 +1176,7 @@ void script_update_display(type_script *script)
   script->widget = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxScripts), script->widget, FALSE, TRUE, 0);
 
-//Cases e cocher pour afficher les scripts ou pas
+//Cases à cocher pour afficher les scripts ou pas
   script->checkbox = gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(script->checkbox), FALSE); //Par defaut, les scripts ne sont pas coches, donc pas affiches
   g_signal_connect(G_OBJECT(script->checkbox), "toggled", G_CALLBACK(on_script_displayed_toggled), script);
@@ -1381,7 +1345,7 @@ gboolean script_caracteristics(type_script *script, int action)
           pthread_mutex_unlock(&mutex_script_caracteristics);
           g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) group_display_new_threaded, (gpointer) arguments, NULL);
 
-          //Il est important d'attendre car sinon on envoie une fonction e executer dans la boucle principale puis on la renvoie sans attendre que la precedente ai finie, ce qui cause des problemes, il est notemment complique de passer des arguments differents car on les modifie lors de la boucle suivante. //TODO : envisager un tableau d'argument aussi grand que la longueur de la boucle for? Aurais l'avantage de ne pas penaliser le script enet.
+          //Il est important d'attendre car sinon on envoie une fonction à executer dans la boucle principale puis on la renvoie sans attendre que la precedente ai finie, ce qui cause des problemes, il est notemment complique de passer des arguments differents car on les modifie lors de la boucle suivante. //TODO : envisager un tableau d'argument aussi grand que la longueur de la boucle for? Aurais l'avantage de ne pas penaliser le script enet.
           pthread_mutex_lock(&mutex_loading);
           pthread_cond_wait(&cond_loading, &mutex_loading);
           pthread_mutex_unlock(&mutex_loading);
@@ -1527,7 +1491,7 @@ void script_destroy(type_script *script)
   }
   // scripts[script->id]->z = script->id;
 
-  // mise e jour des coordonnees des scripts
+  // mise à jour des coordonnees des scripts
 
   for (i = script->id; i < number_of_scripts; i++)
   {
@@ -1539,7 +1503,7 @@ void script_destroy(type_script *script)
 }
 
 /**
- * Cette fonction permet de traiter les informations provenant de promethe pour mettre e jour
+ * Cette fonction permet de traiter les informations provenant de promethe pour mettre à jour
  * l'affichage. Elle est appelee automatiquement plusieurs fois par seconde.
  */
 gboolean neurons_refresh_display()
@@ -1588,11 +1552,6 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
       g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
       refresh_timer_id = 0;
     }
-    if (id_semi_automatic != 0)
-    {
-      g_source_destroy(g_main_context_find_source_by_id(NULL, id_semi_automatic));
-      id_semi_automatic = 0;
-    }
     /*
      if(id_manual!=0)
      {g_source_destroy(g_main_context_find_source_by_id(NULL, id_manual)); id_manual = 0;}
@@ -1606,44 +1565,17 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
     break;
 
   case REFRESH_MODE_AUTO:
-    if (id_semi_automatic != 0)
-    {
-      g_source_destroy(g_main_context_find_source_by_id(NULL, id_semi_automatic));
-      id_semi_automatic = 0;
-    }
     if (refresh_timer_id != 0)
     {
       g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
       refresh_timer_id = 0;
     }
 
-    if (refresh_timer_id == 0 && value_hz > 0.1) refresh_timer_id = g_timeout_add((guint) (1000.0 / value_hz), neurons_refresh_display, NULL);
-    else if (refresh_timer_id == 0) refresh_timer_id = 0;
+    //if (refresh_timer_id == 0 && value_hz > 0.1) refresh_timer_id = g_timeout_add((guint) (1000.0 / value_hz), neurons_refresh_display, NULL);
+    //else if (refresh_timer_id == 0) refresh_timer_id = 0;
     /*if(id_manual!=0)
      {g_source_destroy(g_main_context_find_source_by_id(NULL, id_manual)); id_manual = 0;}
      */
-
-    for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name);
-
-    gtk_widget_hide(GTK_WIDGET(data));
-    break;
-  case REFRESH_MODE_SEMI_AUTO:
-
-    /*if(id_manual!=0)
-     {g_source_destroy(g_main_context_find_source_by_id(NULL, id_manual)); id_manual = 0;}*/
-    if (refresh_timer_id != 0)
-    {
-      g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
-      refresh_timer_id = 0;
-    }
-    if (id_semi_automatic != 0)
-    {
-      g_source_destroy(g_main_context_find_source_by_id(NULL, id_semi_automatic));
-      id_semi_automatic = 0;
-    }
-
-    if (id_semi_automatic == 0) id_semi_automatic = g_timeout_add((guint) 150, neurons_display_refresh_when_semi_automatic, NULL);
 
     for (i = 0; i < number_of_groups_to_display; i++)
       pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name);
@@ -1674,30 +1606,6 @@ void neurons_manual_refresh(GtkWidget *pWidget, gpointer pdata)
       pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_ONE : PANDORA_SEND_NEURONS_ONE), groups_to_display[i]->id, groups_to_display[i]->script->name);
 
   }
-}
-
-gboolean neurons_display_refresh_when_semi_automatic() //TODO : meilleur faeon de faire?
-{
-  int i, j, current_stop = stop;
-
-  if (refresh_mode != REFRESH_MODE_SEMI_AUTO) return FALSE;
-  pthread_mutex_lock(&mutex_script_caracteristics);
-  stop = TRUE;
-  for (i = 0; i < number_of_groups_to_display; i++)
-  {
-    if (g_timer_elapsed(groups_to_display[i]->timer, NULL) > 2)
-    {
-      groups_to_display[i]->frequence_index_last = -1;
-      for (j = 0; j < FREQUENCE_MAX_VALUES_NUMBER; j++)
-        groups_to_display[i]->frequence_values[j] = -1;
-      //group_expose_neurons(groups_to_display[i], TRUE, FALSE);
-      //groups_to_display[i]->refresh_freq=FALSE;
-      //gtk_widget_queue_draw (GTK_WIDGET(groups_to_display[i]->drawing_area));
-    }
-  }
-  stop = current_stop;
-  pthread_mutex_unlock(&mutex_script_caracteristics);
-  return TRUE;
 }
 
 gboolean neurons_refresh_display_without_change_values()
@@ -1809,7 +1717,7 @@ void on_click_call_dialog(GtkWidget *pWidget, gpointer pdata)
 
   (void) pWidget;
 
-  //Attention, ceci est une astuce pour passer simplement un argument 0 ou 1, e un risque d'echec en cas de changement d'architecture.
+  //Attention, ceci est une astuce pour passer simplement un argument 0 ou 1, à un risque d'echec en cas de changement d'architecture.
   ID = (long) pdata;
 
   python_window = NULL;
@@ -1960,7 +1868,7 @@ void pandora_window_new()
   sprintf(path, "%s/bin_leto_prom/resources/pandora_icon.png", getenv("HOME"));
   gtk_window_set_icon_from_file(GTK_WINDOW(window), path, NULL);
 
-//Le signal de fermeture de la fenetre est connecte e la fenetre (petite croix)
+//Le signal de fermeture de la fenetre est connecte à la fenetre (petite croix)
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(window_close), (GtkWidget* ) window);
 
 // creation de la barre de menus.
@@ -2098,21 +2006,21 @@ void pandora_window_new()
   // gtk_box_pack_start(GTK_BOX(h_box_global), windowed_area_button, FALSE, FALSE, 0);
   g_signal_connect(G_OBJECT(button_label), "toggled", G_CALLBACK(on_click_extract_area), (gpointer ) neurons_frame);
 
-  /*Cr������������������ation de deux HBox : une pour le panneau lat������������������ral et la zone principale, l'autre pour les 6 petites zones*/
+  /*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
   h_box_main = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
   vpaned = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
   gtk_paned_set_position(GTK_PANED(vpaned), 600);
   gtk_box_pack_start(GTK_BOX(v_box_main), h_box_main, TRUE, TRUE, 0);
 
-  /*Panneau lat������������������ral*/
+  /*Panneau latéral*/
   pPane = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
   lPane = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
   gtk_box_pack_start(GTK_BOX(h_box_main), pPane, FALSE, TRUE, 0);
 
-//Les ������������������chelles
+//Les échelles
   pFrameEchelles = gtk_frame_new("Scales");
   gtk_container_add(GTK_CONTAINER(pPane), pFrameEchelles);
   pVBoxEchelles = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -2126,7 +2034,6 @@ void pandora_window_new()
   refreshModeLabel = gtk_label_new("Refresh mode : ");
   refreshModeComboBox = gtk_combo_box_text_new();
   gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(refreshModeComboBox), "Auto");
-  gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(refreshModeComboBox), "Semi-auto");
   gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(refreshModeComboBox), "Manual");
   gtk_combo_box_set_active(GTK_COMBO_BOX(refreshModeComboBox), REFRESH_MODE_AUTO);
   gtk_box_pack_start(GTK_BOX(refreshModeHBox), refreshModeLabel, TRUE, TRUE, 0);
@@ -2135,18 +2042,11 @@ void pandora_window_new()
   refreshManualButton = gtk_button_new_with_label("Refresh");
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshManualButton, FALSE, TRUE, 0);
 
-  //g_signal_connect(G_OBJECT(refreshManualButton), "realize", (GCallback) gtk_widget_hide, NULL); // faeon un peu orginale de cacher le widget e l'initialisation.
+  //g_signal_connect(G_OBJECT(refreshManualButton), "realize", (GCallback) gtk_widget_hide, NULL); // faeon un peu orginale de cacher le widget à l'initialisation.
 
 //Frequence de reactualisation de l'affichage, quand on est en mode echantillonne (Sampled)
   refreshSetting = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshSetting, FALSE, TRUE, 0);
-  refreshLabel = gtk_label_new("Refresh (Hz):");
-  refreshScale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 50, 1); //Ce widget est deje declare comme variable globale
-//On choisit le nombre de reactualisations de l'affichage par seconde, entre 0 et 50
-  gtk_box_pack_start(GTK_BOX(refreshSetting), refreshLabel, TRUE, TRUE, 0);
-  gtk_box_pack_start(GTK_BOX(refreshSetting), refreshScale, TRUE, TRUE, 0);
-  gtk_range_set_value(GTK_RANGE(refreshScale), REFRESHSCALE_DEFAULT);
-  g_signal_connect(G_OBJECT(refreshScale), "change-value", G_CALLBACK(refresh_scale_change_value), NULL);
 
   g_signal_connect(G_OBJECT(refreshModeComboBox), "changed", (GCallback ) refresh_mode_combo_box_value_changed, refreshManualButton);
   g_signal_connect(G_OBJECT(refreshManualButton), "clicked", (GCallback ) neurons_manual_refresh, NULL);
@@ -2288,8 +2188,8 @@ void pandora_window_new()
   gtk_widget_set_size_request(GTK_WIDGET(zone_neurons), 3000, 3000);
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars2), zone_neurons);
   g_signal_connect(G_OBJECT(zone_neurons), "draw", G_CALLBACK(draw_all_links), NULL);
-  //gtk_widget_set_events(zone_neurons, GDK_BUTTON_RELEASE_MASK);
-  //g_signal_connect(G_OBJECT(zone_neurons), "button-release-event", G_CALLBACK(on_release), NULL);
+  gtk_widget_set_events(zone_neurons, GDK_BUTTON_RELEASE_MASK);
+  g_signal_connect(G_OBJECT(zone_neurons), "button-release-event", G_CALLBACK(on_release), NULL);
 
   gtk_box_pack_start(GTK_BOX(v_box_inter), vpaned, TRUE, TRUE, 0);
 
@@ -2442,17 +2342,12 @@ int main(int argc, char** argv)
   //Lancement du thread d'ecoute et de gestion des informations reeues du reseau
   server_for_promethes();
 
-//Appelle la fonction de raffraichissement, voir la fonction lie e l'event refresh_mode_combo_box_changed pour plus de details
+//Appelle la fonction de raffraichissement, voir la fonction lie à l'event refresh_mode_combo_box_changed pour plus de details
   refresh_mode = REFRESH_MODE_AUTO;
   if (refresh_timer_id != 0)
   {
     g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
     refresh_timer_id = 0;
-  }
-  if (id_semi_automatic != 0)
-  {
-    g_source_destroy(g_main_context_find_source_by_id(NULL, id_semi_automatic));
-    id_semi_automatic = 0;
   }
   if (refresh_timer_id == 0 && value_hz > 0.1) refresh_timer_id = g_timeout_add((guint) (1000.0 / value_hz), neurons_refresh_display, NULL);
   else if (refresh_timer_id == 0) refresh_timer_id = 0;

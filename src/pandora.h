@@ -77,7 +77,7 @@
 //-----------------------------------------------ENUMERATIONS--------------------------------------------------------
 
 enum {
-  REFRESH_MODE_AUTO = 0, REFRESH_MODE_SEMI_AUTO, REFRESH_MODE_MANUAL
+  REFRESH_MODE_AUTO = 0, REFRESH_MODE_MANUAL
 };
 
 enum {
@@ -85,7 +85,7 @@ enum {
 };
 
 enum {
-  DISPLAY_MODE_SQUARE = 0, DISPLAY_MODE_INTENSITY, DISPLAY_MODE_BAR_GRAPH, DISPLAY_MODE_TEXT, DISPLAY_MODE_GRAPH, DISPLAY_MODE_BIG_GRAPH
+  DISPLAY_MODE_SQUARE = 0, DISPLAY_MODE_CIRCLE, DISPLAY_MODE_INTENSITY, DISPLAY_MODE_INTENSITY_FAST, DISPLAY_MODE_BAR_GRAPH, DISPLAY_MODE_TEXT, DISPLAY_MODE_GRAPH, DISPLAY_MODE_BIG_GRAPH
 };
 
 //------------------------------------------------STRUCTURES---------------------------------------------------------
@@ -140,24 +140,24 @@ typedef struct type_para_neuro {
 typedef struct group {
   int id;
   struct script *script;
-  char name[SIZE_NO_NAME]; //TODO r������duire le 1024... ne sert ������ rien
+  char name[SIZE_NO_NAME]; //TODO réduire le 1024... ne sert à rien
   char function[TAILLE_CHAINE];
   int number_of_neurons;
   int rows;
   int columns;
   type_neurone *neurons; //Tableau des neurones du groupe
-  type_para_neuro *param_neuro_pandora; //Tableau des parametre suppl������mentaire associ������s aux neuronnes.
+  type_para_neuro *param_neuro_pandora; //Tableau des parametre supplémentaire associés aux neuronnes.
 
   int x, y, calculate_x;
   int is_in_a_loop, is_currently_in_a_loop;
-  gboolean knownX; //TRUE si la coordonn������e x est connue
+  gboolean knownX; //TRUE si la coordonnée x est connue
   gboolean knownY;
   int number_of_links;
   int number_of_links_second;
   struct group **previous; //Adresses des groupes ayant des liaisons vers celui-ci
   struct group **previous_second; //Adresses des groupes ayant des liaisons secondaires vers celui-ci
 
-  int firstNeuron; ///Num������ro du premier neurone de ce groupe dans le grand tableau de tous les neurones du script
+  int firstNeuron; ///Numéro du premier neurone de ce groupe dans le grand tableau de tous les neurones du script
   int nb_update_since_next;
   float val_min, val_max;
   void *widget, *drawing_area, *label;
@@ -167,15 +167,15 @@ typedef struct group {
   int output_display, display_mode, previous_display_mode, previous_output_display;
   int normalized, image_selected_index;
 
-  /// enregistrement des valeurs S, S1 et S2, utilis������es pour tracer le graphe. [ligne][colonne][s(0), s1(1) ou s2(2)][numValeur]
+  /// enregistrement des valeurs S, S1 et S2, utilisées pour tracer le graphe. [ligne][colonne][s(0), s1(1) ou s2(2)][numValeur]
   float ****tabValues;
   int **indexDernier, **indexAncien;
   GtkWidget *button_vbox;
-  int **afficher; // utilis������ pour le mode big graph uniquement.
+  int **afficher; // utilisé pour le mode big graph uniquement.
   data_courbe *courbes;
   int number_of_courbes;
 
-  /// variables utilis������es pour la fr������quence moyenne
+  /// variables utilisées pour la fréquence moyenne
   float frequence_values[FREQUENCE_MAX_VALUES_NUMBER];
   int frequence_index_last, frequence_index_older;
 
@@ -353,7 +353,6 @@ void destroy_tab_2(int **tab, int nbRows);
 
 void on_search_group(int index);
 gboolean neurons_refresh_display_without_change_values();
-gboolean neurons_display_refresh_when_semi_automatic();
 //gboolean button_press_neurons(GtkStatusIcon *status_icon, GdkEvent *event, type_group *group);
 
 void zoom_out(GdkDevice *pointer);
