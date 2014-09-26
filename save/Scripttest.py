@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 ################################################################################
 # Copyright  ETIS — ENSEA, Université de Cergy-Pontoise, CNRS (1991-2014)
 #promethe@ensea.fr
