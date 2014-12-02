@@ -61,8 +61,8 @@ void pandora_bus_send_message(char *id, const char *format, ...)
 
 void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEvent event)
 {
-  char *appname;
-  char *host;
+  char *appname=NULL;
+  char *host=NULL;
   int i;
   type_script *script;
   static ivyServer ivyServers[NB_SCRIPTS_MAX]; //Stocke l'ip de chaque promethe qui se connecte et le nom du script qu'il exécute
@@ -71,14 +71,18 @@ void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEve
   (void) user_data;
 
   appname = IvyGetApplicationName(app);
-  host = IvyGetApplicationHost(app);
+ // host = IvyGetApplicationHost(app);
+  host = IvyGetApplicationIp(app);
 
   switch (event)
   {
   case IvyApplicationConnected:
     if (strncmp(appname, "themis:", 7) == 0) break; //On ne veut pas référencer Thémis comme étant un script
-    strcpy(ivyServers[ivyServerNb].appName, appname);
+
+    strncpy(ivyServers[ivyServerNb].appName, appname, 63);
+    ivyServers[ivyServerNb].appName[63]='\0';
     strcpy(ivyServers[ivyServerNb].ip, host);
+
     if (strcmp(ivyServers[ivyServerNb].ip, "localhost") == 0) strcpy(ivyServers[ivyServerNb].ip, "127.0.0.1");
     printf("Connexion ivy de %s d'adresse %s\n", ivyServers[ivyServerNb].appName, ivyServers[ivyServerNb].ip);
     ivyServerNb++;

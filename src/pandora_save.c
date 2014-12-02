@@ -115,7 +115,7 @@ void file_create(type_group *used_group)
 
   } while (test != NULL );
 
-  strcat(file_path, ".csv");
+  //strcat(file_path, ".csv");
 
   used_group->associated_file = fopen(file_path, "a+"); /* Pourquoi a+ si fichier nouveau */
 

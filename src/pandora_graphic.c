@@ -1060,7 +1060,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
         image_data = malloc(stride * (int) prom_images->sy);
         if (image_data != NULL)
         {
-          for (i = 0; (unsigned int) i < prom_images->sx * prom_images->sy; i++)
+          for (i = 0; (unsigned int)i < prom_images->sx * prom_images->sy; i++)
           {
             image_data[i] = (unsigned char) ((float *) prom_images->images_table[k])[i] * 255;
           }

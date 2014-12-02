@@ -39,7 +39,7 @@ The fact that you are presently reading this means that you have had knowledge o
 
 typedef struct ivyServer {
   char ip[30];
-  char appName[30];
+  char appName[64];
 } ivyServer;
 
 /* "En-tête" de variables globales */
