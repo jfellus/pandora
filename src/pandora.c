@@ -23,8 +23,8 @@ The fact that you are presently reading this means that you have had knowledge o
 
  *
  *
- * Auteurs : Brice Errandonea et Manuel De Palma
- *
+ * Auteurs : Brice Errandonea, Manuel De Palma
+ * Modifié par Arnaud Blanchard et Nils Beaussé. Voir Nils pour le "service après-vente"
  * Pour compiler : make
  *
  *
@@ -198,10 +198,11 @@ void on_signal_interupt(int signal)
   switch (signal)
   {
   case SIGINT:
+    printf("Bye ! \n");
     exit(EXIT_SUCCESS);
     break;
   case SIGSEGV:
-    printf("SEGFAULT\n");
+    printf("SEGFAULT ;-) \n");
     exit(EXIT_FAILURE);
     break;
   default:
@@ -717,8 +718,7 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
   prom_images_struct *images;
   int height = 0;
   char legende[64];
-  GtkWidget *frame = GTK_WIDGET(gtk_builder_get_object(builder, "list_graph"));
-  GtkWidget *image_box = GTK_WIDGET(gtk_builder_get_object(builder, "image_hbox"));
+ // GtkWidget *big_graph_frame = GTK_WIDGET(gtk_builder_get_object(builder, "list_graph"));
   int nb;
 
   resize_group(group);
@@ -729,10 +729,10 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
       pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name);
       pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name);
     }
-    if (gtk_widget_get_visible(frame) == TRUE)
+    if (gtk_widget_get_visible(big_graph_frame) == TRUE)
     {
       gtk_widget_hide(GTK_WIDGET(gtk_builder_get_object(builder, "list_graph")));
-      height -= gtk_widget_get_allocated_height(frame);
+      height -= gtk_widget_get_allocated_height(big_graph_frame);
     }
     if (group->ext != NULL && ((prom_images_struct *) group->ext)->image_number > 0)
     {
@@ -747,10 +747,10 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(selected_image_combo_box), legende);
       }
       gtk_combo_box_set_active(GTK_COMBO_BOX(selected_image_combo_box), group->image_selected_index);
-      if (gtk_widget_get_visible(image_box) == FALSE)
+      if (gtk_widget_get_visible(image_hbox) == FALSE)
       {
-        gtk_widget_show_all(image_box);
-        height += gtk_widget_get_allocated_height(image_box);
+        gtk_widget_show_all(image_hbox);
+        height += gtk_widget_get_allocated_height(image_hbox);
       }
     }
     gtk_window_resize(GTK_WINDOW(selected_group_dialog), gtk_widget_get_allocated_width(selected_group_dialog), gtk_widget_get_allocated_height(selected_group_dialog) + height);
@@ -762,15 +762,15 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
       pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, group->script->name);
       pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name);
     }
-    if (group->display_mode == DISPLAY_MODE_BIG_GRAPH && gtk_widget_get_visible(frame) == FALSE)
+    if (group->display_mode == DISPLAY_MODE_BIG_GRAPH && gtk_widget_get_visible(big_graph_frame) == FALSE)
     {
-      height += gtk_widget_get_allocated_height(frame);
-      gtk_widget_show_all(frame);
+      height += gtk_widget_get_allocated_height(big_graph_frame);
+      gtk_widget_show_all(big_graph_frame);
     }
-    if (gtk_widget_get_visible(image_box) == TRUE)
+    if (gtk_widget_get_visible(image_hbox) == TRUE)
     {
-      gtk_widget_hide(image_box);
-      height -= gtk_widget_get_allocated_height(image_box);
+      gtk_widget_hide(image_hbox);
+      height -= gtk_widget_get_allocated_height(image_hbox);
     }
     gtk_window_resize(GTK_WINDOW(selected_group_dialog), gtk_widget_get_allocated_width(selected_group_dialog), gtk_widget_get_allocated_height(selected_group_dialog) + height);
   }
@@ -900,7 +900,18 @@ void on_group_display_column_spin_value_changed(GtkSpinButton *spin_button, gpoi
 void on_group_display_selected_image_changed(GtkComboBox *combo_box, gpointer data)
 {
   type_group *group = data;
-  group->image_selected_index = gtk_combo_box_get_active(combo_box);
+  int temp=0;
+  temp = gtk_combo_box_get_active(combo_box);
+  if(group!=NULL)
+  {
+    if(group->ext!=NULL)
+    {
+      if (temp>=0 && temp < ((prom_images_struct*)(group->ext))->image_number)
+      {
+        group->image_selected_index = temp;
+      }
+    }
+  }
   resize_group(group);
 }
 
@@ -972,7 +983,7 @@ void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
     {
         gtk_button_set_label(GTK_BUTTON(pWidget), "Stop Debug Group Functions");
         pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_OK_DEBUG_GRP_MEM, 0, scripts[i]->name);
-        //printf("ordre d'envoie bien lanc������������������\n");
+        //printf("ordre d'envoie bien lancé\n");
     }
   }
 
@@ -1029,8 +1040,8 @@ void on_group_display_clicked(GtkButton *button, type_group *group)
 
   group_display_output_combobox = gtk_combo_box_text_new();
   group_display_mode_combobox = gtk_combo_box_text_new();
-  group_display_min_spin_button = gtk_spin_button_new_with_range(-1000000000, 1000000000, 0.1);
-  group_display_max_spin_button = gtk_spin_button_new_with_range(-1000000000, 1000000000, 0.1);
+  group_display_min_spin_button = gtk_spin_button_new_with_range(-1000000000, 1000000000, 0.01);
+  group_display_max_spin_button = gtk_spin_button_new_with_range(-1000000000, 1000000000, 0.01);
 
   group_display_auto_checkbox = gtk_toggle_button_new_with_label("auto");
 
@@ -1086,13 +1097,13 @@ void on_group_display_clicked(GtkButton *button, type_group *group)
     gtk_container_add(GTK_CONTAINER(vbox), hbox);
 
   }
-
   image_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   label = gtk_label_new("Selected image : ");
   gtk_box_pack_start(GTK_BOX(image_hbox), label, TRUE, FALSE, 0);
   selected_image_combo_box = gtk_combo_box_text_new();
   gtk_box_pack_start(GTK_BOX(image_hbox), selected_image_combo_box, TRUE, FALSE, 0);
   g_signal_connect(G_OBJECT(selected_image_combo_box), "changed", G_CALLBACK(on_group_display_selected_image_changed), group);
+  gtk_grid_attach(GTK_GRID(grid), image_hbox, 0, 3, 1, 1);
 
   gtk_widget_show_all(selected_group_dialog);
 
@@ -1106,7 +1117,7 @@ void on_group_display_clicked(GtkButton *button, type_group *group)
   if (group->output_display == 3 && group->ext != NULL && ((prom_images_struct *) group->ext)->image_number > 0)
   {
     images = group->ext;
-    for (i = 0; i < (int) images->image_number; i++)
+    for (i = 0; i < images->image_number; i++)
     {
       sprintf(markup, "image %d", i);
       gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(selected_image_combo_box), markup);

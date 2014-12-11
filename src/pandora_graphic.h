@@ -105,4 +105,19 @@ gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data);
 float calcul_pallier(float actual_length, gboolean direction);
 void test_selection(type_group* group, int u,int i,int j, float largeurNeuron, float hauteurNeuron,int incrementation);
 void destroy_links(type_group* group);
+void init_image(unsigned char* image_data, prom_images_struct * const prom_images, type_group * const group, cairo_t * const cr, int nb_band);
+void correspondance_3b(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
+void correspondance_4b(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
+void correspondance_reste(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
+void destruction_image(type_group * const group);
+void correspondance_display_intensity(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
+
+
+
+
+
+
+
+
+
 #endif /* GRAPHIC_H */

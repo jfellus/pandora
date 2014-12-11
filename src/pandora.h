@@ -29,7 +29,7 @@ The fact that you are presently reading this means that you have had knowledge o
 
 #ifndef PANDORA_H
 #define PANDORA_H
-#define ETIS	//������ commenter quand on n'est pas ������ l'ETIS
+#define ETIS	//à commenter quand on n'est pas à ETIS
 //------------------------------------------------BIBLIOTHEQUES------------------------------------------------------
 
 #include "common.h"
@@ -42,19 +42,19 @@ The fact that you are presently reading this means that you have had knowledge o
 
 #define COLOR_MAX 7
 
-//Si ces limites se r������v������lent trop restrictives (ou trop larges), ������diter les valeurs de cette rubrique
-#define NB_WINDOWS_MAX 30 //Nombre maximal de petites fen������tres affichables dans le bandeau du bas
-#define NB_ROWS_MAX 4 //Nombre maximal de lignes de petites fen������tres affichant des neurones
-#define NB_BUFFERED_MAX 100 //Nombre maximal d'instantan������s stock������s
+//Si ces limites se revelent trop restrictives (ou trop larges), editer les valeurs de cette rubrique
+#define NB_WINDOWS_MAX 30 //Nombre maximal de petites fenetres affichables dans le bandeau du bas
+#define NB_ROWS_MAX 4 //Nombre maximal de lignes de petites fenetres affichant des neurones
+#define NB_BUFFERED_MAX 100 //Nombre maximal d'instantanes stockes
 #define NB_PLANES_MAX 7
-//Le nombre maximal de plans affichables simultan������ment dans la zone 3D est limit������ ������ 7. Cette limite l������ est un peu plus
-//compliqu������e ������ modifier car il faudrait d������finir de nouvelles couleurs pour chaque valeur de z > 6.
-//De toute fa������on, 8 plans superpos������s seraient difficilement lisibles (7, d������j������...).
+//Le nombre maximal de plans affichables simultanement dans la zone 3D est limite à 7. Cette limite la est un peu plus
+//compliquee a modifier car il faudrait definir de nouvelles couleurs pour chaque valeur de z > 6.
+//De toute façon, 8 plans superposes seraient difficilement lisibles (7, deja...).
 
-#define SCRIPT_NAME_MAX 30 //Longueur maximale (en caract������res) du nom d'un script
+#define SCRIPT_NAME_MAX 30 //Longueur maximale (en caracteres) du nom d'un script
 #define GROUP_NAME_MAX 30
 
-#define IP_LENGTH_MAX 16  //Une adresse IPv4 comporte 15 caract������res, + 1 pour le '\0' final
+#define IP_LENGTH_MAX 16  //Une adresse IPv4 comporte 15 caracteres, + 1 pour le '\0' final
 #define SCRIPT_LINKS_MAX 128
 
 //-------------------------------------------------CONSTANTES----------------------------------------------------------
@@ -225,6 +225,9 @@ typedef struct group {
   int y_event;
   struct timespec press_time;
   int neuro_select;
+  gboolean image_ready;
+  cairo_surface_t *surface_image;
+  int stride;
 } type_group;
 
 typedef struct script_display_save {
@@ -262,7 +265,7 @@ extern pthread_mutex_t mutex_script_caracteristics;
 
 extern int period;
 extern gboolean load_temporary_save;
-extern char preferences_filename[PATH_MAX]; //fichier de pr������f������rences (*.jap)
+extern char preferences_filename[PATH_MAX]; //fichier de preferences (*.jap)
 extern int stop; // continue l'enregistrement pour le graphe ou non.
 extern gboolean calculate_executions_times;
 
