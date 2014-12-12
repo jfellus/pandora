@@ -148,7 +148,7 @@ void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEve
     new_ivy_serveur(appname, host);
 
     printf("Connexion ivy de %s d'adresse %s\n", (last_serveur->serveur).appName, (last_serveur->serveur).ip);
-    pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_START, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button)), appname);
+    pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_START, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button)), appname+strlen(bus_id)+1);
     break;
 
   case IvyApplicationDisconnected:
