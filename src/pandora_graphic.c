@@ -848,8 +848,8 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   gtk_widget_hide(group->button_vbox);
   if (refresh_mode != REFRESH_MODE_MANUAL)
   {
-    if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name);
-    else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name);
+    if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name+strlen(bus_id)+1);
+    else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name+strlen(bus_id)+1);
   }
   groups_to_display[number_of_groups_to_display] = group;
   group->idDisplay = number_of_groups_to_display;
@@ -901,7 +901,6 @@ gboolean button_release_on_neuron(GtkWidget *widget, GdkEvent *event, type_group
 {
   struct timespec present_time;
   GdkEventButton *event_button = (GdkEventButton*) event;
-  ;
   (void) widget;
 
   if (event != NULL && event_button->button == 1)
@@ -1618,12 +1617,12 @@ void destroy_links(type_group* group)
 
 void emit_signal_to_promethe(int no_neuro, type_script* script)
 {
-  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro, script->name);
+  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro, script->name+strlen(bus_id)+1);
 }
 
 void emit_signal_stop_to_promethe(int no_neuro, type_script* script)
 {
-  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro, script->name);
+  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro, script->name+strlen(bus_id)+1);
 }
 
 //Appelé ~ 53000fois, à simplifier/diminuer le nombre d'appel

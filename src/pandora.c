@@ -726,8 +726,8 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
   {
     if (refresh_mode != REFRESH_MODE_MANUAL)
     {
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name);
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name+strlen(bus_id)+1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name+strlen(bus_id)+1);
     }
     if (gtk_widget_get_visible(big_graph_frame) == TRUE)
     {
@@ -948,14 +948,14 @@ void phases_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
     init_top(prompt_buf, p_buf);
     gtk_button_set_label(GTK_BUTTON(pWidget), "Stop calculate execution times");
     for (i = 0; i < number_of_scripts; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_START, 0, scripts[i]->name);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_START, 0, scripts[i]->name+strlen(bus_id)+1);
     //printf("ordre d'envoie bien lance\n");
   }
   else
   {
     gtk_button_set_label(GTK_BUTTON(pWidget), "Start calculate execution times");
     for (i = 0; i < number_of_scripts; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_STOP, 0, scripts[i]->name);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_STOP, 0, scripts[i]->name+strlen(bus_id)+1);
 
     for (i = 0; i < number_of_scripts; i++)
     {
@@ -982,7 +982,7 @@ void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
     for (i = 0; i < number_of_scripts; i++)
     {
         gtk_button_set_label(GTK_BUTTON(pWidget), "Stop Debug Group Functions");
-        pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_OK_DEBUG_GRP_MEM, 0, scripts[i]->name);
+        pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_OK_DEBUG_GRP_MEM, 0, scripts[i]->name+strlen(bus_id)+1);
         //printf("ordre d'envoie bien lancé\n");
     }
   }
@@ -992,7 +992,7 @@ void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
     for (i = 0; i < number_of_scripts; i++)
     {
         gtk_button_set_label(GTK_BUTTON(pWidget), "Start Debug Group Functions");
-        pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_STOP_DEBUG_GRP_MEM, 0, scripts[i]->name);
+        pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_STOP_DEBUG_GRP_MEM, 0, scripts[i]->name+strlen(bus_id)+1);
     }
   }
 
@@ -1591,7 +1591,7 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
      if(id_manual==0) id_manual = g_timeout_add((guint) 50, neurons_refresh_display_without_change_values, NULL); //
      */
     for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_STOP : PANDORA_SEND_NEURONS_STOP), groups_to_display[i]->id, groups_to_display[i]->script->name);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_STOP : PANDORA_SEND_NEURONS_STOP), groups_to_display[i]->id, groups_to_display[i]->script->name+strlen(bus_id)+1);
 
     gtk_widget_show_all(GTK_WIDGET(data));
     break;
@@ -1610,7 +1610,7 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
      */
 
     for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name+strlen(bus_id)+1);
 
     gtk_widget_hide(GTK_WIDGET(data));
     break;
@@ -1635,7 +1635,7 @@ void neurons_manual_refresh(GtkWidget *pWidget, gpointer pdata)
   if (refresh_mode == REFRESH_MODE_MANUAL)
   {
     for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_ONE : PANDORA_SEND_NEURONS_ONE), groups_to_display[i]->id, groups_to_display[i]->script->name);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_ONE : PANDORA_SEND_NEURONS_ONE), groups_to_display[i]->id, groups_to_display[i]->script->name+strlen(bus_id)+1);
 
   }
 }
