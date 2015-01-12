@@ -364,7 +364,6 @@ void enet_manager(ENetHost *server)
           number_of_neurons = (event.packet->dataLength) / sizeof(type_neurone);
           neurons = (type_neurone*) event.packet->data;
           group_id = neurons->groupe;
-          // printf("update_neuron: group_id=%d",group_id);
 
           if (script == NULL) break;
           if (script->groups == NULL || script->groups == 0x0) break; // securité

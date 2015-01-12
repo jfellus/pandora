@@ -865,8 +865,8 @@ void group_display_destroy(type_group *group)
 
   int i;
   destroy_links(group);
-  if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, group->script->name);
-  else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name);
+  if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, group->script->name+strlen(bus_id)+1);
+  else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name+strlen(bus_id)+1);
 
   for (i = 0; i < number_of_groups_to_display; i++)
   {

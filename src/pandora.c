@@ -184,10 +184,12 @@ void destroy_tab_2(int **tab, int nbRows)
 
 void pandora_quit()
 {
+  printf("Bye Bye !\n");
   pandora_file_save("./pandora.pandora"); //enregistrement de l'etat actuel. cet etat sera applique au prochain demarrage de pandora.
   pandora_bus_send_message(bus_id, "pandora(%d,0)", PANDORA_STOP);
   enet_deinitialize();
   destroy_saving_ref(scripts); //par securite pour la cloture des fichiers de sauvegarde si on quitte durant la sauvegarde.
+  if(currently_saving_list!=NULL) g_free(currently_saving_list);
   gtk_widget_destroy(window);
   pthread_cancel(enet_thread);
   gtk_main_quit();
@@ -1878,6 +1880,7 @@ void pandora_window_new()
   GtkWidget *com_zone;
   GtkWidget *button_label;
   GtkWidget *neuron_label_widget, *neuron_label, *dedou_im, *button_draw_links_info;
+  gchar *s=NULL;
   // GtkWidget *separator, *windowed_area_button;
 
   //Methode tres particuliere, afin de ne pas se compliquer la tache lors du passage d'argument utilisant les deux expressions ci dessous, on utilise le fait de pouvoir passer une adresse pour passer un int 0 ou 1 sous le format adresse.
@@ -1930,19 +1933,31 @@ void pandora_window_new()
   //gtk_widget_set_halign (gtk_frame_get_label_widget(GTK_FRAME(neurons_frame)),GTK_ALIGN_FILL);
   //gtk_widget_set_halign (neurons_frame,GTK_ALIGN_FILL);
 
-  load = gtk_menu_item_new_with_label(g_locale_to_utf8("Load", -1, NULL, NULL, NULL));
+  s=g_locale_to_utf8("Load", -1, NULL, NULL, NULL);
+  load = gtk_menu_item_new_with_label(s);
+  g_free(s);
+
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), load);
   g_signal_connect(G_OBJECT(load), "activate", G_CALLBACK(pandora_load_preferences), NULL);
 
-  save = gtk_menu_item_new_with_label(g_locale_to_utf8("Save", -1, NULL, NULL, NULL));
+  s=g_locale_to_utf8("Save", -1, NULL, NULL, NULL);
+  save = gtk_menu_item_new_with_label(s);
+  g_free(s);
+
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), save);
   g_signal_connect(G_OBJECT(save), "activate", G_CALLBACK(save_preferences), NULL);
 
-  saveAs = gtk_menu_item_new_with_label(g_locale_to_utf8("Save as", -1, NULL, NULL, NULL));
+  s=g_locale_to_utf8("Save as", -1, NULL, NULL, NULL);
+  saveAs = gtk_menu_item_new_with_label(s);
+  g_free(s);
+
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), saveAs);
   g_signal_connect(G_OBJECT(saveAs), "activate", G_CALLBACK(save_preferences_as), NULL);
 
-  quit = gtk_menu_item_new_with_label(g_locale_to_utf8("Quit", -1, NULL, NULL, NULL));
+  s=g_locale_to_utf8("Quit", -1, NULL, NULL, NULL);
+  quit = gtk_menu_item_new_with_label(s);
+  g_free(s);
+
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), quit);
   g_signal_connect(G_OBJECT(quit), "activate", G_CALLBACK(window_close), (GtkWidget* ) window);
 

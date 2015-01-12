@@ -197,6 +197,7 @@ void pandora_file_load(const char *filename)
       }
     }
   }
+  xml_delete_tree(tree);
 }
 
 // Chargement des preferences specifiques à un script.
@@ -260,7 +261,7 @@ void pandora_file_load_script(const char *filename, type_script *script)
       }
     }
   }
-
+  xml_delete_tree(tree);
 }
 
 /**
