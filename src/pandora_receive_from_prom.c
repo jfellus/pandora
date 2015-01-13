@@ -335,13 +335,13 @@ void enet_manager(ENetHost *server)
             if (!received_links_packet[link_id].secondaire) //Si c'est une liaison principale
             {
               group->number_of_links++;
-              group->previous = MANY_REALLOCATIONS(group->previous, group->number_of_links, type_group*);
+              MANY_REALLOCATIONS(&group->previous, group->number_of_links);
               group->previous[group->number_of_links - 1] = input_group;
             }
             else //Si c'est une liaison secondaire
             {
               group->number_of_links_second++;
-              group->previous_second = MANY_REALLOCATIONS(group->previous_second, group->number_of_links_second, type_group*);
+              MANY_REALLOCATIONS(&group->previous_second, group->number_of_links_second);
               group->previous_second[group->number_of_links_second - 1] = input_group;
             }
           }
@@ -664,9 +664,9 @@ void create_links(type_group *group, int no_neuro, enet_uint8 *current_data, int
   no_neuro_rel = no_neuro - (group->firstNeuron);
   if (!(group->param_neuro_pandora[no_neuro_rel].links_ok))
   {
-    group->param_neuro_pandora[no_neuro_rel].coeff = MANY_REALLOCATIONS(group->param_neuro_pandora[no_neuro_rel].coeff,number_of_neuro_links,type_coeff);
+    MANY_REALLOCATIONS(&group->param_neuro_pandora[no_neuro_rel].coeff,number_of_neuro_links);
     // group->neurons[no_neuro_rel].coeff=MANY_REALLOCATIONS(group->neurons[no_neuro_rel].coeff,number_of_neuro_links,type_coeff);
-    group->param_neuro_pandora[no_neuro_rel].links_to_draw = MANY_REALLOCATIONS(group->param_neuro_pandora[no_neuro_rel].links_to_draw,number_of_neuro_links,type_link_draw);
+    MANY_REALLOCATIONS(&group->param_neuro_pandora[no_neuro_rel].links_to_draw,number_of_neuro_links);
     group->param_neuro_pandora[no_neuro_rel].links_ok = TRUE;
   }
 
