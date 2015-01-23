@@ -109,6 +109,11 @@ enum {
   DISPLAY_MODE_SQUARE = 0, DISPLAY_MODE_CIRCLE, DISPLAY_MODE_INTENSITY, DISPLAY_MODE_INTENSITY_FAST, DISPLAY_MODE_BAR_GRAPH, DISPLAY_MODE_TEXT, DISPLAY_MODE_GRAPH, DISPLAY_MODE_BIG_GRAPH
 };
 
+enum{
+  CHECKBOX=0, VUE_METRE, NUMBER_OF_CONTROL_TYPE,
+};
+
+
 //------------------------------------------------STRUCTURES---------------------------------------------------------
 
 typedef struct type_link_draw type_link_draw;
@@ -219,7 +224,7 @@ typedef struct group {
   float neurons_width;
   float neurons_height;
 
-  // variables utilis������es pour le calcul du taux d'activit������ de chaque groupe.
+  // variables utilisées pour le calcul du taux d'activité de chaque groupe.
   stat_group_execution stats;
   int x_event;
   int y_event;
@@ -228,7 +233,21 @@ typedef struct group {
   gboolean image_ready;
   cairo_surface_t *surface_image;
   int stride;
+  int type_control;
+  float borne_max;
+  float borne_min;
+  float step;
+  float init;
+  char name_n[256];
 } type_group;
+
+typedef struct type_control{
+  type_group* associated_group;
+  int type_de_controle;
+  GtkWidget* associated_control_widget;
+}type_control;
+
+
 
 typedef struct script_display_save {
   char name[LOGICAL_NAME_MAX];
@@ -245,8 +264,11 @@ typedef struct script {
   type_group *groups; //Tableau des groupes du script
   int displayed; //TRUE s'il faut afficher le script
   ENetPeer *peer;
-  void *widget, *label, *checkbox, *z_spinnner, *search_button;
+  void *widget, *label, *checkbox, *z_spinnner, *search_button, *control_button;
   sem_t sem_groups_defined;
+  GtkWidget* pWindow;
+  type_control** control_group;
+  int* number_of_control;
 } type_script;
 
 typedef struct script_link {
@@ -264,6 +286,7 @@ extern int refresh_mode;
 extern pthread_mutex_t mutex_script_caracteristics;
 
 extern int period;
+extern char const * const liste_controle_associee[];
 extern gboolean load_temporary_save;
 extern char preferences_filename[PATH_MAX]; //fichier de preferences (*.jap)
 extern int stop; // continue l'enregistrement pour le graphe ou non.
@@ -348,9 +371,9 @@ void init_script(type_script *s, char *name, char *machine, int z, int nbGroups,
 void new_neuron(int script_id);
 void destroyAllScripts();
 void group_init(type_group *g, int group_id, type_script *myScript, char *name, char *function, float learningSpeed, int nbNeurons, int rows, int columns, int nbLinksTo);
-//Mise un jour d'un neurone quand Prom������th������ envoie de nouvelles donn������es
+//Mise un jour d'un neurone quand Prométhé envoie de nouvelles données
 void neuron_update(type_neurone *n, float s, float s1, float s2, float pic);
-//Mise un jour d'un groupe quand Prom������th������ envoie de nouvelles donn������es
+//Mise un jour d'un groupe quand Prométhé envoie de nouvelles données
 void updateGroup(type_group *g, float learningSpeed, float execTime);
 
 void script_update_display(type_script *script);
@@ -386,5 +409,9 @@ void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData);
 void on_group_display_clicked(GtkButton *button, type_group *group);
 void on_button_draw_links_info_pressed(GtkToggleButton *pWidget, gpointer pData);
 void format_combo_box_changed(GtkComboBox *comboBox, gpointer data);
+void on_destroy_control_window(GtkWidget *pWidget, gpointer pdata);
+void on_toggled_affiche_control_button(GtkWidget *affiche_control_button, gpointer pData);
+void search_control_in_script_and_allocate_control(type_script* script_actu);
+void create_range_controls(type_script* script_actu,GtkWidget *box1);
 
 #endif

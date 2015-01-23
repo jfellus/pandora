@@ -83,7 +83,7 @@ void new_ivy_serveur(char* const appname, char* const host)
   ivyServerNb++;
 }
 
-void destroy_ivy_serveur(char* const appname, char* const host)
+void destroy_ivy_serveur(char* const appname)
 {
   ivy_serveurs* element_parcouru = liste_serveurs;
   ivy_serveurs* pointeur_apres = NULL;
@@ -154,7 +154,7 @@ void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEve
   case IvyApplicationDisconnected:
     printf("%s disconnected (ivy) from %s\n", appname, host);
 
-    destroy_ivy_serveur(appname, host);
+    destroy_ivy_serveur(appname);
 
     for (i = 0; i < number_of_scripts; i++)
     {

@@ -1,24 +1,24 @@
 /*
-Copyright  ETIS — ENSEA, Université de Cergy-Pontoise, CNRS (1991-2014)
-promethe@ensea.fr
+ Copyright  ETIS — ENSEA, Université de Cergy-Pontoise, CNRS (1991-2014)
+ promethe@ensea.fr
 
-Authors: P. Andry, J.C. Baccon, D. Bailly, A. Blanchard, S. Boucena, A. Chatty, N. Cuperlier, P. Delarboulas, P. Gaussier, 
-C. Giovannangeli, C. Grand, L. Hafemeister, C. Hasson, S.K. Hasnain, S. Hanoune, J. Hirel, A. Jauffret, C. Joulain, A. Karaouzène,  
-M. Lagarde, S. Leprêtre, M. Maillard, B. Miramond, S. Moga, G. Mostafaoui, A. Pitti, K. Prepin, M. Quoy, A. de Rengervé, A. Revel ...
+ Authors: P. Andry, J.C. Baccon, D. Bailly, A. Blanchard, S. Boucena, A. Chatty, N. Cuperlier, P. Delarboulas, P. Gaussier,
+ C. Giovannangeli, C. Grand, L. Hafemeister, C. Hasson, S.K. Hasnain, S. Hanoune, J. Hirel, A. Jauffret, C. Joulain, A. Karaouzène,
+ M. Lagarde, S. Leprêtre, M. Maillard, B. Miramond, S. Moga, G. Mostafaoui, A. Pitti, K. Prepin, M. Quoy, A. de Rengervé, A. Revel ...
 
-See more details and updates in the file AUTHORS 
+ See more details and updates in the file AUTHORS
 
-This software is a computer program whose purpose is to simulate neural networks and control robots or simulations.
-This software is governed by the CeCILL v2.1 license under French law and abiding by the rules of distribution of free software. 
-You can use, modify and/ or redistribute the software under the terms of the CeCILL v2.1 license as circulated by CEA, CNRS and INRIA at the following URL "http://www.cecill.info".
-As a counterpart to the access to the source code and  rights to copy, modify and redistribute granted by the license, 
-users are provided only with a limited warranty and the software's author, the holder of the economic rights,  and the successive licensors have only limited liability. 
-In this respect, the user's attention is drawn to the risks associated with loading, using, modifying and/or developing or reproducing the software by the user in light of its specific status of free software, 
-that may mean  that it is complicated to manipulate, and that also therefore means that it is reserved for developers and experienced professionals having in-depth computer knowledge. 
-Users are therefore encouraged to load and test the software's suitability as regards their requirements in conditions enabling the security of their systems and/or data to be ensured 
-and, more generally, to use and operate it in the same conditions as regards security. 
-The fact that you are presently reading this means that you have had knowledge of the CeCILL v2.1 license and that you accept its terms.
-*/
+ This software is a computer program whose purpose is to simulate neural networks and control robots or simulations.
+ This software is governed by the CeCILL v2.1 license under French law and abiding by the rules of distribution of free software.
+ You can use, modify and/ or redistribute the software under the terms of the CeCILL v2.1 license as circulated by CEA, CNRS and INRIA at the following URL "http://www.cecill.info".
+ As a counterpart to the access to the source code and  rights to copy, modify and redistribute granted by the license,
+ users are provided only with a limited warranty and the software's author, the holder of the economic rights,  and the successive licensors have only limited liability.
+ In this respect, the user's attention is drawn to the risks associated with loading, using, modifying and/or developing or reproducing the software by the user in light of its specific status of free software,
+ that may mean  that it is complicated to manipulate, and that also therefore means that it is reserved for developers and experienced professionals having in-depth computer knowledge.
+ Users are therefore encouraged to load and test the software's suitability as regards their requirements in conditions enabling the security of their systems and/or data to be ensured
+ and, more generally, to use and operate it in the same conditions as regards security.
+ The fact that you are presently reading this means that you have had knowledge of the CeCILL v2.1 license and that you accept its terms.
+ */
 /**  pandora_receive_from_prom.c
  *
  *  @Author Arnaud Blanchard et Brice Errandonea
@@ -97,6 +97,30 @@ gboolean queue_draw(gpointer data)
   return FALSE;
 }
 
+int prom_getopt_float2(const char *args, const char *option, float *value)
+{
+  char const *current_addr;
+  for (current_addr = strstr(args, option); current_addr != NULL; current_addr = strstr(current_addr, option))
+  {
+    current_addr += strlen(option);
+    if (sscanf(current_addr, "%f", value) == 1)
+    {
+      printf("vue par get-opt : %s value= %f\n", current_addr, *value);
+      return 2; // This is followed by a number nor a new argument.
+    }
+    if (current_addr[0] == '-') return 1;
+  }
+  return 0;
+}
+
+int enet_host_secure(ENetHost * host, ENetEvent * event, enet_uint32 timeout)
+{
+  int retour;
+  sem_wait(&(enet_pandora_lock));
+  retour = enet_host_service(host, event, timeout);
+  sem_post(&(enet_pandora_lock));
+  return retour;
+}
 // Thread créé par server_for_promethe, permet d'écouter constemment et de dispatché les informations reçu selon leur nature.
 void enet_manager(ENetHost *server)
 {
@@ -131,12 +155,13 @@ void enet_manager(ENetHost *server)
   int number_of_neuro_links;
   long time;
   int phase;
-
+  float min_default = 0.f, max_default = 200.f, step_default = 0.01f;
+  char param_link[256];
   while (running)
   {
     first_call++;
 
-    while (enet_host_service(server, &event, 2000) > 0)
+    while (enet_host_secure(server, &event, 0) > 0)
     {
       switch (event.type)
       {
@@ -152,7 +177,7 @@ void enet_manager(ENetHost *server)
         script->y_offset = 0;
         script->height = 0;
         script->displayed = 0;
-        script->peer = event.peer;
+        script->peer = event.peer; //enet_host_connect(server, &(event.peer->address), PANDORA_NUMBER_OF_CHANNELS, 0);
         script->groups = NULL;
         sem_init(&script->sem_groups_defined, 0, 0);
         scripts[number_of_scripts] = script;
@@ -253,6 +278,11 @@ void enet_manager(ENetHost *server)
             group->neurons_width = 20;
             group->firstNeuron = received_groups_packet[i].premier_ele;
             group->neuro_select = -1;
+            group->type_control = -1;
+            group->borne_max = max_default;
+            group->borne_min = min_default;
+            group->step = step_default;
+            group->init = 0;
           }
 
           current_data = &current_data[groups_size];
@@ -332,6 +362,20 @@ void enet_manager(ENetHost *server)
 
             }
 
+            if (strcmp(group->function, liste_controle_associee[VUE_METRE]) == 0)
+            {
+              if (prom_getopt_float(received_links_packet[link_id].nom, "-m", &(group->val_min)) != 2) group->val_min = min_default;
+              if (prom_getopt_float(received_links_packet[link_id].nom, "-M", &(group->val_max)) != 2) group->val_max = max_default;
+              if (prom_getopt_float(received_links_packet[link_id].nom, "-s", &(group->step)) != 2) group->step = step_default;
+              if (prom_getopt_float(received_links_packet[link_id].nom, "-i", &(group->init)) != 2) group->init = 0;
+              if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strcpy(group->name_n, param_link);
+            }
+            if (strcmp(group->function, liste_controle_associee[CHECKBOX]) == 0)
+            {
+              if (prom_getopt_float(received_links_packet[link_id].nom, "-i", &(group->init)) != 2) group->init = 0;
+              if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strcpy(group->name_n, param_link);
+            }
+
             if (!received_links_packet[link_id].secondaire) //Si c'est une liaison principale
             {
               group->number_of_links++;
@@ -374,7 +418,6 @@ void enet_manager(ENetHost *server)
           //Réception du paquet
           memcpy(group->neurons, event.packet->data, sizeof(type_neurone) * number_of_neurons);
 
-
           if (group->selected_for_save == 1 && saving_press == 1)
           {
 
@@ -383,12 +426,15 @@ void enet_manager(ENetHost *server)
           }
           group->counter++;
           group->refresh_freq = TRUE;
-          if ((refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
-          {
-            group->refresh_freq = TRUE;
-            g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
 
-          }
+          /*
+           if ((refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
+           {
+           group->refresh_freq = TRUE;
+           g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
+
+           }
+           */
           enet_packet_destroy(event.packet);
           break;
 
@@ -407,7 +453,7 @@ void enet_manager(ENetHost *server)
             prom_images = ALLOCATION(prom_images_struct);
             memcpy(prom_images, current_data, sizeof(prom_images_struct));
             image_size = prom_images->sx * prom_images->sy * prom_images->nb_band * sizeof(unsigned char);
-            for (i = 0; (unsigned int) i < prom_images->image_number; i++)
+            for (i = 0; i < prom_images->image_number; i++)
             {
               prom_images->images_table[i] = MANY_ALLOCATIONS(image_size, unsigned char);
             }
@@ -421,7 +467,7 @@ void enet_manager(ENetHost *server)
           }
           current_data = &current_data[sizeof(prom_images_struct)];
 
-          for (i = 0; (unsigned int) i < prom_images->image_number; i++)
+          for (i = 0; i < prom_images->image_number; i++)
           {
             memcpy(prom_images->images_table[i], current_data, image_size);
             current_data = &current_data[image_size];
@@ -429,12 +475,15 @@ void enet_manager(ENetHost *server)
 
           group->counter++;
           group->refresh_freq = TRUE;
-          if ((refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
-          {
-            group->refresh_freq = TRUE;
 
-            g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
-          }
+          /*
+           if ((refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
+           {
+           group->refresh_freq = TRUE;
+
+           g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
+           }
+           */
 
           enet_packet_destroy(event.packet);
           break;
@@ -523,12 +572,14 @@ void enet_manager(ENetHost *server)
         printf("ENET: none event \n");
         break;
       }
+      sem_wait(&(enet_pandora_lock));
       enet_host_flush(server);
       enet_host_flush(server);
       enet_host_flush(server);
       enet_host_flush(server);
       enet_host_flush(server);
       enet_host_flush(server);
+      sem_post(&(enet_pandora_lock));
     }
   }
 }
@@ -664,9 +715,9 @@ void create_links(type_group *group, int no_neuro, enet_uint8 *current_data, int
   no_neuro_rel = no_neuro - (group->firstNeuron);
   if (!(group->param_neuro_pandora[no_neuro_rel].links_ok))
   {
-    MANY_REALLOCATIONS(&group->param_neuro_pandora[no_neuro_rel].coeff,number_of_neuro_links);
+    MANY_REALLOCATIONS(&group->param_neuro_pandora[no_neuro_rel].coeff, number_of_neuro_links);
     // group->neurons[no_neuro_rel].coeff=MANY_REALLOCATIONS(group->neurons[no_neuro_rel].coeff,number_of_neuro_links,type_coeff);
-    MANY_REALLOCATIONS(&group->param_neuro_pandora[no_neuro_rel].links_to_draw,number_of_neuro_links);
+    MANY_REALLOCATIONS(&group->param_neuro_pandora[no_neuro_rel].links_to_draw, number_of_neuro_links);
     group->param_neuro_pandora[no_neuro_rel].links_ok = TRUE;
   }
 

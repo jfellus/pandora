@@ -958,9 +958,6 @@ gboolean button_press_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *
      //neuron_number_display=column + row * group->columns * incrementation + incrementation - 1;
      neuron_number_display=column + row * group->columns;
      neuron_real_number=neuron_number_display*incrementation+incrementation - 1;
-
-     printf("indice visible = %d \n",neuron_number_display);
-     printf("indice veritable = %d \n",neuron_real_number);
      */
   }
   else
@@ -1052,23 +1049,18 @@ void correspondance_display_intensity(unsigned char * image_data, prom_images_st
   const int max = group->val_max;
   const int incrementation = group->number_of_neurons / (group->columns * group->rows);
   const int stride = group->stride;
+  (void)prom_images;
 
-  printf("group->rows= %d \n",group->rows);
-  printf("group->output_display= %d \n",group->output_display);
-  printf("incrementation= %d \n",incrementation);
   for (j = 0; j < group->rows; j++)
   {
-    printf("j=%d\n",j);
     for (i = 0 + incrementation - 1; i < group->columns * incrementation; i += incrementation)
     {
-      printf("i=%d\n",i);
       switch (group->output_display) // switch à l'exterieur du for = plus mieux
       {
       case 0:
         val = group->neurons[i + j * group->columns * incrementation].s;
         break;
       case 1:
-        printf("case 1 : neurons = %d\n",i + j * group->columns * incrementation);
         val = group->neurons[i + j * group->columns * incrementation].s1;
         break;
       case 2:
@@ -1078,9 +1070,7 @@ void correspondance_display_intensity(unsigned char * image_data, prom_images_st
         val = 0;
         break;
       }
-      printf (" AVANT : val = %f valeur = %d min=%d max=%d\n",val,(int)(image_data[j * stride + i]),min,max);
       image_data[j * stride + i] = 255 - niveauDeGris(val, min, max) * 255;
-      printf ("val = %f valeur = %d min=%d max=%d\n",val,(int)(image_data[j * stride + i]),min,max);
     }
   }
 }

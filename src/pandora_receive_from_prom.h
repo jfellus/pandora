@@ -35,7 +35,7 @@ The fact that you are presently reading this means that you have had knowledge o
 #define permut(a,b,tmp) {tmp = a; a = b; b = tmp;} // TODO : probablement à supprimer
 /* "En-tête" de variables globales */
 extern pthread_t enet_thread;
-
+extern sem_t enet_pandora_lock;
 /* En-tête de fonctions */
 gboolean queue_draw(gpointer data);
 void server_for_promethes();
@@ -45,4 +45,6 @@ void verify_group(type_group *group);
 void sort_list_groups_by_rate(type_group **groups, int number_of_groups);
 type_group* search_associated_group(int no_neuro, type_script* script);
 void create_links(type_group *group, int no_neuro, enet_uint8 *current_data, int number_of_neuro_links, type_script* script);
+
+
 #endif /* PANDORA_RECEIVE_FROM_PROM_H_ */

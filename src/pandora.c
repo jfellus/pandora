@@ -1,24 +1,24 @@
 /*
-Copyright  ETIS — ENSEA, Université de Cergy-Pontoise, CNRS (1991-2014)
-promethe@ensea.fr
+ Copyright  ETIS — ENSEA, Université de Cergy-Pontoise, CNRS (1991-2014)
+ promethe@ensea.fr
 
-Authors: P. Andry, J.C. Baccon, D. Bailly, A. Blanchard, S. Boucena, A. Chatty, N. Cuperlier, P. Delarboulas, P. Gaussier, 
-C. Giovannangeli, C. Grand, L. Hafemeister, C. Hasson, S.K. Hasnain, S. Hanoune, J. Hirel, A. Jauffret, C. Joulain, A. Karaouzène,  
-M. Lagarde, S. Leprêtre, M. Maillard, B. Miramond, S. Moga, G. Mostafaoui, A. Pitti, K. Prepin, M. Quoy, A. de Rengervé, A. Revel ...
+ Authors: P. Andry, J.C. Baccon, D. Bailly, A. Blanchard, S. Boucena, A. Chatty, N. Cuperlier, P. Delarboulas, P. Gaussier,
+ C. Giovannangeli, C. Grand, L. Hafemeister, C. Hasson, S.K. Hasnain, S. Hanoune, J. Hirel, A. Jauffret, C. Joulain, A. Karaouzène,
+ M. Lagarde, S. Leprêtre, M. Maillard, B. Miramond, S. Moga, G. Mostafaoui, A. Pitti, K. Prepin, M. Quoy, A. de Rengervé, A. Revel ...
 
-See more details and updates in the file AUTHORS 
+ See more details and updates in the file AUTHORS
 
-This software is a computer program whose purpose is to simulate neural networks and control robots or simulations.
-This software is governed by the CeCILL v2.1 license under French law and abiding by the rules of distribution of free software. 
-You can use, modify and/ or redistribute the software under the terms of the CeCILL v2.1 license as circulated by CEA, CNRS and INRIA at the following URL "http://www.cecill.info".
-As a counterpart to the access to the source code and  rights to copy, modify and redistribute granted by the license, 
-users are provided only with a limited warranty and the software's author, the holder of the economic rights,  and the successive licensors have only limited liability. 
-In this respect, the user's attention is drawn to the risks associated with loading, using, modifying and/or developing or reproducing the software by the user in light of its specific status of free software, 
-that may mean  that it is complicated to manipulate, and that also therefore means that it is reserved for developers and experienced professionals having in-depth computer knowledge. 
-Users are therefore encouraged to load and test the software's suitability as regards their requirements in conditions enabling the security of their systems and/or data to be ensured 
-and, more generally, to use and operate it in the same conditions as regards security. 
-The fact that you are presently reading this means that you have had knowledge of the CeCILL v2.1 license and that you accept its terms.
-*/
+ This software is a computer program whose purpose is to simulate neural networks and control robots or simulations.
+ This software is governed by the CeCILL v2.1 license under French law and abiding by the rules of distribution of free software.
+ You can use, modify and/ or redistribute the software under the terms of the CeCILL v2.1 license as circulated by CEA, CNRS and INRIA at the following URL "http://www.cecill.info".
+ As a counterpart to the access to the source code and  rights to copy, modify and redistribute granted by the license,
+ users are provided only with a limited warranty and the software's author, the holder of the economic rights,  and the successive licensors have only limited liability.
+ In this respect, the user's attention is drawn to the risks associated with loading, using, modifying and/or developing or reproducing the software by the user in light of its specific status of free software,
+ that may mean  that it is complicated to manipulate, and that also therefore means that it is reserved for developers and experienced professionals having in-depth computer knowledge.
+ Users are therefore encouraged to load and test the software's suitability as regards their requirements in conditions enabling the security of their systems and/or data to be ensured
+ and, more generally, to use and operate it in the same conditions as regards security.
+ The fact that you are presently reading this means that you have had knowledge of the CeCILL v2.1 license and that you accept its terms.
+ */
 /** pandora.c
 
  *
@@ -37,6 +37,7 @@ The fact that you are presently reading this means that you have had knowledge o
 #include "pandora_prompt.h"
 #include "pandora_file_save.h"
 #include "pandora_architecture.h"
+#include "pandora_receive_from_prom.h"
 
 /* Variables globales */
 /* TODO : Beaucoups de ces variables globales peuvent etre mise en local en utilisant les astuces adequates, certaine au moins en statiques.
@@ -112,12 +113,14 @@ pthread_mutex_t mutex_loading = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_loading = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mutex_script_caracteristics = PTHREAD_MUTEX_INITIALIZER;
 gboolean draw_links_info = FALSE;
-
+sem_t enet_pandora_lock;
 gint format_mode = 0;
 
 extern GtkTextBuffer * p_buf;
 extern prompt_lign prompt_buf[NB_LIGN_MAX];
 int refresh_mode = 0;
+char const * const liste_controle_associee[] =
+  { "f_checkbox", "f_vue_metres" };
 
 /** Fonctions diverses **/
 //TODO : Travaux à continuer : Certaines de ces fonctions peuvent etre deplace dans des fichiers deja cree et plus adaptés.
@@ -189,7 +192,7 @@ void pandora_quit()
   pandora_bus_send_message(bus_id, "pandora(%d,0)", PANDORA_STOP);
   enet_deinitialize();
   destroy_saving_ref(scripts); //par securite pour la cloture des fichiers de sauvegarde si on quitte durant la sauvegarde.
-  if(currently_saving_list!=NULL) g_free(currently_saving_list);
+  if (currently_saving_list != NULL) g_free(currently_saving_list);
   gtk_widget_destroy(window);
   pthread_cancel(enet_thread);
   gtk_main_quit();
@@ -349,6 +352,301 @@ void on_toggled_compress_button(GtkWidget *compress_button, gpointer pData)
   }
 }
 
+void on_destroy_control_window(GtkWidget *pWidget, gpointer pdata) //Fonction de fermeture d'une fenetre de controle
+{
+  type_script* script_actu = (type_script*) pdata;
+  int j;
+
+  (void) pWidget;
+
+  for (j = 0; j < NUMBER_OF_CONTROL_TYPE; j++)
+  {
+    free(script_actu->control_group[j]);
+  }
+  free(script_actu->control_group);
+  free(script_actu->number_of_control);
+
+  script_actu->number_of_control = NULL;
+  script_actu->control_group = NULL;
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(script_actu->control_button), FALSE);
+  script_actu->pWindow = NULL;
+}
+
+void search_control_in_script_and_allocate_control(type_script* script_actu)
+{
+  type_group* liste_des_groupes = script_actu->groups;
+  type_control** control_group = NULL;
+
+  int i, j;
+  int* number_of_control;
+  int* count;
+
+  number_of_control = MANY_ALLOCATIONS(NUMBER_OF_CONTROL_TYPE, int);
+  count = MANY_ALLOCATIONS(NUMBER_OF_CONTROL_TYPE, int);
+
+  for (j = 0; j < NUMBER_OF_CONTROL_TYPE; j++)
+  {
+    count[j] = 0;
+    number_of_control[j] = 0;
+  }
+
+  for (i = 0; i < script_actu->number_of_groups; i++)
+  {
+    for (j = 0; j < NUMBER_OF_CONTROL_TYPE; j++)
+    {
+      if (!strcmp(liste_des_groupes[i].function, liste_controle_associee[j]))
+      {
+        number_of_control[j]++;
+        liste_des_groupes[i].type_control = j;
+      }
+    }
+  }
+
+  control_group = MANY_ALLOCATIONS(NUMBER_OF_CONTROL_TYPE, type_control*);
+
+  for (i = 0; i < NUMBER_OF_CONTROL_TYPE; i++)
+  {
+    control_group[i] = MANY_ALLOCATIONS(number_of_control[i], type_control);
+  }
+
+  for (i = 0; i < script_actu->number_of_groups; i++)
+  {
+    for (j = 0; j < NUMBER_OF_CONTROL_TYPE; j++)
+    {
+      if (liste_des_groupes[i].type_control == j)
+      {
+        control_group[j][count[j]].associated_control_widget = NULL;
+        control_group[j][count[j]].associated_group = &(liste_des_groupes[i]);
+        control_group[j][count[j]].type_de_controle = j;
+        count[j]++;
+      }
+    }
+  }
+
+  script_actu->control_group = control_group;
+  script_actu->number_of_control = number_of_control;
+
+  free(count);
+
+}
+
+gboolean on_vue_metre_change(GtkWidget *gtk_range, type_group *group)
+{
+  maj_neuro_enet struct_maj;
+  ENetPacket *packet = NULL;
+  int retour;
+  int j;
+  j = (int) g_object_get_data(G_OBJECT(gtk_range), "neurone_asso");
+
+  struct_maj.no_group = group->id;
+  struct_maj.no_neuro = j + group->firstNeuron;
+  struct_maj.s = struct_maj.s1 = struct_maj.s2 = (float) gtk_range_get_value(GTK_RANGE(gtk_range));
+
+  packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
+  sem_wait(&(enet_pandora_lock));
+  if (packet == NULL)
+  {
+    PRINT_WARNING("The neurons packet (update) has not been created.");
+  }
+  else if ((retour = enet_peer_send(group->script->peer, ENET_MAJ_NEURONE, packet)) != 0)
+  {
+    PRINT_WARNING("The neurons packet has not been sent %d.", retour);
+  }
+  sem_post(&(enet_pandora_lock));
+
+  return FALSE;
+}
+
+gboolean on_toggled_check_bouton(GtkWidget *check_bouton, type_group *group)
+{
+  maj_neuro_enet struct_maj;
+  ENetPacket *packet = NULL;
+  int retour;
+  int j;
+  j = (int) g_object_get_data(G_OBJECT(check_bouton), "neurone_asso");
+
+  struct_maj.no_group = group->id;
+  struct_maj.no_neuro = j + group->firstNeuron;
+  struct_maj.s = struct_maj.s1 = struct_maj.s2 = (float) (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(check_bouton)));
+
+  packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
+  sem_wait(&(enet_pandora_lock));
+  if (packet == NULL)
+  {
+    PRINT_WARNING("The neurons packet (update) has not been created.");
+  }
+  else if ((retour = enet_peer_send(group->script->peer, ENET_MAJ_NEURONE, packet)) != 0)
+  {
+    PRINT_WARNING("The neurons packet has not been sent %d.", retour);
+  }
+  sem_post(&(enet_pandora_lock));
+
+  return FALSE;
+}
+
+void create_range_controls(type_script* script_actu, GtkWidget *box1)
+{
+  int i, j;
+  GtkWidget *box2, *grid;
+  GtkWidget *label, *separator1, *separator2,*check_button;
+  GtkRange *gtk_range;
+  int* no_neuro;
+  int k = 0;
+  /* Standard window-creating stuff */
+
+  /*----------------------------------------------------------------*/
+
+  if (script_actu->number_of_control[VUE_METRE] != 0)
+  {
+    box2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_box_set_homogeneous(GTK_BOX(box2), TRUE);
+    label = gtk_label_new("VU-mètres : ");
+    gtk_box_pack_start(GTK_BOX(box2), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box1), box2, FALSE, FALSE, 0);
+
+    grid = gtk_grid_new();
+
+    /* on peut avoir plus de 2 VuMetre */
+    for (i = 0; i < script_actu->number_of_control[VUE_METRE]; i++)
+    {
+      for (j = 0; j < script_actu->control_group[VUE_METRE][i].associated_group->number_of_neurons; j++)
+      {
+
+        /* creation de la boite pour le VuMetre dans la macro boite box1 */
+        /* On inscrit d'abord le nom du VuMetre                          */
+        //box2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+        //gtk_box_set_homogeneous (GTK_BOX(box2),FALSE);
+        separator1 = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+        separator2 = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+        //gtk_container_set_border_width(GTK_CONTAINER(box2), 0);
+        label = gtk_label_new(script_actu->control_group[VUE_METRE][i].associated_group->name_n);
+
+        gtk_grid_attach(GTK_GRID(grid), label, 0, k, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), separator1, 1, k, 1, 1);
+
+        // gtk_box_pack_start(GTK_BOX(box2), label, FALSE, FALSE, 0);
+        //gtk_box_pack_start(GTK_BOX(box2), separator1, FALSE, FALSE, 0);
+
+        gtk_range =
+            (GtkRange*) gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,script_actu->control_group[VUE_METRE][i].associated_group->borne_min, script_actu->control_group[VUE_METRE][i].associated_group->borne_max, script_actu->control_group[VUE_METRE][i].associated_group->step);
+
+        gtk_range_set_value(gtk_range, script_actu->control_group[VUE_METRE][i].associated_group->init);
+        g_object_set_data(G_OBJECT(gtk_range), "neurone_asso", (gpointer) j);
+        g_signal_connect(G_OBJECT(gtk_range), "value-changed", G_CALLBACK(on_vue_metre_change), script_actu->control_group[VUE_METRE][i].associated_group);
+
+        gtk_widget_set_hexpand(GTK_WIDGET(gtk_range), TRUE);
+
+        gtk_grid_attach(GTK_GRID(grid), GTK_WIDGET(gtk_range), 2, k, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), separator2, 3, k, 1, 1);
+
+        //  gtk_box_pack_start(GTK_BOX(box2), (GtkWidget*) gtk_range, TRUE, TRUE, 0);
+        // gtk_box_pack_start(GTK_BOX(box2), separator2, FALSE, FALSE, 0);
+        // gtk_box_pack_start(GTK_BOX(box1), box2, FALSE, FALSE, 0);
+        k++;
+      }
+    }
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid), 2);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
+    gtk_box_pack_start(GTK_BOX(box1), grid, FALSE, FALSE, 0);
+  }
+
+  if (script_actu->number_of_control[CHECKBOX] != 0)
+  {
+    k = 0;
+    box2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_box_set_homogeneous(GTK_BOX(box2), TRUE);
+    label = gtk_label_new("CheckBoxs : ");
+    gtk_box_pack_start(GTK_BOX(box2), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box1), box2, FALSE, FALSE, 0);
+    grid = gtk_grid_new();
+
+    for (i = 0; i < script_actu->number_of_control[CHECKBOX]; i++)
+    {
+      for (j = 0; j < script_actu->control_group[CHECKBOX][i].associated_group->number_of_neurons; j++)
+      {
+
+        separator1 = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+        separator2 = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+        //   label = gtk_label_new(script_actu->control_group[CHECKBOX][i].associated_group->name_n);
+
+        check_button = GTK_WIDGET(gtk_check_button_new_with_label(script_actu->control_group[CHECKBOX][i].associated_group->name_n));
+
+       // gtk_grid_attach(GTK_GRID(grid), label, 0, k, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), separator1, 0, k, 1, 1);
+        if(script_actu->control_group[CHECKBOX][i].associated_group->init>0.5) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), TRUE);
+        else gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), FALSE);
+
+        g_object_set_data(G_OBJECT(check_button), "neurone_asso", (gpointer) j);
+        g_signal_connect(G_OBJECT(check_button), "toggled", G_CALLBACK(on_toggled_check_bouton), script_actu->control_group[CHECKBOX][i].associated_group);
+
+        gtk_widget_set_hexpand(GTK_WIDGET(check_button), TRUE);
+
+        gtk_grid_attach(GTK_GRID(grid), GTK_WIDGET(check_button), 1, k, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), separator2, 2, k, 1, 1);
+
+        k++;
+      }
+
+    }
+
+
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid), 2);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
+    gtk_box_pack_start(GTK_BOX(box1), grid, FALSE, FALSE, 0);
+
+  }
+
+  gtk_widget_show_all(box1);
+
+}
+
+void on_toggled_affiche_control_button(GtkWidget *affiche_control_button, gpointer pData)
+{
+  GtkWidget* pWindow = NULL;
+  GtkWidget *scrolled_window, *vbox;
+
+  type_script* script_actu = (type_script*) pData;
+
+  if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(affiche_control_button)))
+  {
+    // chercher f_machin, mettre dans liste chainee
+
+    //creation fenetre
+    pWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_widget_set_double_buffered(pWindow, TRUE);
+    script_actu->pWindow = pWindow;
+    g_signal_connect(G_OBJECT(pWindow), "destroy", G_CALLBACK(on_destroy_control_window), pData);
+
+    search_control_in_script_and_allocate_control(script_actu);
+
+    scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+
+    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_box_set_homogeneous(GTK_BOX(vbox), FALSE);
+
+    gtk_container_add(GTK_CONTAINER(scrolled_window), vbox);
+    gtk_container_add(GTK_CONTAINER(pWindow), scrolled_window);
+
+    create_range_controls(script_actu, vbox);
+
+    gtk_window_set_default_size(GTK_WINDOW(pWindow), 200, 400);
+    gtk_window_set_title(GTK_WINDOW(pWindow), script_actu->name);
+    gtk_widget_show_all(pWindow);
+
+    // pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name+strlen(bus_id)+1);
+  }
+  else //Si le bouton est desactive
+  {
+    //detruire fenetre
+    gtk_widget_destroy(script_actu->pWindow);
+
+    script_actu->pWindow = NULL;
+
+    //lire liste chainee et detruire(ou pas)
+    // arrete l'envoie de neurone
+  }
+}
+
 void on_click_save_path_button(GtkWidget *save_button, gpointer pData) //TODO mettre dans le repertoire de l'utilisateur (ce serait bien que le bureau soir egalement dans ce repertoire)
 {
 
@@ -416,8 +714,9 @@ void on_destroy_new_window(GtkWidget *pWidget, gpointer pdata) //Fonction de fer
 
   button = (GtkWidget*) pbutton;
 
+  printf("hop\n");
   gtk_widget_reparent((GtkWidget*) pdata, vpaned);
-  gtk_widget_destroy(pWidget);
+  //gtk_widget_destroy(pWidget);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), FALSE);
 
 }
@@ -720,7 +1019,7 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
   prom_images_struct *images;
   int height = 0;
   char legende[64];
- // GtkWidget *big_graph_frame = GTK_WIDGET(gtk_builder_get_object(builder, "list_graph"));
+  // GtkWidget *big_graph_frame = GTK_WIDGET(gtk_builder_get_object(builder, "list_graph"));
   int nb;
 
   resize_group(group);
@@ -728,8 +1027,8 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
   {
     if (refresh_mode != REFRESH_MODE_MANUAL)
     {
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name+strlen(bus_id)+1);
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name+strlen(bus_id)+1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name + strlen(bus_id) + 1);
     }
     if (gtk_widget_get_visible(big_graph_frame) == TRUE)
     {
@@ -902,13 +1201,13 @@ void on_group_display_column_spin_value_changed(GtkSpinButton *spin_button, gpoi
 void on_group_display_selected_image_changed(GtkComboBox *combo_box, gpointer data)
 {
   type_group *group = data;
-  int temp=0;
+  int temp = 0;
   temp = gtk_combo_box_get_active(combo_box);
-  if(group!=NULL)
+  if (group != NULL)
   {
-    if(group->ext!=NULL)
+    if (group->ext != NULL)
     {
-      if (temp>=0 && temp < ((prom_images_struct*)(group->ext))->image_number)
+      if (temp >= 0 && temp < ((prom_images_struct*) (group->ext))->image_number)
       {
         group->image_selected_index = temp;
       }
@@ -950,14 +1249,14 @@ void phases_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
     init_top(prompt_buf, p_buf);
     gtk_button_set_label(GTK_BUTTON(pWidget), "Stop calculate execution times");
     for (i = 0; i < number_of_scripts; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_START, 0, scripts[i]->name+strlen(bus_id)+1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_START, 0, scripts[i]->name + strlen(bus_id) + 1);
     //printf("ordre d'envoie bien lance\n");
   }
   else
   {
     gtk_button_set_label(GTK_BUTTON(pWidget), "Start calculate execution times");
     for (i = 0; i < number_of_scripts; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_STOP, 0, scripts[i]->name+strlen(bus_id)+1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_STOP, 0, scripts[i]->name + strlen(bus_id) + 1);
 
     for (i = 0; i < number_of_scripts; i++)
     {
@@ -983,9 +1282,9 @@ void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
   {
     for (i = 0; i < number_of_scripts; i++)
     {
-        gtk_button_set_label(GTK_BUTTON(pWidget), "Stop Debug Group Functions");
-        pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_OK_DEBUG_GRP_MEM, 0, scripts[i]->name+strlen(bus_id)+1);
-        //printf("ordre d'envoie bien lancé\n");
+      gtk_button_set_label(GTK_BUTTON(pWidget), "Stop Debug Group Functions");
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_OK_DEBUG_GRP_MEM, 0, scripts[i]->name + strlen(bus_id) + 1);
+      //printf("ordre d'envoie bien lancé\n");
     }
   }
 
@@ -993,8 +1292,8 @@ void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
   {
     for (i = 0; i < number_of_scripts; i++)
     {
-        gtk_button_set_label(GTK_BUTTON(pWidget), "Start Debug Group Functions");
-        pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_STOP_DEBUG_GRP_MEM, 0, scripts[i]->name+strlen(bus_id)+1);
+      gtk_button_set_label(GTK_BUTTON(pWidget), "Start Debug Group Functions");
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_STOP_DEBUG_GRP_MEM, 0, scripts[i]->name + strlen(bus_id) + 1);
     }
   }
 
@@ -1155,7 +1454,7 @@ void script_widget_update(type_script *script)
   //script->label=gtk_label_new("");
   sprintf(label_text, "<span><b>%s</b></span>", script->name);
   gtk_label_set_markup(GTK_LABEL(script->label), label_text);
-  gtk_widget_override_color (script->label, GTK_STATE_FLAG_NORMAL, &colors[script->color]);
+  gtk_widget_override_color(script->label, GTK_STATE_FLAG_NORMAL, &colors[script->color]);
   gtk_spin_button_set_value(GTK_SPIN_BUTTON(script->z_spinnner), script->z);
 }
 
@@ -1198,7 +1497,7 @@ void script_update_positions(type_script *script)
 void script_update_display(type_script *script)
 {
   GtkWidget *search_icon;
-
+  GtkWidget *control_icon;
   /**On veut determiner zMax, la plus grande valeur de z parmi les scripts ouverts
    */
   zMax = number_of_scripts;
@@ -1230,6 +1529,13 @@ void script_update_display(type_script *script)
   gtk_button_set_image(GTK_BUTTON(script->search_button), search_icon);
   gtk_box_pack_start(GTK_BOX(script->widget), script->search_button, FALSE, TRUE, 0);
   g_signal_connect(G_OBJECT(script->search_button), "toggled", G_CALLBACK(on_search_group_button_active), script);
+
+  script->control_button = gtk_toggle_button_new();
+  control_icon = gtk_image_new_from_icon_name("preferences-system", GTK_ICON_SIZE_MENU);
+  gtk_button_set_image(GTK_BUTTON(script->control_button), control_icon);
+  gtk_box_pack_start(GTK_BOX(script->widget), script->control_button, FALSE, TRUE, 0);
+
+  g_signal_connect(G_OBJECT(script->control_button), "toggled", G_CALLBACK(on_toggled_affiche_control_button), script);
 
 //Pour que les cases soient cochees par defaut
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(script->checkbox), TRUE);
@@ -1451,6 +1757,11 @@ void script_destroy(type_script *script)
   script_caracteristics(script, SAVE_SCRIPT_GROUPS_CARACTERISTICS);
   //pthread_mutex_unlock(&mutex_script_caracteristics);
 
+  if (script->pWindow != NULL)
+  {
+    gtk_widget_destroy(script->pWindow);
+  }
+
   for (i = 0; i < number_of_groups_to_display; i++)
   {
     group = groups_to_display[i];
@@ -1593,7 +1904,7 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
      if(id_manual==0) id_manual = g_timeout_add((guint) 50, neurons_refresh_display_without_change_values, NULL); //
      */
     for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_STOP : PANDORA_SEND_NEURONS_STOP), groups_to_display[i]->id, groups_to_display[i]->script->name+strlen(bus_id)+1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_STOP : PANDORA_SEND_NEURONS_STOP), groups_to_display[i]->id, groups_to_display[i]->script->name + strlen(bus_id) + 1);
 
     gtk_widget_show_all(GTK_WIDGET(data));
     break;
@@ -1612,7 +1923,7 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
      */
 
     for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name+strlen(bus_id)+1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name + strlen(bus_id) + 1);
 
     gtk_widget_hide(GTK_WIDGET(data));
     break;
@@ -1637,7 +1948,7 @@ void neurons_manual_refresh(GtkWidget *pWidget, gpointer pdata)
   if (refresh_mode == REFRESH_MODE_MANUAL)
   {
     for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_ONE : PANDORA_SEND_NEURONS_ONE), groups_to_display[i]->id, groups_to_display[i]->script->name+strlen(bus_id)+1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_ONE : PANDORA_SEND_NEURONS_ONE), groups_to_display[i]->id, groups_to_display[i]->script->name + strlen(bus_id) + 1);
 
   }
 }
@@ -1801,10 +2112,16 @@ void on_click_call_dialog(GtkWidget *pWidget, gpointer pdata)
 void on_click_config(GtkWidget *button, gpointer pdata)
 {
   GtkWidget *selection;
+  char home[PATH_MAX];
 
   (void) pdata;
   (void) button;
+
+  sprintf(home, "%s/bin_leto_prom/simulator/pandora/save", getenv("HOME"));
+  printf("home = %s\n", home);
   selection = gtk_file_chooser_dialog_new("selectionner un repertoire", NULL, GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_OPEN, GTK_RESPONSE_OK, NULL);
+  gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(selection), (gchar*) home);
+
   gtk_widget_show(selection);
 
   if (gtk_dialog_run(GTK_DIALOG(selection)) == GTK_RESPONSE_OK)
@@ -1812,6 +2129,7 @@ void on_click_config(GtkWidget *button, gpointer pdata)
     char *path;
     path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(selection));
     strcpy(python_path, path);
+    g_free(path);
   }
   gtk_widget_destroy(selection);
 }
@@ -1825,11 +2143,12 @@ void on_click_extract_area(GtkWidget *button, gpointer pdata)
 
   if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)))
   {
-
-    pframe_extract = (GtkWidget*) pdata;
     pWindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    pframe_extract = (GtkWidget*) pdata;
+
     gtk_widget_set_double_buffered(pWindow, TRUE);
     g_object_set_data(G_OBJECT(pWindow), "toggle_button", (gpointer) button);
+
     g_signal_connect(G_OBJECT(pWindow), "destroy", G_CALLBACK(on_destroy_new_window), pframe_extract);
     gtk_window_set_default_size(GTK_WINDOW(pWindow), 800, 800);
 
@@ -1847,7 +2166,8 @@ void on_click_extract_area(GtkWidget *button, gpointer pdata)
   }
   else
   {
-    on_destroy_new_window(pWindow, pframe_extract);
+    gtk_widget_destroy(pWindow);
+    // on_destroy_new_window(pWindow, pframe_extract);
     pWindow = NULL;
     pframe_extract = NULL;
   }
@@ -1867,8 +2187,11 @@ gboolean on_resize_neuron_frame(GtkWidget *widget, GdkRectangle *allocation, gpo
 void pandora_window_new()
 {
   char path[PATH_MAX];
-  GtkWidget *h_box_main, *v_box_main, *v_box_inter, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons, *hbox_barre, *refreshModeHBox, *refreshModeComboBox, *refreshModeLabel, *refreshManualButton, *refreshSetting, *refreshLabel, *xSetting, *xLabel, *menuBar,
-      *fileMenu, *legend, *com;
+  char path_css[PATH_MAX];
+  char path_fleche[PATH_MAX];
+  char path_separateur[PATH_MAX];
+  GtkWidget *h_box_main, *v_box_main, *v_box_inter, *pFrameEchelles, *pVBoxEchelles, *hbox_buttons, *hbox_barre, *refreshModeHBox, *refreshModeComboBox, *refreshModeLabel, *refreshManualButton, *refreshSetting, *xSetting, *xLabel, *menuBar, *fileMenu,
+      *legend, *com;
   GtkWidget *h_box_save, *h_box_global, *h_box_network;
   GtkWidget *ySetting, *yLabel, *zxSetting, *zxLabel, *pFrameGroupes, *zySetting, *zyLabel, *saveLabel, *globalLabel, *networkLabel;
   GtkWidget *boutonDefault, *boutonPause, *save_button, *boutonDebug, *boutonTempsPhases, *save_path_button, *hide_see_legend_button, *call_python_button, *convert_matlab_button, *config_button;
@@ -1880,14 +2203,21 @@ void pandora_window_new()
   GtkWidget *com_zone;
   GtkWidget *button_label;
   GtkWidget *neuron_label_widget, *neuron_label, *dedou_im, *button_draw_links_info;
-  gchar *s=NULL;
-  // GtkWidget *separator, *windowed_area_button;
+  gchar *s = NULL;
+  GtkWidget *image_fleche_froite1, *image_fleche_froite2, *image_fleche_froite3, *image_separateur;
+  GtkCssProvider *css_provider = NULL;
+  GdkScreen * screen;
+  GdkDisplay *display;
+  gboolean test = 0;
 
   //Methode tres particuliere, afin de ne pas se compliquer la tache lors du passage d'argument utilisant les deux expressions ci dessous, on utilise le fait de pouvoir passer une adresse pour passer un int 0 ou 1 sous le format adresse.
   void* IDdialog_python = (void*) 0;
   void* IDdialog_matlab = (void*) 1;
 
   (void) p_buf;
+
+  sprintf(path_css, "%s/bin_leto_prom/simulator/pandora/resources/pandora.css", getenv("HOME"));
+
   currently_saving_list = gtk_list_store_new(1, G_TYPE_STRING);
 
 //La fenetre principale
@@ -1899,8 +2229,28 @@ void pandora_window_new()
   /* Taille de la fenetre */
   gtk_window_set_default_size(GTK_WINDOW(window), 1200, 800);
 
+  css_provider = gtk_css_provider_new();
+  display = gdk_display_get_default();
+  screen = gdk_display_get_default_screen(display);
+
+  gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+  test = gtk_css_provider_load_from_path(css_provider, path_css, NULL);
+
+  //gtk_css_provider_load_from_path(css_provider, "/home/nilsbeau/simulateur_trunk/pandora/resources", &error);
+
+  printf("Etat de chargement du css : %d\n", (int) test);
+
   window_title_update();
   sprintf(path, "%s/bin_leto_prom/resources/pandora_icon.png", getenv("HOME"));
+  sprintf(path_fleche, "%s/bin_leto_prom/simulator/pandora/resources/image_fleche_droite.png", getenv("HOME"));
+  sprintf(path_separateur, "%s/bin_leto_prom/simulator/pandora/resources/separateur2.png", getenv("HOME"));
+
+  image_fleche_froite1 = gtk_image_new_from_file((gchar*) path_fleche);
+  image_fleche_froite2 = gtk_image_new_from_file((gchar*) path_fleche);
+  image_fleche_froite3 = gtk_image_new_from_file((gchar*) path_fleche);
+  image_separateur = gtk_image_new_from_file((gchar*) path_separateur);
+
   gtk_window_set_icon_from_file(GTK_WINDOW(window), path, NULL);
 
 //Le signal de fermeture de la fenetre est connecte à la fenetre (petite croix)
@@ -1933,28 +2283,28 @@ void pandora_window_new()
   //gtk_widget_set_halign (gtk_frame_get_label_widget(GTK_FRAME(neurons_frame)),GTK_ALIGN_FILL);
   //gtk_widget_set_halign (neurons_frame,GTK_ALIGN_FILL);
 
-  s=g_locale_to_utf8("Load", -1, NULL, NULL, NULL);
+  s = g_locale_to_utf8("Load", -1, NULL, NULL, NULL);
   load = gtk_menu_item_new_with_label(s);
   g_free(s);
 
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), load);
   g_signal_connect(G_OBJECT(load), "activate", G_CALLBACK(pandora_load_preferences), NULL);
 
-  s=g_locale_to_utf8("Save", -1, NULL, NULL, NULL);
+  s = g_locale_to_utf8("Save", -1, NULL, NULL, NULL);
   save = gtk_menu_item_new_with_label(s);
   g_free(s);
 
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), save);
   g_signal_connect(G_OBJECT(save), "activate", G_CALLBACK(save_preferences), NULL);
 
-  s=g_locale_to_utf8("Save as", -1, NULL, NULL, NULL);
+  s = g_locale_to_utf8("Save as", -1, NULL, NULL, NULL);
   saveAs = gtk_menu_item_new_with_label(s);
   g_free(s);
 
   gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), saveAs);
   g_signal_connect(G_OBJECT(saveAs), "activate", G_CALLBACK(save_preferences_as), NULL);
 
-  s=g_locale_to_utf8("Quit", -1, NULL, NULL, NULL);
+  s = g_locale_to_utf8("Quit", -1, NULL, NULL, NULL);
   quit = gtk_menu_item_new_with_label(s);
   g_free(s);
 
@@ -1979,18 +2329,19 @@ void pandora_window_new()
   gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
 
   h_box_save = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-  gtk_box_set_homogeneous(GTK_BOX(h_box_save), TRUE);
+
+  //gtk_box_set_homogeneous(GTK_BOX(h_box_save), TRUE);
   h_box_global = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   gtk_box_set_homogeneous(GTK_BOX(h_box_global), TRUE);
   h_box_network = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   gtk_box_set_homogeneous(GTK_BOX(h_box_network), TRUE);
 
-  saveLabel = gtk_label_new("Saving");
   globalLabel = gtk_label_new("General");
+  saveLabel = gtk_label_new("Saving");
   networkLabel = gtk_label_new("Network");
 
-  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), h_box_save, saveLabel);
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), h_box_global, globalLabel);
+  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), h_box_save, saveLabel);
   gtk_notebook_append_page(GTK_NOTEBOOK(notebook), h_box_network, networkLabel);
 
   gtk_box_pack_start(GTK_BOX(v_box_main), notebook, FALSE, FALSE, 0);
@@ -1998,35 +2349,47 @@ void pandora_window_new()
   //Creation du bouton de changement de chemin
   save_path_button = gtk_button_new_with_label("Define save path");
   g_signal_connect(G_OBJECT(save_path_button), "clicked", G_CALLBACK(on_click_save_path_button), NULL);
-  gtk_box_pack_start(GTK_BOX(h_box_save), save_path_button, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(h_box_save), save_path_button, TRUE, FALSE, 0);
+
+  //fleche
+  gtk_box_pack_start(GTK_BOX(h_box_save), image_fleche_froite1, FALSE, FALSE, 0);
+
+  //Creation de l'onglet format pandora promethe
+  format_combobox = gtk_combo_box_text_new();
+  gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(format_combobox), "Format Pandora");
+  gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(format_combobox), "Format Promethee");
+  gtk_combo_box_set_active(GTK_COMBO_BOX(format_combobox), 0);
+  gtk_box_pack_start(GTK_BOX(h_box_save), format_combobox, TRUE, FALSE, 0);
+  g_signal_connect(G_OBJECT(format_combobox), "changed", (GCallback ) format_combo_box_changed, NULL);
+
+  //fleche
+  gtk_box_pack_start(GTK_BOX(h_box_save), image_fleche_froite2, FALSE, FALSE, 0);
 
   //Creation du bouton d'enregistrement
   save_button = gtk_toggle_button_new_with_label("Launch data saving");
   g_signal_connect(G_OBJECT(save_button), "toggled", G_CALLBACK(on_toggled_saving_button), NULL);
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(save_button), FALSE);
-  gtk_box_pack_start(GTK_BOX(h_box_save), save_button, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(h_box_save), save_button, TRUE, FALSE, 0);
 
-  format_combobox = gtk_combo_box_text_new();
-  gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(format_combobox), "Format Pandora");
-  gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(format_combobox), "Format Promethee");
-  gtk_combo_box_set_active(GTK_COMBO_BOX(format_combobox), 0);
-  gtk_box_pack_start(GTK_BOX(h_box_save), format_combobox, FALSE, FALSE, 0);
-  g_signal_connect(G_OBJECT(format_combobox), "changed", (GCallback ) format_combo_box_changed, NULL);
-
-  //Creation du bouton d'appel python
-  call_python_button = gtk_button_new_with_label("Call python script");
-  g_signal_connect(G_OBJECT(call_python_button), "clicked", G_CALLBACK(on_click_call_dialog), (gpointer ) IDdialog_python);
-  gtk_box_pack_start(GTK_BOX(h_box_save), call_python_button, FALSE, FALSE, 0);
-
+  //gtk_box_pack_start(GTK_BOX(h_box_save),separator, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(h_box_save), image_separateur, FALSE, FALSE, 0);
   //Creation du bouton de conversion matlab
   convert_matlab_button = gtk_button_new_with_label("Convert to Matlab");
   g_signal_connect(G_OBJECT(convert_matlab_button), "clicked", G_CALLBACK(on_click_call_dialog), (gpointer ) IDdialog_matlab);
-  gtk_box_pack_start(GTK_BOX(h_box_save), convert_matlab_button, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(h_box_save), convert_matlab_button, TRUE, FALSE, 0);
 
   //Creation du bouton de config
   config_button = gtk_button_new_with_label("Define script path");
   g_signal_connect(G_OBJECT(config_button), "clicked", G_CALLBACK(on_click_config), NULL);
-  gtk_box_pack_start(GTK_BOX(h_box_save), config_button, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(h_box_save), config_button, TRUE, FALSE, 0);
+
+  //fleche
+  gtk_box_pack_start(GTK_BOX(h_box_save), image_fleche_froite3, FALSE, FALSE, 0);
+
+  //Creation du bouton d'appel python
+  call_python_button = gtk_button_new_with_label("Call python script");
+  g_signal_connect(G_OBJECT(call_python_button), "clicked", G_CALLBACK(on_click_call_dialog), (gpointer ) IDdialog_python);
+  gtk_box_pack_start(GTK_BOX(h_box_save), call_python_button, TRUE, FALSE, 0);
 
   boutonTempsPhases = gtk_toggle_button_new_with_label("start calculate execution times");
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(boutonTempsPhases), FALSE);
@@ -2288,6 +2651,7 @@ int main(int argc, char** argv)
   //GtkSettings *default_settings = gtk_settings_get_default();
   // g_object_set(default_settings, "gtk-button-images", TRUE, NULL);
 
+  setlocale(LC_ALL, "C");
   stop = FALSE;
   load_temporary_save = FALSE;
   architecture_display_dragging_currently = FALSE;
@@ -2296,6 +2660,8 @@ int main(int argc, char** argv)
   graphic.y_scale = YSCALE_DEFAULT;
   graphic.zx_scale = XGAP_DEFAULT;
   graphic.zy_scale = YGAP_DEFAULT;
+
+  if (sem_init(&(enet_pandora_lock), 1, 1) != 0) PRINT_WARNING("Critical error ! Fail to init semaphore !");
 
   //definition de pandora_quit comme la fonction de fermeture du programme par defaut.
   atexit(pandora_quit);
@@ -2365,6 +2731,7 @@ int main(int argc, char** argv)
   }
 
 //Creation de la fenetre GTK principale, disposition des boutons etc...
+
   pandora_window_new();
 
 //si apres chargement il n'y a pas de bus_id

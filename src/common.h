@@ -41,6 +41,7 @@ The fact that you are presently reading this means that you have had knowledge o
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <locale.h>
 
 /* Systeme de semaphore */
 #include <semaphore.h>

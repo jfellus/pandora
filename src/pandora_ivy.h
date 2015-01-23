@@ -49,5 +49,6 @@ extern sem_t ivy_semaphore;
 void pandora_bus_send_message(char *id, const char *format, ...);
 void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEvent event);
 void prom_bus_init(const char *ip);
+void destroy_ivy_serveur(char* const appname);
 
 #endif /* JAPET_IVY_H_ */
