@@ -495,6 +495,11 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
   /* Standard window-creating stuff */
 
   /*----------------------------------------------------------------*/
+  box2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+  gtk_box_set_homogeneous(GTK_BOX(box2), TRUE);
+  label = gtk_label_new("Controles\n");
+  gtk_box_pack_start(GTK_BOX(box2), label, FALSE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(box1), box2, FALSE, FALSE, 0);
 
   if (script_actu->number_of_control[VUE_METRE] != 0)
   {
