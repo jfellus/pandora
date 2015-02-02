@@ -73,8 +73,8 @@ donnees = donnees.reshape((nbriteration,ligne,colonne))
 nom_fichier_donnees=fichier+'_donnees'+'.mat'
 nom_fichier_temps=fichier+'_temps'+'.mat'
 
-description_matlab_donnees=fichier+'_donnees'
-description_matlab_temps=fichier+'_temps'
+description_matlab_donnees='donnees'
+description_matlab_temps='temps'
 
 scipy.io.savemat(nom_fichier_donnees, mdict={description_matlab_donnees: donnees})
 scipy.io.savemat(nom_fichier_temps, mdict={description_matlab_temps: temps})

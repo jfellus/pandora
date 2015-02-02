@@ -104,8 +104,8 @@ int stop; // continue l'enregistrement pour le graphe ou non.
 //Pour la sauvegarde
 gboolean saving_press = 0;
 char path_named[MAX_LENGHT_PATHNAME] = "";
-char python_path[MAX_LENGHT_PATHNAME] = "~/bin_leto_prom/simulator/japet/save/default_script.py";
-char matlab_path[MAX_LENGHT_PATHNAME] = "~/bin_leto_prom/simulator/japet/save/convert_matlab.py";
+char python_path[MAX_LENGHT_PATHNAME] = "~/bin_leto_prom/simulator/pandora/save/default_script.py";
+char matlab_path[MAX_LENGHT_PATHNAME] = "~/bin_leto_prom/simulator/pandora/save/convert_matlab.py";
 GtkListStore* currently_saving_list = NULL;
 
 pthread_t new_window_thread;

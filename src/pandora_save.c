@@ -71,7 +71,7 @@ void destroy_saving_ref_one(type_script* script_used)
     if (script_used->groups[indGroup].on_saving == 1)
     {
       fclose(script_used->groups[indGroup].associated_file);
-      printf("\n\nCloture du fichier associ�� �� %s\n\n", script_used->groups[indGroup].name);
+      printf("\n\nCloture du fichier associé %s\n\n", script_used->groups[indGroup].name);
       script_used->groups[indGroup].on_saving = 0; //par s��curit�� mais normalement c'est fait ailleurs.
     }
 
