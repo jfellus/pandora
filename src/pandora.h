@@ -234,10 +234,10 @@ typedef struct group {
   cairo_surface_t *surface_image;
   int stride;
   int type_control;
-  float borne_max;
-  float borne_min;
   float step;
   float init;
+  float borne_max;
+  float borne_min;
   char name_n[256];
 } type_group;
 

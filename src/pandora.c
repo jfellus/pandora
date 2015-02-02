@@ -376,7 +376,6 @@ void search_control_in_script_and_allocate_control(type_script* script_actu)
 {
   type_group* liste_des_groupes = script_actu->groups;
   type_control** control_group = NULL;
-
   int i, j;
   int* number_of_control;
   int* count;
@@ -501,7 +500,7 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
   gtk_box_pack_start(GTK_BOX(box2), label, FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(box1), box2, FALSE, FALSE, 0);
 
-  if (script_actu->number_of_control[VUE_METRE] != 0)
+  if (script_actu->number_of_control[VUE_METRE] > 0)
   {
     box2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     gtk_box_set_homogeneous(GTK_BOX(box2), TRUE);
@@ -514,7 +513,7 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
     /* on peut avoir plus de 2 VuMetre */
     for (i = 0; i < script_actu->number_of_control[VUE_METRE]; i++)
     {
-      for (j = 0; j < script_actu->control_group[VUE_METRE][i].associated_group->number_of_neurons; j++)
+      for (j = 0; j < ((script_actu->control_group[VUE_METRE][i]).associated_group)->number_of_neurons; j++)
       {
 
         /* creation de la boite pour le VuMetre dans la macro boite box1 */
@@ -533,7 +532,7 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
         //gtk_box_pack_start(GTK_BOX(box2), separator1, FALSE, FALSE, 0);
 
         gtk_range =
-            (GtkRange*) gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,script_actu->control_group[VUE_METRE][i].associated_group->borne_min, script_actu->control_group[VUE_METRE][i].associated_group->borne_max, script_actu->control_group[VUE_METRE][i].associated_group->step);
+            (GtkRange*) gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,(((script_actu->control_group[VUE_METRE][i]).associated_group)->borne_min), script_actu->control_group[VUE_METRE][i].associated_group->borne_max, script_actu->control_group[VUE_METRE][i].associated_group->step);
 
         gtk_range_set_value(gtk_range, script_actu->control_group[VUE_METRE][i].associated_group->init);
         g_object_set_data(G_OBJECT(gtk_range), "neurone_asso", (gpointer) j);

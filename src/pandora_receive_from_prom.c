@@ -364,8 +364,8 @@ void enet_manager(ENetHost *server)
 
             if (strcmp(group->function, liste_controle_associee[VUE_METRE]) == 0)
             {
-              if (prom_getopt_float(received_links_packet[link_id].nom, "-m", &(group->val_min)) != 2) group->val_min = min_default;
-              if (prom_getopt_float(received_links_packet[link_id].nom, "-M", &(group->val_max)) != 2) group->val_max = max_default;
+              if (prom_getopt_float(received_links_packet[link_id].nom, "-m", &(group->borne_min)) != 2) group->borne_min = min_default;
+              if (prom_getopt_float(received_links_packet[link_id].nom, "-M", &(group->borne_max)) != 2) group->borne_max = max_default;
               if (prom_getopt_float(received_links_packet[link_id].nom, "-s", &(group->step)) != 2) group->step = step_default;
               if (prom_getopt_float(received_links_packet[link_id].nom, "-i", &(group->init)) != 2) group->init = 0;
               if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strcpy(group->name_n, param_link);
