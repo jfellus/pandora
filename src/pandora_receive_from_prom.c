@@ -41,10 +41,18 @@ pthread_attr_t custom_sched_attr;
 int fifo_max_prio, fifo_min_prio;
 struct sched_param fifo_param;
 
+void recherche_vrai_nom(char* nom, char* nom_gene, int taille)
+{
+  int PID;
+  char nom_machine[taille];
+
+  sscanf(nom, "%s:%d:%s", nom_machine, &PID, nom_gene);
+
+}
+
 /**
  * Crée dans Pandora un serveur, qui va écouter le réseau et accepter les connexions des Prométhés
  */
-
 //Créé le serveur pour enet à partir des informations donnée par Ivy, crée ensuite le thread qui va écouter.
 void server_for_promethes()
 {
@@ -127,7 +135,7 @@ void enet_manager(ENetHost *server)
   static int first_call = 1;
   char ip[HOST_NAME_MAX];
   int running = 1;
-  int i, j;
+  int i, j, k;
   int script_id, group_id, link_id, net_link_id;
 
   int number_of_groups, number_of_links, number_of_neurons;
@@ -175,6 +183,7 @@ void enet_manager(ENetHost *server)
         script->color = script->id % COLOR_MAX;
         script->z = 0;
         script->y_offset = 0;
+        script->control_group = NULL;
         script->height = 0;
         script->displayed = 0;
         script->peer = event.peer; //enet_host_connect(server, &(event.peer->address), PANDORA_NUMBER_OF_CHANNELS, 0);
@@ -195,6 +204,7 @@ void enet_manager(ENetHost *server)
           memcpy(&name_size, current_data, sizeof(size_t));
           current_data = &current_data[sizeof(size_t)];
           strcpy(script->name, (char*) current_data);
+          recherche_vrai_nom(script->name, script->nom_gene, LOGICAL_NAME_MAX);
 
           current_data = &current_data[name_size];
           memcpy(&groups_size, current_data, sizeof(size_t));
@@ -368,12 +378,33 @@ void enet_manager(ENetHost *server)
               if (prom_getopt_float(received_links_packet[link_id].nom, "-M", &(group->borne_max)) != 2) group->borne_max = max_default;
               if (prom_getopt_float(received_links_packet[link_id].nom, "-s", &(group->step)) != 2) group->step = step_default;
               if (prom_getopt_float(received_links_packet[link_id].nom, "-i", &(group->init)) != 2) group->init = 0;
+              else
+              {
+                for (k = 0; k < group->number_of_neurons; k++)
+                {
+                  group->neurons[k].s = group->init;
+                  group->neurons[k].s1 = group->init;
+                  group->neurons[k].s2 = group->init;
+                }
+              }
               if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strcpy(group->name_n, param_link);
+              pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_ONE, group->id, group->script->name + strlen(bus_id) + 1);
+
             }
             if (strcmp(group->function, liste_controle_associee[CHECKBOX]) == 0)
             {
               if (prom_getopt_float(received_links_packet[link_id].nom, "-i", &(group->init)) != 2) group->init = 0;
+              else
+              {
+                for (k = 0; k < group->number_of_neurons; k++)
+                {
+                  group->neurons[k].s = group->init;
+                  group->neurons[k].s1 = group->init;
+                  group->neurons[k].s2 = group->init;
+                }
+              }
               if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strcpy(group->name_n, param_link);
+              pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_ONE, group->id, group->script->name + strlen(bus_id) + 1);
             }
 
             if (!received_links_packet[link_id].secondaire) //Si c'est une liaison principale

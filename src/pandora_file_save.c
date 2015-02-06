@@ -97,7 +97,7 @@ void pandora_file_save(const char *filename)
   {
     script = scripts[script_id];
     script_node = mxmlNewElement(preferences_node, "script");
-    xml_set_string(script_node, "name", scripts[script_id]->name);
+    xml_set_string(script_node, "name", scripts[script_id]->nom_gene);
 
     xml_set_int(script_node, "visibility", script->displayed);
 
@@ -167,7 +167,7 @@ void pandora_file_load(const char *filename)
     script = scripts[script_id];
     for (script_node = xml_get_first_child_with_node_name(preferences_node, "script"); script_node; script_node = xml_get_next_homonymous_sibling(script_node))
     {
-      if (!strcmp(script->name, xml_get_string(script_node, "name")))
+      if (!strcmp(script->nom_gene, xml_get_string(script_node, "name")))
       {
         script->displayed = xml_get_int(script_node, "visibility");
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(script->checkbox), scripts[script_id]->displayed);
@@ -216,7 +216,7 @@ void pandora_file_load_script(const char *filename, type_script *script)
 
   for (script_node = xml_get_first_child_with_node_name(preferences_node, "script"); script_node; script_node = xml_get_next_homonymous_sibling(script_node))
   {
-    if (!strcmp(script->name, xml_get_string(script_node, "name")))
+    if (!strcmp(script->nom_gene, xml_get_string(script_node, "name")))
     {
       pthread_mutex_lock(&mutex_script_caracteristics);
 

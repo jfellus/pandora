@@ -359,15 +359,15 @@ void on_destroy_control_window(GtkWidget *pWidget, gpointer pdata) //Fonction de
 
   (void) pWidget;
 
-  for (j = 0; j < NUMBER_OF_CONTROL_TYPE; j++)
-  {
-    free(script_actu->control_group[j]);
-  }
-  free(script_actu->control_group);
-  free(script_actu->number_of_control);
-
-  script_actu->number_of_control = NULL;
-  script_actu->control_group = NULL;
+//  for (j = 0; j < NUMBER_OF_CONTROL_TYPE; j++)
+//  {
+//    free(script_actu->control_group[j]);
+//  }
+//  free(script_actu->control_group);
+//  free(script_actu->number_of_control);
+//
+//  script_actu->number_of_control = NULL;
+//  script_actu->control_group = NULL;
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(script_actu->control_button), FALSE);
   script_actu->pWindow = NULL;
 }
@@ -439,7 +439,7 @@ gboolean on_vue_metre_change(GtkWidget *gtk_range, type_group *group)
 
   struct_maj.no_group = group->id;
   struct_maj.no_neuro = j + group->firstNeuron;
-  struct_maj.s = struct_maj.s1 = struct_maj.s2 = (float) gtk_range_get_value(GTK_RANGE(gtk_range));
+  struct_maj.s = struct_maj.s1 = struct_maj.s2 = group->neurons[j].s1 = group->neurons[j].s2 = group->neurons[j].s1 = (float) gtk_range_get_value(GTK_RANGE(gtk_range));
 
   packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
   sem_wait(&(enet_pandora_lock));
@@ -466,7 +466,7 @@ gboolean on_toggled_check_bouton(GtkWidget *check_bouton, type_group *group)
 
   struct_maj.no_group = group->id;
   struct_maj.no_neuro = j + group->firstNeuron;
-  struct_maj.s = struct_maj.s1 = struct_maj.s2 = (float) (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(check_bouton)));
+  struct_maj.s = struct_maj.s1 = struct_maj.s2 = group->neurons[j].s1 = group->neurons[j].s2 = group->neurons[j].s1 = (float) (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_bouton)));
 
   packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
   sem_wait(&(enet_pandora_lock));
@@ -487,7 +487,7 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
 {
   int i, j;
   GtkWidget *box2, *grid;
-  GtkWidget *label, *separator1, *separator2,*check_button;
+  GtkWidget *label, *separator1, *separator2, *check_button;
   GtkRange *gtk_range;
   int* no_neuro;
   int k = 0;
@@ -510,7 +510,6 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
 
     grid = gtk_grid_new();
 
-    /* on peut avoir plus de 2 VuMetre */
     for (i = 0; i < script_actu->number_of_control[VUE_METRE]; i++)
     {
       for (j = 0; j < ((script_actu->control_group[VUE_METRE][i]).associated_group)->number_of_neurons; j++)
@@ -532,9 +531,9 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
         //gtk_box_pack_start(GTK_BOX(box2), separator1, FALSE, FALSE, 0);
 
         gtk_range =
-            (GtkRange*) gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL,(((script_actu->control_group[VUE_METRE][i]).associated_group)->borne_min), script_actu->control_group[VUE_METRE][i].associated_group->borne_max, script_actu->control_group[VUE_METRE][i].associated_group->step);
+            (GtkRange*) gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, (((script_actu->control_group[VUE_METRE][i]).associated_group)->borne_min), script_actu->control_group[VUE_METRE][i].associated_group->borne_max, script_actu->control_group[VUE_METRE][i].associated_group->step);
 
-        gtk_range_set_value(gtk_range, script_actu->control_group[VUE_METRE][i].associated_group->init);
+        gtk_range_set_value(gtk_range, script_actu->control_group[VUE_METRE][i].associated_group->neurons[j].s1);
         g_object_set_data(G_OBJECT(gtk_range), "neurone_asso", (gpointer) j);
         g_signal_connect(G_OBJECT(gtk_range), "value-changed", G_CALLBACK(on_vue_metre_change), script_actu->control_group[VUE_METRE][i].associated_group);
 
@@ -575,9 +574,9 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
 
         check_button = GTK_WIDGET(gtk_check_button_new_with_label(script_actu->control_group[CHECKBOX][i].associated_group->name_n));
 
-       // gtk_grid_attach(GTK_GRID(grid), label, 0, k, 1, 1);
+        // gtk_grid_attach(GTK_GRID(grid), label, 0, k, 1, 1);
         gtk_grid_attach(GTK_GRID(grid), separator1, 0, k, 1, 1);
-        if(script_actu->control_group[CHECKBOX][i].associated_group->init>0.5) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), TRUE);
+        if (script_actu->control_group[CHECKBOX][i].associated_group->neurons[j].s1 > 0.5) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), TRUE);
         else gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), FALSE);
 
         g_object_set_data(G_OBJECT(check_button), "neurone_asso", (gpointer) j);
@@ -592,7 +591,6 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
       }
 
     }
-
 
     gtk_grid_set_column_homogeneous(GTK_GRID(grid), 2);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
@@ -621,7 +619,7 @@ void on_toggled_affiche_control_button(GtkWidget *affiche_control_button, gpoint
     script_actu->pWindow = pWindow;
     g_signal_connect(G_OBJECT(pWindow), "destroy", G_CALLBACK(on_destroy_control_window), pData);
 
-    search_control_in_script_and_allocate_control(script_actu);
+    if (script_actu->control_group == NULL) search_control_in_script_and_allocate_control(script_actu);
 
     scrolled_window = gtk_scrolled_window_new(NULL, NULL);
 
@@ -1764,6 +1762,19 @@ void script_destroy(type_script *script)
   if (script->pWindow != NULL)
   {
     gtk_widget_destroy(script->pWindow);
+  }
+
+  if (script->control_group != NULL)
+  {
+    for (j = 0; j < NUMBER_OF_CONTROL_TYPE; j++)
+    {
+      free(script->control_group[j]);
+    }
+    free(script->control_group);
+    free(script->number_of_control);
+
+    script->number_of_control = NULL;
+    script->control_group = NULL;
   }
 
   for (i = 0; i < number_of_groups_to_display; i++)

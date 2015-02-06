@@ -259,6 +259,7 @@ typedef struct script {
   int id;
   char name[LOGICAL_NAME_MAX];
   char machine[HOST_NAME_MAX];
+  char nom_gene[LOGICAL_NAME_MAX];
   int color, y_offset, height, z;
   int number_of_groups;
   type_group *groups; //Tableau des groupes du script
