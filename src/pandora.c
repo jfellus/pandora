@@ -2112,7 +2112,7 @@ void on_click_call_dialog(GtkWidget *pWidget, gpointer pdata)
   gtk_box_pack_start(GTK_BOX(vbox), pScrollbar, TRUE, TRUE, 1);
 
   text_entry = gtk_entry_new();
-  gtk_entry_set_max_length(GTK_ENTRY(text_entry), MAX_LENGHT_FILENAME);
+  gtk_entry_set_max_length(GTK_ENTRY(text_entry), MAX_LENGHT_PATHNAME);
   g_object_set_data(G_OBJECT(python_window), "text_entry", (gpointer) text_entry);
   gtk_box_pack_start(GTK_BOX(vbox), text_entry, FALSE, FALSE, 1);
   // gtk_box_pack_start(GTK_BOX(GTK_DIALOG(python_window)->vbox),pScrollbar,TRUE,TRUE,1);
