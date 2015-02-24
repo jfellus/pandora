@@ -369,7 +369,7 @@ void on_destroy_control_window(GtkWidget *pWidget, gpointer pdata) //Fonction de
 //  script_actu->number_of_control = NULL;
 //  script_actu->control_group = NULL;
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(script_actu->control_button), FALSE);
-  script_actu->pWindow = NULL;
+ // script_actu->pWindow = NULL;
 }
 
 void search_control_in_script_and_allocate_control(type_script* script_actu)

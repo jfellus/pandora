@@ -38,7 +38,7 @@ extern pthread_t enet_thread;
 extern sem_t enet_pandora_lock;
 /* En-tête de fonctions */
 
-void recherche_vrai_nom(char* nom, char* nom_gene, int taille);
+void recherche_vrai_nom(const char* nom, char* nom_gene, int taille);
 gboolean queue_draw(gpointer data);
 void server_for_promethes();
 void enet_manager(ENetHost *server);

@@ -41,13 +41,14 @@ pthread_attr_t custom_sched_attr;
 int fifo_max_prio, fifo_min_prio;
 struct sched_param fifo_param;
 
-void recherche_vrai_nom(char* nom, char* nom_gene, int taille)
+void recherche_vrai_nom(const char* nom, char* nom_gene, int taille)
 {
   int PID;
-  char nom_machine[taille];
+  char* nom_machine;
 
-  sscanf(nom, "%s:%d:%s", nom_machine, &PID, nom_gene);
-
+  nom_machine=MANY_ALLOCATIONS(taille,char);
+  sscanf(nom, "%[^':']:%[^':']:%[^':']", nom_machine, &PID, nom_gene);
+  printf("nom = %s nom_machine = %s NOM GENE %s\n",nom, nom_machine, nom_gene);
 }
 
 /**
@@ -113,7 +114,6 @@ int prom_getopt_float2(const char *args, const char *option, float *value)
     current_addr += strlen(option);
     if (sscanf(current_addr, "%f", value) == 1)
     {
-      printf("vue par get-opt : %s value= %f\n", current_addr, *value);
       return 2; // This is followed by a number nor a new argument.
     }
     if (current_addr[0] == '-') return 1;
@@ -188,6 +188,7 @@ void enet_manager(ENetHost *server)
         script->displayed = 0;
         script->peer = event.peer; //enet_host_connect(server, &(event.peer->address), PANDORA_NUMBER_OF_CHANNELS, 0);
         script->groups = NULL;
+        script->pWindow=NULL;
         sem_init(&script->sem_groups_defined, 0, 0);
         scripts[number_of_scripts] = script;
         number_of_scripts++;
@@ -429,10 +430,19 @@ void enet_manager(ENetHost *server)
           }
           script_update_display(script);
 
-          if (load_temporary_save == TRUE && (access("./pandora.pandora", R_OK) == 0)) pandora_file_load_script("./pandora.pandora", script);
-          else if (access(preferences_filename, R_OK) == 0) pandora_file_load_script(preferences_filename, script);
+
+          if (access(preferences_filename, R_OK) == 0)
+            {
+              pandora_file_load_script(preferences_filename, script);
+            }
+          else if((load_temporary_save == TRUE && (access("./pandora.pandora", R_OK) == 0)))
+          {
+            pandora_file_load_script("./pandora.pandora", script);
+          }
           script_caracteristics(scripts[script->id], APPLY_SCRIPT_GROUPS_CARACTERISTICS);
           enet_packet_destroy(event.packet);
+
+        //  pandora_load_preferences(,preferences_filename);
           break;
 
         case ENET_UPDATE_NEURON_CHANNEL:
