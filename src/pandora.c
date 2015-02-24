@@ -2027,7 +2027,7 @@ void call_python_inter(GtkWidget *python_window, int arg, gpointer pdata)
 {
   GtkWidget* text_entry = NULL;
   GtkTreeIter iter;
-  gchar entry[MAX_LENGHT_FILENAME];
+  gchar entry[MAX_LENGHT_PATHNAME];
 
   // (void) python_window;
   if (arg == GTK_RESPONSE_OK) gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(pdata), call_python, NULL);
@@ -2047,7 +2047,7 @@ void call_matlab_inter(GtkWidget *python_window, int arg, gpointer pdata)
 {
   GtkWidget* text_entry = NULL;
   GtkTreeIter iter;
-  gchar entry[MAX_LENGHT_FILENAME];
+  gchar entry[MAX_LENGHT_PATHNAME];
 
   (void) python_window;
   if (arg == GTK_RESPONSE_OK) gtk_tree_selection_selected_foreach(GTK_TREE_SELECTION(pdata), call_matlab, NULL);
