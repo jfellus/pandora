@@ -715,7 +715,6 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   if (group->widget != NULL || group->ok != TRUE) return;
 
   group->label = gtk_label_new("");
-
   //initialisation
   /* Test : on init uniquement les param de ce qui concerne le big graph a la selection de ce mode.
    if (group->rows <= 10 && group->columns <= 10)
@@ -1101,6 +1100,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
 {
   //Attention : il est tres important de garder cet ordre pour les mutex, notemment le fait de ne pas entourer gdk_threads_enter, au risque de provoquer des dead-end due à plusieurs mutex
   float ndg = 0, val, tmp = 0, x, y0 = 0, yVal, min = group->val_min, max = group->val_max, frequence = 0;
+  float r,v,b;
   float largeurNeuron, hauteurNeuron;
   //float r, g, b;
   int i, j, k = 0;
@@ -1150,7 +1150,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
       k++;
       frequence += group->frequence_values[i];
     }
-    if (k > 0) frequence = frequence / k;
+    if (k > 0) frequence = frequence / (float)k;
   }
   group->counter = 0;
 
@@ -1158,6 +1158,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
   //                                                   [min | max] - fréquence moyenne
   snprintf(label_text, LABEL_MAX, "<b>%s</b> - %s \n[%.2f | %.2f] - %.3f Hz", group->name, group->function, min, max, frequence);
   gtk_label_set_markup(group->label, label_text);
+  gtk_widget_set_tooltip_markup (GTK_WIDGET(group->label), label_text);
 
   if (group->previous_output_display == 3 && group->output_display != 3)
   {
@@ -1275,8 +1276,20 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
         group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) (((u * largeurNeuron) + (largeurNeuron - 5) / 2));
         group->param_neuro_pandora[i + j * group->columns * incrementation].center_y = (double) (((j * hauteurNeuron + hauteurNeuron / 2)));
         test_selection(group, u, i, j, largeurNeuron, hauteurNeuron, incrementation);
-        if(group->param_neuro_pandora[i + j * group->columns * incrementation].selected) cairo_set_source_rgba(cr, RED);
-        else cairo_set_source_rgba(cr, WHITE);
+        if(group->param_neuro_pandora[i + j * group->columns * incrementation].selected)
+          {
+            r=select_compo(RED,1);
+            v=select_compo(RED,2);
+            b=select_compo(RED,3);
+            cairo_set_source_rgba(cr, RED);
+          }
+        else
+        {
+          r=select_compo(WHITE,1);
+          v=select_compo(WHITE,2);
+          b=select_compo(WHITE,3);
+          cairo_set_source_rgba(cr, WHITE);
+        }
         switch (group->display_mode)
         {
         case DISPLAY_MODE_SQUARE:
@@ -1288,8 +1301,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
 
         case DISPLAY_MODE_INTENSITY:
           ndg = niveauDeGris(val, min, max);
-
-          cairo_set_source_rgba(cr, ndg, ndg, ndg, 1);
+          cairo_set_source_rgba(cr, ndg*r, ndg*v, ndg*b, 1);
           cairo_rectangle(cr, u * largeurNeuron, j * hauteurNeuron, largeurNeuron - 1, hauteurNeuron - 1);
           cairo_fill(cr);
           break;
@@ -1430,7 +1442,6 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
           prom_images = (prom_images_struct*) group->ext;
           if (group->image_ready == FALSE)
           {
-
             init_image(image_data, prom_images, group, cr, -1);
             image = group->surface_image;
             image_data = cairo_image_surface_get_data(image);
@@ -1438,7 +1449,6 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
           }
           else
           {
-
             image = group->surface_image;
             image_data = cairo_image_surface_get_data(image);
             image_data[j * group->stride + i] = 255 - niveauDeGris(val, min, max) * 255;

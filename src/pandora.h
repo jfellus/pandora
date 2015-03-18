@@ -86,7 +86,7 @@ The fact that you are presently reading this means that you have had knowledge o
 #define BUTTON_HEIGHT 25
 #define BIG_GRAPH_MAX_NEURONS_NUMBER 8
 #define NB_Max_VALEURS_ENREGISTREES 200
-#define FREQUENCE_MAX_VALUES_NUMBER 20
+#define FREQUENCE_MAX_VALUES_NUMBER 10
 #define ZOOM_GAP 10
 
 #define APPLY_SCRIPT_GROUPS_CARACTERISTICS 1

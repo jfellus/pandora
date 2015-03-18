@@ -62,6 +62,7 @@ typedef struct type_link_draw {
 // type_link_draw* elem_suivant;
 } type_link_draw;
 
+
 /** "En-tête" de variables globales **/
 extern gdouble move_neurons_old_x, move_neurons_old_y;
 extern gboolean move_neurons_start;
@@ -112,7 +113,28 @@ void correspondance_reste(unsigned char * image_data, prom_images_struct * const
 void destruction_image(type_group * const group);
 void correspondance_display_intensity(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
 
-
+static inline float select_compo(float a, float b, float c, float alpha, char no)
+{
+  switch(no)
+  {
+  case 1 :
+    return a;
+       break;
+  case 2 :
+    return b;
+    break;
+  case 3 :
+    return c;
+    break;
+  case 4 :
+    return alpha;
+    break;
+  default:
+    EXIT_ON_ERROR("Mauvaise utilisation de la fonction select_compo dans pandora_graphic.h\n");
+    break;
+  }
+  return -1;
+}
 
 
 
