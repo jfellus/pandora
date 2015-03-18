@@ -1275,7 +1275,8 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
         group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) (((u * largeurNeuron) + (largeurNeuron - 5) / 2));
         group->param_neuro_pandora[i + j * group->columns * incrementation].center_y = (double) (((j * hauteurNeuron + hauteurNeuron / 2)));
         test_selection(group, u, i, j, largeurNeuron, hauteurNeuron, incrementation);
-        cairo_set_source_rgba(cr, WHITE);
+        if(group->param_neuro_pandora[i + j * group->columns * incrementation].selected) cairo_set_source_rgba(cr, RED);
+        else cairo_set_source_rgba(cr, WHITE);
         switch (group->display_mode)
         {
         case DISPLAY_MODE_SQUARE:
@@ -1564,7 +1565,7 @@ gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data)
         for (j = 0; j < nbr_coeff; j++)
         {
           group_pointed = groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].links_to_draw[j].group_pointed;
-          if (group_pointed->ok_display == 0) break;
+          if (group_pointed->ok_display == 0) continue;
           no_neuron_pointed = groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].links_to_draw[j].no_neuro_rel_pointed;
           xdep = (gint) (groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].center_x);
           ydep = (gint) (groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].center_y);
