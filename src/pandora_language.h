@@ -20,34 +20,58 @@ and, more generally, to use and operate it in the same conditions as regards sec
 The fact that you are presently reading this means that you have had knowledge of the CeCILL v2.1 license and that you accept its terms.
 */
 /**
- * pandora_receive_from_prom.h
+ * pandora_language.h
  *
- *  Created on: 15 juil. 2013
+ *  Created on: Mar 13, 2015
  *      Author: Nils Beaussé
  **/
 
-#ifndef PANDORA_RECEIVE_FROM_PROM_H_
-#define PANDORA_RECEIVE_FROM_PROM_H_
+#ifndef PANDORA_LANGUAGE_H
+#define PANDORA_LANGUAGE_H
 
 #include "common.h"
-#include "pandora.h" // pour les type_script group etc...
-#define diff(a,b) (a > b ? a-b : b-a)
-#define permut(a,b,tmp) {tmp = a; a = b; b = tmp;} // TODO : probablement à supprimer
-/* "En-tête" de variables globales */
-extern pthread_t enet_thread;
-extern sem_t enet_pandora_lock;
-extern enet_uint16 port_pando;
-/* En-tête de fonctions */
 
-void recherche_vrai_nom(const char* nom, char* nom_gene, int taille);
-gboolean queue_draw(gpointer data);
-void server_for_promethes();
-void enet_manager(ENetHost *server);
-void verify_script(type_script *script);
-void verify_group(type_group *group);
-void sort_list_groups_by_rate(type_group **groups, int number_of_groups);
-type_group* search_associated_group(int no_neuro, type_script* script);
-void create_links(type_group *group, int no_neuro, enet_uint8 *current_data, int number_of_neuro_links, type_script* script);
+#define TAILLE_NOM_MAX 50
+
+enum
+{
+  FRANCAIS=0,
+  ENGLISH
+};
+
+#define LANGUE_ACTUELLE FRANCAIS
+
+enum
+{
+  warning_semaphore=0,
+  exit_sigint,
+  exit_sigsegv,
+  usage_information,
+  enet_init_error,
+  usage_error,
+  start_time_info,
+  nbre_chaines_totales
+};
+
+const char const nom_chaines[nbre_chaines_totales] =
+    {
+        "warning_semaphore",
+        "exit_sigint",
+        "exit_sigsegv",
+        "usage_information",
+        "enet_init_error",
+        "usage_error",
+        "start_time_info"
+    };
+
+typedef struct chaine_pando
+{
+  char nom[TAILLE_NOM_MAX];
+  char *texte;
+}chaine_pando;
 
 
-#endif /* PANDORA_RECEIVE_FROM_PROM_H_ */
+void init_chaines_nom(chaine_pando* chaines_a_init);
+Node *recurcively_load_tree_pando(const char *filename);
+
+#endif /* PANDORA_LANGUAGE_H */

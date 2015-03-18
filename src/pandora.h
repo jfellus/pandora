@@ -59,15 +59,15 @@ The fact that you are presently reading this means that you have had knowledge o
 
 //-------------------------------------------------CONSTANTES----------------------------------------------------------
 
-#define MESSAGE_MAX 256 //Utilis������ par la fonction fatal_error dans pandora.c
+#define MESSAGE_MAX 256 //Utilisé par la fonction fatal_error dans pandora.c
 #define SHOWCOLOR_SIZE 20
-#define GRID_WIDTH 0.2 //������paisseur des lignes de la grille
-#define RECEPTION_DELAY 2 //D������lai (en secondes) pendant lequel Pandora attend les scripts qu'il a demand������
-//Dimension du rectangle repr������sentant un groupe
+#define GRID_WIDTH 0.2 //épaisseur des lignes de la grille
+#define RECEPTION_DELAY 2 //Délai (en secondes) pendant lequel Pandora attend les scripts qu'il a demandé
+//Dimension du rectangle représentant un groupe
 #define LARGEUR_GROUPE 96
 #define HAUTEUR_GROUPE 40
 
-//������chelles par d������faut
+//échelles par défaut
 #define REFRESHSCALE_DEFAULT 30
 #define XSCALE_DEFAULT 128
 #define XSCALE_MIN 10
@@ -77,7 +77,7 @@ The fact that you are presently reading this means that you have had knowledge o
 #define YSCALE_MAX 350
 #define XGAP_DEFAULT 32
 #define YGAP_DEFAULT 24
-#define DIGITS_DEFAULT 4 //Nombre de caract������res pour afficher les valeurs d'un neurone
+#define DIGITS_DEFAULT 4 //Nombre de caractères pour afficher les valeurs d'une neurone
 #define LABEL_MAX 128
 
 #define GRAPH_HEIGHT 160
@@ -279,7 +279,7 @@ typedef struct script_link {
   int type;
 } type_script_link;
 
-/* En-t������te de Variables Globales */
+/* En-tète de Variables Globales */
 
 extern char bus_id[BUS_ID_MAX];
 extern double start_time; /* time of start in seconds */
@@ -293,25 +293,25 @@ extern char preferences_filename[PATH_MAX]; //fichier de preferences (*.jap)
 extern int stop; // continue l'enregistrement pour le graphe ou non.
 extern gboolean calculate_executions_times;
 
-extern int number_of_scripts; //Nombre de scripts ������ afficher
+extern int number_of_scripts; //Nombre de scripts à afficher
 char scriptsNames[NB_SCRIPTS_MAX][SCRIPT_NAME_MAX]; //Tableau des noms des scripts
-extern type_script *scripts[NB_SCRIPTS_MAX]; //Tableau des scripts ������ afficher
-extern int newScriptNumber; //Num������ro donn������ ������ un script quand on l'ouvre
+extern type_script *scripts[NB_SCRIPTS_MAX]; //Tableau des scripts à afficher
+extern int newScriptNumber; //Numéro donné à un script quand on l'ouvre
 extern int zMax; //la plus grande valeur de z parmi les scripts ouverts
-extern int buffered; //Nombre d'instantan������s actuellement en m������moire
+extern int buffered; //Nombre d'instantanés actuellement en mémoire
 
 extern int usedWindows;
-extern type_group *selected_group; //Pointeur sur le groupe actuellement s������lectionn������
-extern int selectedWindow; //Num������ro de la fen������tre s������lectionn������e (entre 0 et NB_WINDOWS_MAX-1). NB_WINDOWS_MAX indique qu'aucune fen������tre n'est s������lectionn������e
+extern type_group *selected_group; //Pointeur sur le groupe actuellement sélectionné
+extern int selectedWindow; //Numéro de la fenètre sélectionnée (entre 0 et NB_WINDOWS_MAX-1). NB_WINDOWS_MAX indique qu'aucune fenètre n'est sélectionnée
 
 extern GtkWidget *pHBox2; //Panneau des neurones
-extern GtkWidget *pFrameNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de petites fen������tres pour les neurones
-extern GtkWidget *zoneNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de zones o������ dessiner des neurones
-extern type_group *windowGroup[NB_WINDOWS_MAX]; //Adresse des groupe affich������ dans la zoneNeurones de m������me indice
-extern int windowValue[NB_WINDOWS_MAX]; //Num������ro disant quelle valeur des neurones du groupe il faut afficher dans la fen������tre de m������me indice (0 : s, 1 : s1, 2 : s2, 3 : pic)
+extern GtkWidget *pFrameNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de petites fenetres pour les neurones
+extern GtkWidget *zoneNeurones[NB_WINDOWS_MAX]; //Tableau de NB_WINDOWS_MAX adresses de zones où dessiner des neurones
+extern type_group *windowGroup[NB_WINDOWS_MAX]; //Adresse des groupe affichés dans la zoneNeurones de même indice
+extern int windowValue[NB_WINDOWS_MAX]; //Numéro disant quelle valeur des neurones du groupe il faut afficher dans la fenètre de mème indice (0 : s, 1 : s1, 2 : s2, 3 : pic)
 
-extern int nbColonnesTotal; //Nombre total de colonnes de neurones dans les fen������tres du bandeau du bas
-extern int nbLignesMax; //Nombre maximal de lignes de neurones ������ afficher dans l'une des fen������tres du bandeau du bas
+extern int nbColonnesTotal; //Nombre total de colonnes de neurones dans les fenètres du bandeau du bas
+extern int nbLignesMax; //Nombre maximal de lignes de neurones à afficher dans l'une des fenètres du bandeau du bas
 extern type_group *groups_to_display[NB_WINDOWS_MAX];
 extern int number_of_groups_to_display;
 
@@ -339,6 +339,7 @@ extern type_group *open_group;
 extern GtkWidget *compress_button;
 
 extern gint format_mode;
+extern GtkListStore* currently_saving_list;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_pandora(int argc, char** argv);
@@ -372,7 +373,7 @@ void init_script(type_script *s, char *name, char *machine, int z, int nbGroups,
 void new_neuron(int script_id);
 void destroyAllScripts();
 void group_init(type_group *g, int group_id, type_script *myScript, char *name, char *function, float learningSpeed, int nbNeurons, int rows, int columns, int nbLinksTo);
-//Mise un jour d'un neurone quand Prométhé envoie de nouvelles données
+//Mise un jour d'une neurone quand Prométhé envoie de nouvelles données
 void neuron_update(type_neurone *n, float s, float s1, float s2, float pic);
 //Mise un jour d'un groupe quand Prométhé envoie de nouvelles données
 void updateGroup(type_group *g, float learningSpeed, float execTime);
@@ -414,5 +415,5 @@ void on_destroy_control_window(GtkWidget *pWidget, gpointer pdata);
 void on_toggled_affiche_control_button(GtkWidget *affiche_control_button, gpointer pData);
 void search_control_in_script_and_allocate_control(type_script* script_actu);
 void create_range_controls(type_script* script_actu,GtkWidget *box1);
-
+gboolean on_destroy_vue_metre_and_check_box(GtkWidget *gtk_range, type_group *group);
 #endif

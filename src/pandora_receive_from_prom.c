@@ -40,15 +40,15 @@ pthread_t enet_thread;
 pthread_attr_t custom_sched_attr;
 int fifo_max_prio, fifo_min_prio;
 struct sched_param fifo_param;
+enet_uint16 port_pando;
 
 void recherche_vrai_nom(const char* nom, char* nom_gene, int taille)
 {
-  int PID;
+  char PID[50];
   char* nom_machine;
 
   nom_machine=MANY_ALLOCATIONS(taille,char);
-  sscanf(nom, "%[^':']:%[^':']:%[^':']", nom_machine, &PID, nom_gene);
-  printf("nom = %s nom_machine = %s NOM GENE %s\n",nom, nom_machine, nom_gene);
+  sscanf(nom, "%[^':']:%[^':']:%[^':']", nom_machine, PID, nom_gene);
 }
 
 /**
@@ -61,20 +61,25 @@ void server_for_promethes()
   char host_name[HOST_NAME_MAX];
   ENetAddress address;
   enet_time_set(0);
+  int try=0;
 
   address.host = ENET_HOST_ANY;
-  address.port = PANDORA_PORT;
+ // address.port = PANDORA_PORT;
 
-  enet_server = enet_host_create(&address, NB_SCRIPTS_MAX, ENET_NUMBER_OF_CHANNELS, ENET_UNLIMITED_BANDWITH, ENET_UNLIMITED_BANDWITH);
 
-  if (enet_server != NULL)
+  while (enet_server == NULL && try<10)
   {
+    address.port = PANDORA_PORT+try;
+    enet_server = enet_host_create(&address, NB_SCRIPTS_MAX, ENET_NUMBER_OF_CHANNELS, ENET_UNLIMITED_BANDWITH, ENET_UNLIMITED_BANDWITH);
+
     gethostname(host_name, HOST_NAME_MAX);
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button))) enet_host_compress_with_range_coder(enet_server);
     // struct sched_param is used to store the scheduling priority
 
     // We'll set the priority to the maximum.
 
+    try++;
+   }
     pthread_attr_init(&custom_sched_attr);
     pthread_attr_setinheritsched(&custom_sched_attr, PTHREAD_EXPLICIT_SCHED);
     pthread_attr_setschedpolicy(&custom_sched_attr, SCHED_BATCH);
@@ -88,11 +93,15 @@ void server_for_promethes()
 
     pthread_create(&enet_thread, &custom_sched_attr, (void*(*)(void*)) enet_manager, enet_server);
     pthread_setschedparam(enet_thread, SCHED_BATCH, &fifo_param);
+
+  if(enet_server == NULL)
+  {
+    EXIT_ON_ERROR("Fail to create a enet server for pandora !\n\tCheck that there is no more than 10 pandora running.\n");
+    return;
   }
   else
   {
-    printf("Fail to create a enet server for pandora !\n\tCheck that there is no other pandora running.\n");
-    return;
+    port_pando=address.port;
   }
 }
 
@@ -389,7 +398,7 @@ void enet_manager(ENetHost *server)
                 }
               }
               if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strcpy(group->name_n, param_link);
-              pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_ONE, group->id, group->script->name + strlen(bus_id) + 1);
+              pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_ONE, group->id,0, group->script->name + strlen(bus_id) + 1);
 
             }
             if (strcmp(group->function, liste_controle_associee[CHECKBOX]) == 0)
@@ -405,7 +414,7 @@ void enet_manager(ENetHost *server)
                 }
               }
               if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strcpy(group->name_n, param_link);
-              pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_ONE, group->id, group->script->name + strlen(bus_id) + 1);
+              pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_ONE, group->id,0, group->script->name + strlen(bus_id) + 1);
             }
 
             if (!received_links_packet[link_id].secondaire) //Si c'est une liaison principale

@@ -36,6 +36,7 @@
 #include "pandora_ivy.h"
 #include "pandora.h"
 #include "prom_bus.h"
+#include "pandora_receive_from_prom.h"
 #include <unistd.h> /* gethostname */
 #include <limits.h> /* HOST_NAME_MAX */
 
@@ -95,6 +96,7 @@ void destroy_ivy_serveur(char* const appname)
     {
       liste_serveurs=element_parcouru->s;
       free(element_parcouru);
+      element_parcouru=NULL;
     }
     else
     {
@@ -106,6 +108,7 @@ void destroy_ivy_serveur(char* const appname)
           a_effacer= element_parcouru->s;
           element_parcouru->s=pointeur_apres;
           free(a_effacer);
+          a_effacer=NULL;
           break;
         }
         element_parcouru = element_parcouru->s;
@@ -148,7 +151,8 @@ void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEve
     new_ivy_serveur(appname, host);
 
     printf("Connexion ivy de %s d'adresse %s\n", (last_serveur->serveur).appName, (last_serveur->serveur).ip);
-    pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_START, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button)), appname+strlen(bus_id)+1);
+    printf("Tentative de connexion de pandora à cette adresse, pandora utilisera le port %d\n",port_pando);
+    pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_START, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(compress_button)),port_pando, appname+strlen(bus_id)+1);
     break;
 
   case IvyApplicationDisconnected:
@@ -175,7 +179,6 @@ void ivyApplicationCallback(IvyClientPtr app, void *user_data, IvyApplicationEve
 
 void prom_bus_init(const char *ip)
 {
-
   pid_t my_pid;
 
   gethostname(computer_name, HOST_NAME_MAX);

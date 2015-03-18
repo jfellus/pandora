@@ -157,8 +157,8 @@ void architecture_display_update(GtkWidget *architecture_display, cairo_t *cr, v
                 {
                   group->selected_for_save = !group->selected_for_save;
 
-                  if (group->selected_for_save == 1) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name+strlen(bus_id)+1);
-                  else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name+strlen(bus_id)+1);
+                  if (group->selected_for_save == 1) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id,0, group->script->name+strlen(bus_id)+1);
+                  else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id,0, group->script->name+strlen(bus_id)+1);
                 }
               }
 

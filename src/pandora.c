@@ -183,16 +183,18 @@ void destroy_tab_2(int **tab, int nbRows)
     free(tab[i]);
   }
   free(tab);
+  tab=NULL;
 }
 
 void pandora_quit()
 {
-  printf("Bye Bye !\n");
+  printf("I don't want to leaaaaave :-( !\n");
   pandora_file_save("./pandora.pandora"); //enregistrement de l'etat actuel. cet etat sera applique au prochain demarrage de pandora.
-  pandora_bus_send_message(bus_id, "pandora(%d,0)", PANDORA_STOP);
+  pandora_bus_send_message(bus_id, "pandora(%d,0,0)", PANDORA_STOP);
   enet_deinitialize();
   destroy_saving_ref(scripts); //par securite pour la cloture des fichiers de sauvegarde si on quitte durant la sauvegarde.
-  if (currently_saving_list != NULL) g_free(currently_saving_list);
+  if (currently_saving_list != NULL) free(currently_saving_list);
+  currently_saving_list=NULL;
   gtk_widget_destroy(window);
   pthread_cancel(enet_thread);
   gtk_main_quit();
@@ -355,7 +357,6 @@ void on_toggled_compress_button(GtkWidget *compress_button, gpointer pData)
 void on_destroy_control_window(GtkWidget *pWidget, gpointer pdata) //Fonction de fermeture d'une fenetre de controle
 {
   type_script* script_actu = (type_script*) pdata;
-  int j;
 
   (void) pWidget;
 
@@ -377,8 +378,8 @@ void search_control_in_script_and_allocate_control(type_script* script_actu)
   type_group* liste_des_groupes = script_actu->groups;
   type_control** control_group = NULL;
   int i, j;
-  int* number_of_control;
-  int* count;
+  int* number_of_control=NULL;
+  int* count=NULL;
 
   number_of_control = MANY_ALLOCATIONS(NUMBER_OF_CONTROL_TYPE, int);
   count = MANY_ALLOCATIONS(NUMBER_OF_CONTROL_TYPE, int);
@@ -426,6 +427,7 @@ void search_control_in_script_and_allocate_control(type_script* script_actu)
   script_actu->number_of_control = number_of_control;
 
   free(count);
+  count=NULL;
 
 }
 
@@ -435,11 +437,11 @@ gboolean on_vue_metre_change(GtkWidget *gtk_range, type_group *group)
   ENetPacket *packet = NULL;
   int retour;
   int j;
-  j = (int) g_object_get_data(G_OBJECT(gtk_range), "neurone_asso");
+  j = *((int*)(g_object_get_data(G_OBJECT(gtk_range), "neurone_asso")));
 
   struct_maj.no_group = group->id;
   struct_maj.no_neuro = j + group->firstNeuron;
-  struct_maj.s = struct_maj.s1 = struct_maj.s2 = group->neurons[j].s1 = group->neurons[j].s2 = group->neurons[j].s1 = (float) gtk_range_get_value(GTK_RANGE(gtk_range));
+  struct_maj.s = struct_maj.s1 = struct_maj.s2 = ((group->neurons)[j]).s1 = ((group->neurons)[j]).s2 = ((group->neurons)[j]).s = (float) gtk_range_get_value(GTK_RANGE(gtk_range));
 
   packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
   sem_wait(&(enet_pandora_lock));
@@ -456,17 +458,33 @@ gboolean on_vue_metre_change(GtkWidget *gtk_range, type_group *group)
   return FALSE;
 }
 
+gboolean on_destroy_vue_metre_and_check_box(GtkWidget *gtk_range, type_group *group)
+{
+
+  int* pointeur=NULL;
+  (void)group;
+  pointeur=((int*) g_object_get_data(G_OBJECT(gtk_range), "neurone_asso"));
+
+  if (pointeur!=NULL)
+  {
+    free(pointeur);
+    pointeur=NULL;
+  }
+
+  return FALSE;
+}
+
 gboolean on_toggled_check_bouton(GtkWidget *check_bouton, type_group *group)
 {
   maj_neuro_enet struct_maj;
   ENetPacket *packet = NULL;
   int retour;
   int j;
-  j = (int) g_object_get_data(G_OBJECT(check_bouton), "neurone_asso");
+  j = *((int*) g_object_get_data(G_OBJECT(check_bouton), "neurone_asso"));
 
   struct_maj.no_group = group->id;
   struct_maj.no_neuro = j + group->firstNeuron;
-  struct_maj.s = struct_maj.s1 = struct_maj.s2 = group->neurons[j].s1 = group->neurons[j].s2 = group->neurons[j].s1 = (float) (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_bouton)));
+  struct_maj.s = struct_maj.s1 = struct_maj.s2 = ((group->neurons)[j]).s1 = ((group->neurons)[j]).s2 = ((group->neurons)[j]).s = (float) (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_bouton)));
 
   packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
   sem_wait(&(enet_pandora_lock));
@@ -489,7 +507,7 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
   GtkWidget *box2, *grid;
   GtkWidget *label, *separator1, *separator2, *check_button;
   GtkRange *gtk_range;
-  int* no_neuro;
+  int* point=NULL;
   int k = 0;
   /* Standard window-creating stuff */
 
@@ -534,8 +552,12 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
             (GtkRange*) gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, (((script_actu->control_group[VUE_METRE][i]).associated_group)->borne_min), script_actu->control_group[VUE_METRE][i].associated_group->borne_max, script_actu->control_group[VUE_METRE][i].associated_group->step);
 
         gtk_range_set_value(gtk_range, script_actu->control_group[VUE_METRE][i].associated_group->neurons[j].s1);
-        g_object_set_data(G_OBJECT(gtk_range), "neurone_asso", (gpointer) j);
+        point = ALLOCATION(int);
+        *point=j;
+
+        g_object_set_data(G_OBJECT(gtk_range), "neurone_asso", (gpointer) point);
         g_signal_connect(G_OBJECT(gtk_range), "value-changed", G_CALLBACK(on_vue_metre_change), script_actu->control_group[VUE_METRE][i].associated_group);
+        g_signal_connect(G_OBJECT(gtk_range), "destroy", G_CALLBACK(on_destroy_vue_metre_and_check_box), script_actu->control_group[VUE_METRE][i].associated_group);
 
         gtk_widget_set_hexpand(GTK_WIDGET(gtk_range), TRUE);
 
@@ -579,8 +601,11 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
         if (script_actu->control_group[CHECKBOX][i].associated_group->neurons[j].s1 > 0.5) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), TRUE);
         else gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), FALSE);
 
-        g_object_set_data(G_OBJECT(check_button), "neurone_asso", (gpointer) j);
+        point = ALLOCATION(int);
+        *point=j;
+        g_object_set_data(G_OBJECT(check_button), "neurone_asso", (gpointer) point);
         g_signal_connect(G_OBJECT(check_button), "toggled", G_CALLBACK(on_toggled_check_bouton), script_actu->control_group[CHECKBOX][i].associated_group);
+        g_signal_connect(G_OBJECT(check_button), "destroy", G_CALLBACK(on_destroy_vue_metre_and_check_box), script_actu->control_group[CHECKBOX][i].associated_group);
 
         gtk_widget_set_hexpand(GTK_WIDGET(check_button), TRUE);
 
@@ -1029,8 +1054,8 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
   {
     if (refresh_mode != REFRESH_MODE_MANUAL)
     {
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name + strlen(bus_id) + 1);
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", PANDORA_SEND_EXT_START, group->id, group->script->name + strlen(bus_id) + 1);
     }
     if (gtk_widget_get_visible(big_graph_frame) == TRUE)
     {
@@ -1062,8 +1087,8 @@ void on_group_display_output_combobox_changed(GtkComboBox *combo_box, gpointer d
   {
     if (refresh_mode != REFRESH_MODE_MANUAL)
     {
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, group->script->name);
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", PANDORA_SEND_EXT_STOP, group->id, group->script->name);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name);
     }
     if (group->display_mode == DISPLAY_MODE_BIG_GRAPH && gtk_widget_get_visible(big_graph_frame) == FALSE)
     {
@@ -1251,14 +1276,14 @@ void phases_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
     init_top(prompt_buf, p_buf);
     gtk_button_set_label(GTK_BUTTON(pWidget), "Stop calculate execution times");
     for (i = 0; i < number_of_scripts; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_START, 0, scripts[i]->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", PANDORA_SEND_PHASES_INFO_START, 0, scripts[i]->name + strlen(bus_id) + 1);
     //printf("ordre d'envoie bien lance\n");
   }
   else
   {
     gtk_button_set_label(GTK_BUTTON(pWidget), "Start calculate execution times");
     for (i = 0; i < number_of_scripts; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_PHASES_INFO_STOP, 0, scripts[i]->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", PANDORA_SEND_PHASES_INFO_STOP, 0, scripts[i]->name + strlen(bus_id) + 1);
 
     for (i = 0; i < number_of_scripts; i++)
     {
@@ -1285,7 +1310,7 @@ void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
     for (i = 0; i < number_of_scripts; i++)
     {
       gtk_button_set_label(GTK_BUTTON(pWidget), "Stop Debug Group Functions");
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_OK_DEBUG_GRP_MEM, 0, scripts[i]->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", PANDORA_SEND_OK_DEBUG_GRP_MEM, 0, scripts[i]->name + strlen(bus_id) + 1);
       //printf("ordre d'envoie bien lancé\n");
     }
   }
@@ -1295,7 +1320,7 @@ void debug_grp_mem_info_start_or_stop(GtkToggleButton *pWidget, gpointer pData)
     for (i = 0; i < number_of_scripts; i++)
     {
       gtk_button_set_label(GTK_BUTTON(pWidget), "Start Debug Group Functions");
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_STOP_DEBUG_GRP_MEM, 0, scripts[i]->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", PANDORA_SEND_STOP_DEBUG_GRP_MEM, 0, scripts[i]->name + strlen(bus_id) + 1);
     }
   }
 
@@ -1699,7 +1724,9 @@ gboolean script_caracteristics(type_script *script, int action)
         }
     number_of_saves--;
     free(save->groups);
+    save->groups=NULL;
     free(save);
+    save=NULL;
     if (number_of_saves > 0) saves[save_id] = saves[number_of_saves];
     pthread_mutex_unlock(&mutex_script_caracteristics);
 
@@ -1769,6 +1796,7 @@ void script_destroy(type_script *script)
     for (j = 0; j < NUMBER_OF_CONTROL_TYPE; j++)
     {
       free(script->control_group[j]);
+      script->control_group[j]=NULL;
     }
     free(script->control_group);
     free(script->number_of_control);
@@ -1831,14 +1859,19 @@ void script_destroy(type_script *script)
       if (script->groups[i].param_neuro_pandora[j].links_ok)
       {
         free(script->groups[i].param_neuro_pandora[j].coeff);
+        script->groups[i].param_neuro_pandora[j].coeff=NULL;
         free(script->groups[i].param_neuro_pandora[j].links_to_draw);
+        script->groups[i].param_neuro_pandora[j].links_to_draw=NULL;
       }
     }
 
     free(script->groups[i].neurons);
+    script->groups[i].neurons=NULL;
     free(script->groups[i].param_neuro_pandora);
+    script->groups[i].param_neuro_pandora=NULL;
   }
   free(script->groups);
+  script->groups=NULL;
 
   gtk_widget_destroy(script->widget);
 
@@ -1919,7 +1952,7 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
      if(id_manual==0) id_manual = g_timeout_add((guint) 50, neurons_refresh_display_without_change_values, NULL); //
      */
     for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_STOP : PANDORA_SEND_NEURONS_STOP), groups_to_display[i]->id, groups_to_display[i]->script->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_STOP : PANDORA_SEND_NEURONS_STOP), groups_to_display[i]->id, groups_to_display[i]->script->name + strlen(bus_id) + 1);
 
     gtk_widget_show_all(GTK_WIDGET(data));
     break;
@@ -1938,7 +1971,7 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
      */
 
     for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_START : PANDORA_SEND_NEURONS_START), groups_to_display[i]->id, groups_to_display[i]->script->name + strlen(bus_id) + 1);
 
     gtk_widget_hide(GTK_WIDGET(data));
     break;
@@ -1963,7 +1996,7 @@ void neurons_manual_refresh(GtkWidget *pWidget, gpointer pdata)
   if (refresh_mode == REFRESH_MODE_MANUAL)
   {
     for (i = 0; i < number_of_groups_to_display; i++)
-      pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_ONE : PANDORA_SEND_NEURONS_ONE), groups_to_display[i]->id, groups_to_display[i]->script->name + strlen(bus_id) + 1);
+      pandora_bus_send_message(bus_id, "pandora(%d,%d,0) %s", (groups_to_display[i]->output_display == 3 ? PANDORA_SEND_EXT_ONE : PANDORA_SEND_NEURONS_ONE), groups_to_display[i]->id, groups_to_display[i]->script->name + strlen(bus_id) + 1);
 
   }
 }
@@ -2128,6 +2161,7 @@ void on_click_config(GtkWidget *button, gpointer pdata)
 {
   GtkWidget *selection;
   char home[PATH_MAX];
+  char *path=NULL;
 
   (void) pdata;
   (void) button;
@@ -2141,7 +2175,6 @@ void on_click_config(GtkWidget *button, gpointer pdata)
 
   if (gtk_dialog_run(GTK_DIALOG(selection)) == GTK_RESPONSE_OK)
   {
-    char *path;
     path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(selection));
     strcpy(python_path, path);
     g_free(path);
@@ -2750,7 +2783,9 @@ int main(int argc, char** argv)
   pandora_window_new();
 
 //si apres chargement il n'y a pas de bus_id
-  if ((bus_id[0] == 0) || (bus_ip[0] == 0))
+
+
+  if ((bus_ip[0] == 0)) //(bus_id[0] == 0) ||
   {
     EXIT_ON_ERROR("You miss bus_ip or bus_id \n\tUsage: %s [-b bus_ip -i bus_id] \n", argv[0]);
   }
@@ -2766,10 +2801,13 @@ int main(int argc, char** argv)
     load_temporary_save = TRUE;
   }
 
+  //Lancement du thread d'ecoute et de gestion des informations reçues du reseau
+  server_for_promethes();
+
+  //test de l'init de ivy apres celle de enet, à valider
   prom_bus_init(bus_ip);
 
-  //Lancement du thread d'ecoute et de gestion des informations reeues du reseau
-  server_for_promethes();
+
 
 //Appelle la fonction de raffraichissement, voir la fonction lie à l'event refresh_mode_combo_box_changed pour plus de details
   refresh_mode = REFRESH_MODE_AUTO;
@@ -2784,7 +2822,7 @@ int main(int argc, char** argv)
   gettimeofday(&time_stamp, NULL);
 
   start_time = time_stamp.tv_sec + (double) time_stamp.tv_usec / 1000000.;
-  printf("start time %lf\n", start_time);
+  printf("Start time %lf\n", start_time);
   gdk_threads_enter();
   gtk_main(); //Boucle infinie : attente des evenements
   gdk_threads_leave();

@@ -26,6 +26,7 @@ The fact that you are presently reading this means that you have had knowledge o
  *      Author: Nils Beauss��
  **/
 
+#include "pandora.h"
 #include "pandora_save.h"
 #include "locale.h"
 #include "pandora_graphic.h"
@@ -34,7 +35,6 @@ The fact that you are presently reading this means that you have had knowledge o
 /* variables globales necessaires pour ce fichier */
 extern GtkWidget *architecture_display;
 extern char path_named[MAX_LENGHT_PATHNAME];
-extern GtkListStore* currently_saving_list;
 
 // Ferme tout les fichiers de tout les scripts.
 void destroy_saving_ref(type_script *scripts_used[NB_SCRIPTS_MAX])

@@ -160,6 +160,7 @@ gboolean group_display_new_threaded(gpointer data)
   //pthread_mutex_lock (&mutex_loading);
   //On signal au programme ayant appelé que cette appel est terminé et qu'il peut donc continuer
   free(argument_recup);
+  argument_recup=NULL;
   if (blocked)
   {
     pthread_cond_signal(&cond_loading);
@@ -848,8 +849,8 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   gtk_widget_hide(group->button_vbox);
   if (refresh_mode != REFRESH_MODE_MANUAL)
   {
-    if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_START, group->id, group->script->name+strlen(bus_id)+1);
-    else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, group->script->name+strlen(bus_id)+1);
+    if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_EXT_START, group->id,0, group->script->name+strlen(bus_id)+1);
+    else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id,0, group->script->name+strlen(bus_id)+1);
   }
   groups_to_display[number_of_groups_to_display] = group;
   group->idDisplay = number_of_groups_to_display;
@@ -865,8 +866,8 @@ void group_display_destroy(type_group *group)
 
   int i;
   destroy_links(group);
-  if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, group->script->name+strlen(bus_id)+1);
-  else pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, group->script->name+strlen(bus_id)+1);
+  if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id,0, group->script->name+strlen(bus_id)+1);
+  else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id,0, group->script->name+strlen(bus_id)+1);
 
   for (i = 0; i < number_of_groups_to_display; i++)
   {
@@ -1132,7 +1133,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
 
   //Début du dessin
   //printf("je dessine le groupe no %d\n",group->id);
-  //Dimensions d'un neurone
+  //Dimensions d'une neurone
   largeurNeuron = (float) gtk_widget_get_allocated_width(GTK_WIDGET(group->drawing_area)) / (float) group->columns;
   hauteurNeuron = (float) gtk_widget_get_allocated_height(GTK_WIDGET(group->drawing_area)) / (float) group->rows;
   //largeurNeuron=5;
@@ -1607,12 +1608,12 @@ void destroy_links(type_group* group)
 
 void emit_signal_to_promethe(int no_neuro, type_script* script)
 {
-  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro, script->name+strlen(bus_id)+1);
+  pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro,0, script->name+strlen(bus_id)+1);
 }
 
 void emit_signal_stop_to_promethe(int no_neuro, type_script* script)
 {
-  pandora_bus_send_message(bus_id, "pandora(%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro, script->name+strlen(bus_id)+1);
+  pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro,0, script->name+strlen(bus_id)+1);
 }
 
 //Appelé ~ 53000fois, à simplifier/diminuer le nombre d'appel

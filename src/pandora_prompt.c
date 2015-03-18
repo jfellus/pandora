@@ -23,7 +23,7 @@ The fact that you are presently reading this means that you have had knowledge o
  * pandora_prompt.c
  *
  *  Created on: 19 juil. 2013
- *      Author: Nils Beauss��
+ *      Author: Nils Beaussé
  **/
 
 #include "pandora_prompt.h"
@@ -44,11 +44,11 @@ gboolean send_info_to_top(gpointer *user_data)
   type_group* group;
   group = (type_group*) user_data;
 
-  //la copie est r��alis�� on envoie le signal de lib��ration d'enet
+  //la copie est réalisé on envoie le signal de libération d'enet
 
   time = (long int) ((double) (group->stats.somme_tot) / (double) (group->stats.nb_executions_tot));
 
-  strcpy(&(lign.text_lign[0]), ""); //s��curit��
+  strcpy(&(lign.text_lign[0]), ""); //sécurité
   strncat(&(lign.text_lign[0]), &(group->name[0]), GROUP_NAME_MAX - 1);
   lign.time_to_prompt = time;
   lign.prompt = TRUE;
@@ -91,7 +91,7 @@ void insert_lign(prompt_lign lign, prompt_lign *prom_buf)
   {
     for (i = NB_LIGN_MAX - 1; i >= 0; i--)
     {
-      if (prom_buf[i].prompt) // La ligne concurente est-elle �� afficher ?
+      if (prom_buf[i].prompt) // La ligne concurente est-elle à afficher ?
       { //Oui
         if (lign.time_to_prompt > prom_buf[i].time_to_prompt) //doit-on aller plus haut?
         { //oui
@@ -101,37 +101,37 @@ void insert_lign(prompt_lign lign, prompt_lign *prom_buf)
           }
           else
           {
-            // on est tout en haut avec la premiere ligne qui est �� d��placer
-            decal_tab(prom_buf, 0); // Alors on d��cale tout depuis 0;
+            // on est tout en haut avec la premiere ligne qui est à déplacer
+            decal_tab(prom_buf, 0); // Alors on décale tout depuis 0;
             prom_buf[0] = lign; //et on insere notre ligne
             break;
           }
         }
         else
-        { //non on ne doit pas aller plus haut, notre ligne est ��gale ou inf��rieure
+        { //non on ne doit pas aller plus haut, notre ligne est égale ou infèrieure
 
           if (i != NB_LIGN_MAX - 1) //si on est pas tout en bas
           {
-            if (prom_buf[i + 1].prompt) //si la ligne suivante ��tait �� afficher
+            if (prom_buf[i + 1].prompt) //si la ligne suivante était à afficher
             {
-              decal_tab(prom_buf, i + 1); // on d��cale tout depuis la ligne d'apr��s
+              decal_tab(prom_buf, i + 1); // on décale tout depuis la ligne d'aprés
               prom_buf[i + 1] = lign; // on insere notre ligne en dessous
               break;
             }
-            else //sinon on suppose qu'aucune ligne du dessous n'��tait �� afficher donc inutile de tout d��caler
+            else //sinon on suppose qu'aucune ligne du dessous n'était à afficher donc inutile de tout décaler
             {
               prom_buf[i + 1] = lign; // on insere notre ligne en dessous
               break;
             }
           }
-          else //si on est tout en bas... la ligne ne peut pas etre ins��r��
+          else //si on est tout en bas... la ligne ne peut pas etre inséré
           {
             break;
           }
         }
       }
       else
-      { //Non la ligne concurente n'est pas �� afficher, inutile de tout verifier, on doit remonter
+      { //Non la ligne concurente n'est pas à afficher, inutile de tout verifier, on doit remonter
 
         if (i != 0) // est-il possible de remonter?
         {
@@ -160,7 +160,7 @@ void decal_tab(prompt_lign *prom_buf, int i)
 
   for (k = NB_LIGN_MAX - 1; k > i; k--)
   {
-    if (prom_buf[k - 1].prompt) prom_buf[k] = prom_buf[k - 1]; // on d��cale le tableau depuis l'indice i jusqu'a la fin, et on vire le dernier element
+    if (prom_buf[k - 1].prompt) prom_buf[k] = prom_buf[k - 1]; // on décale le tableau depuis l'indice i jusqu'a la fin, et on vire le dernier element
   }
 
 }
@@ -198,9 +198,11 @@ void prompt(prompt_lign *prom_buf, GtkTextBuffer *text_buf)
 
   g_free(UTF8text);
   free(text);
+  text=NULL;
   for (i = 0; i < NB_LIGN_MAX; i++)
   {
     free(lign[i]);
+    lign[i]=NULL;
   }
 
 }
@@ -217,7 +219,7 @@ void delete_lign(prompt_lign *prom_buf, int i)
   {
     if (prom_buf[k].prompt)
     {
-      prom_buf[k] = prom_buf[k + 1]; // on d��cale le tableau
+      prom_buf[k] = prom_buf[k + 1]; // on décale le tableau
     }
     else
     {
