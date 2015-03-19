@@ -54,7 +54,7 @@ warnings.filterwarnings("ignore")
 #Lis le fichier excepte les deux premieres ligne, en prenant en compte les # donc les time, vire toute les ligne qui ne sont pas de la taille de la premiere traitee (cest a dire time qui est de taille 2)
 nbriteration=donnees.shape[0]/ligne
 
-data_temps= np.genfromtxt(fichier,skiprows=2,comments='a',invalid_raise=False,dtype=int)
+data_temps= np.genfromtxt(fichier,skiprows=2,comments='a',invalid_raise=False,dtype=float)
 
 #remet les warnings apres cette fonction
 warnings.resetwarnings()
