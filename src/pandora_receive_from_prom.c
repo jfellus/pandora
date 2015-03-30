@@ -48,7 +48,13 @@ void recherche_vrai_nom(const char* nom, char* nom_gene, int taille)
   char* nom_machine;
 
   nom_machine=MANY_ALLOCATIONS(taille,char);
-  sscanf(nom, "%[^':']:%[^':']:%[^':']", nom_machine, PID, nom_gene);
+  if(sscanf(nom, "%[^':']:%[^':']:%s", nom_machine, PID, nom_gene)!=3)
+  {
+  if (sscanf(nom, "%[^':']:%s", nom_machine, nom_gene)!=2)
+    {
+      PRINT_WARNING("ECHEC DE LA RECUPERATION DE NOM GENE !\n");
+    }
+  }
 }
 
 /**
@@ -60,8 +66,9 @@ void server_for_promethes()
   ENetHost* enet_server = NULL;
   char host_name[HOST_NAME_MAX];
   ENetAddress address;
-  enet_time_set(0);
   int try=0;
+  enet_time_set(0);
+
 
   address.host = ENET_HOST_ANY;
  // address.port = PANDORA_PORT;
