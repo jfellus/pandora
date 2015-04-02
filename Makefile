@@ -26,7 +26,7 @@ all: default
 
 
 include ../scripts/variables.mk
-CC:=colorgcc
+CC:=prom_colorgcc
 
 CFLAGS:= -Wextra -W -Wall -Wno-variadic-macros -fkeep-inline-functions -Wwrite-strings -Wfloat-equal -Wunknown-pragmas -Wdeclaration-after-statement -D_REENTRANT -DDAEMON_COM -DLinux -D_GNU_SOURCE -std=c99
 GTK_LIBS:= -pthread -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgio-2.0 -lpangoft2-1.0 -lpangocairo-1.0 -lgdk_pixbuf-2.0 -lcairo -lpango-1.0 -lfreetype -lfontconfig -lgobject-2.0 -lgthread-2.0 -lrt -lglib-2.0  
