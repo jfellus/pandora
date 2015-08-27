@@ -269,6 +269,7 @@ void enet_manager(ENetHost *server)
             group->val_max = 1;
             group->output_display = 1; /* s1 */
             if (group->number_of_neurons == 1) group->display_mode = DISPLAY_MODE_TEXT;
+            else if (group->number_of_neurons > 200) group->display_mode = DISPLAY_MODE_INTENSITY;
             else group->display_mode = DISPLAY_MODE_SQUARE;
             group->normalized = 0;
             group->previous = NULL;

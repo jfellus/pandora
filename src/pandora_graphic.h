@@ -111,6 +111,7 @@ void correspondance_3b(unsigned char * image_data, prom_images_struct * const pr
 void correspondance_4b(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
 void correspondance_reste(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
 void destruction_image(type_group * const group);
+void check_ok_bord(type_group *group);
 void correspondance_display_intensity(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
 static inline void display_image(type_group *group, prom_images_struct* prom_images, unsigned char* image_data, cairo_t * const cr);
 static inline void common_display_inside(int *u, int i, int j, int incrementation, type_group *group, float largeurNeuron, float hauteurNeuron, cairo_t * const cr, float* r, float* v, float* b);

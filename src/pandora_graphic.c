@@ -34,7 +34,6 @@
 #define DIGITS_MAX 32
 #define NB_DIGITS 7
 
-
 const GdkRGBA colors[] =
   {
     { LIGHTGREEN },
@@ -160,7 +159,7 @@ gboolean group_display_new_threaded(gpointer data)
   //pthread_mutex_lock (&mutex_loading);
   //On signal au programme ayant appelé que cette appel est terminé et qu'il peut donc continuer
   free(argument_recup);
-  argument_recup=NULL;
+  argument_recup = NULL;
   if (blocked)
   {
     pthread_cond_signal(&cond_loading);
@@ -527,6 +526,28 @@ void zoom_neurons(type_group* group, gboolean direction, float *final_height, fl
 
 }
 
+void check_ok_bord(type_group* group)
+{
+  int largeur_widget, largeur_zone;
+  int hauteur_widget, hauteur_zone;
+  int x, y;
+
+  largeur_widget = gtk_widget_get_allocated_width((GtkWidget*) group->widget);
+  hauteur_widget = gtk_widget_get_allocated_height((GtkWidget*) group->widget);
+  largeur_zone = gtk_widget_get_allocated_width(zone_neurons);
+  hauteur_zone = gtk_widget_get_allocated_height(zone_neurons);
+
+  gtk_widget_translate_coordinates((GtkWidget*) group->widget, zone_neurons, 0, 0, &x, &y);
+
+  if (x + largeur_widget > largeur_zone) x = largeur_zone - largeur_widget;
+  if (y + hauteur_widget > hauteur_zone) y = hauteur_zone - hauteur_widget;
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+
+  gtk_layout_move(GTK_LAYOUT(zone_neurons), (GtkWidget*) group->widget, x, y);
+
+}
+
 gboolean neuron_zooming(GtkWidget *pwidget, GdkEvent *user_event, gpointer user_data)
 {
   type_group* group = (type_group*) user_data;
@@ -537,16 +558,20 @@ gboolean neuron_zooming(GtkWidget *pwidget, GdkEvent *user_event, gpointer user_
   {
     zoom_neurons(group, TRUE, &(group->neurons_height), &(group->neurons_width));
     resize_group(group);
+    check_ok_bord(group);
+
     return TRUE;
   }
   else if ((event->direction == GDK_SCROLL_DOWN) && (event->state & GDK_CONTROL_MASK))
   {
     zoom_neurons(group, FALSE, &(group->neurons_height), &(group->neurons_width));
     resize_group(group);
+    check_ok_bord(group);
     return TRUE;
   }
   else
   {
+    check_ok_bord(group);
     return FALSE;
   }
 
@@ -848,8 +873,8 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   gtk_widget_hide(group->button_vbox);
   if (refresh_mode != REFRESH_MODE_MANUAL)
   {
-    if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_EXT_START, group->id,0, group->script->name+strlen(bus_id)+1);
-    else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id,0, group->script->name+strlen(bus_id)+1);
+    if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_EXT_START, group->id, 0, group->script->name + strlen(bus_id) + 1);
+    else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, 0, group->script->name + strlen(bus_id) + 1);
   }
   groups_to_display[number_of_groups_to_display] = group;
   group->idDisplay = number_of_groups_to_display;
@@ -865,8 +890,8 @@ void group_display_destroy(type_group *group)
 
   int i;
   destroy_links(group);
-  if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id,0, group->script->name+strlen(bus_id)+1);
-  else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id,0, group->script->name+strlen(bus_id)+1);
+  if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, 0, group->script->name + strlen(bus_id) + 1);
+  else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, 0, group->script->name + strlen(bus_id) + 1);
 
   for (i = 0; i < number_of_groups_to_display; i++)
   {
@@ -979,7 +1004,7 @@ void init_image(unsigned char* image_data, prom_images_struct * const prom_image
     stride = cairo_format_stride_for_width(CAIRO_FORMAT_A8, group->columns);
     image_data = malloc(stride * group->rows);
     group->stride = stride;
-  //  correspondance_display_intensity(image_data, prom_images, group);
+    //  correspondance_display_intensity(image_data, prom_images, group);
     image = cairo_image_surface_create_for_data(image_data, CAIRO_FORMAT_A8, group->columns, group->rows, stride);
     break;
   case 3:
@@ -1049,13 +1074,14 @@ void correspondance_display_intensity(unsigned char * image_data, prom_images_st
   const int max = group->val_max;
   const int incrementation = group->number_of_neurons / (group->columns * group->rows);
   const int stride = group->stride;
-  (void)prom_images;
+  (void) prom_images;
 
   for (j = 0; j < group->rows; j++)
   {
     for (i = 0 + incrementation - 1; i < group->columns * incrementation; i += incrementation)
     {
-      switch (group->output_display) // switch à l'exterieur du for = plus mieux
+      switch (group->output_display)
+      // switch à l'exterieur du for = plus mieux
       {
       case 0:
         val = group->neurons[i + j * group->columns * incrementation].s;
@@ -1105,7 +1131,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
   int i, k = 0;
   int adresse;
   int incrementation;
-  prom_images_struct *prom_images=NULL;
+  prom_images_struct *prom_images = NULL;
   unsigned char *image_data = NULL;
 
   // float time;
@@ -1126,7 +1152,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
     group->previous_display_mode = group->display_mode;
     group->previous_output_display = group->output_display;
   }
-
+  check_ok_bord(group);
   //Début du dessin
   //printf("je dessine le groupe no %d\n",group->id);
   //Dimensions d'une neurone
@@ -1146,7 +1172,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
       k++;
       frequence += group->frequence_values[i];
     }
-    if (k > 0) frequence = frequence / (float)k;
+    if (k > 0) frequence = frequence / (float) k;
   }
   group->counter = 0;
 
@@ -1154,37 +1180,35 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
   //                                                   [min | max] - fréquence moyenne
   snprintf(label_text, LABEL_MAX, "<b>%s</b> - %s \n[%.2f | %.2f] - %.3f Hz", group->name, group->function, min, max, frequence);
   gtk_label_set_markup(group->label, label_text);
-  gtk_widget_set_tooltip_markup (GTK_WIDGET(group->label), label_text);
+  gtk_widget_set_tooltip_markup(GTK_WIDGET(group->label), label_text);
 
   if (group->previous_output_display == 3 && group->output_display != 3)
   {
     destruction_image(group);
   }
 
-
-
   switch (group->output_display)
   {
 
   case 0:
-    adresse=0;
+    adresse = 0;
     common_display(group, cr, frequence, adresse, incrementation, largeurNeuron, hauteurNeuron, label_text);
     break;
 
   case 1:
-    adresse=1;
+    adresse = 1;
     common_display(group, cr, frequence, adresse, incrementation, largeurNeuron, hauteurNeuron, label_text);
 
     break;
 
   case 2:
-    adresse=2;
+    adresse = 2;
     common_display(group, cr, frequence, adresse, incrementation, largeurNeuron, hauteurNeuron, label_text);
 
     break;
 
   case 3:
-    display_image(group,prom_images,image_data,cr);
+    display_image(group, prom_images, image_data, cr);
     break;
 
   default:
@@ -1323,12 +1347,12 @@ void destroy_links(type_group* group)
 
 void emit_signal_to_promethe(int no_neuro, type_script* script)
 {
-  pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro,0, script->name+strlen(bus_id)+1);
+  pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro, 0, script->name + strlen(bus_id) + 1);
 }
 
 void emit_signal_stop_to_promethe(int no_neuro, type_script* script)
 {
-  pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro,0, script->name+strlen(bus_id)+1);
+  pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro, 0, script->name + strlen(bus_id) + 1);
 }
 
 //Appelé ~ 53000fois, à simplifier/diminuer le nombre d'appel
@@ -1388,7 +1412,7 @@ void test_selection(type_group* group, int u, int i, int j, float largeurNeuron,
 
         group->x_event = -1;
         group->y_event = -1;
-        if (group->neuro_select>=0)
+        if (group->neuro_select >= 0)
         {
           if (group->param_neuro_pandora[group->neuro_select].selected == FALSE)
           {

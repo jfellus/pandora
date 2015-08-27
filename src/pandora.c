@@ -1662,6 +1662,7 @@ void neurons_frame_drag_group(GtkWidget *pWidget, GdkEvent *event, gpointer pdat
     gtk_layout_move(GTK_LAYOUT(zone_neurons), pWidget, x - move_neurons_old_x, y - move_neurons_old_y);
     //gtk_layout_move(GTK_LAYOUT(zone_neurons), open_group->widget, ((int) (event->x / 25)) * 25, ((int) (event->y / 25)) * 25);
   }
+
 }
 
 gboolean script_caracteristics(type_script *script, int action)
