@@ -62,6 +62,7 @@ warnings.resetwarnings()
 data_temps=data_temps.reshape((nbriteration,2))
 #ne recupere que la seconde colonne precedente (les temps)
 temps= data_temps[:,1]
+temps=temps-temps[0]
 #if nbriteration==1 : temps= data_temps[1]
 # Note that this returned a 2D array!
 
@@ -78,22 +79,7 @@ print donnees.shape
 print donnees.shape
 print donnees
 
-nb_images = nbriteration
-image = plt.imshow(donnees[0,:,:])
-plt.colorbar()
-k=0
 
-def init():
-   image.set_data(donnees[0,:,:])
-   return image,
-
-# animation function.  This is called sequentially
-def animate(i):
-    image.set_data(donnees[i,:,:])
-    return image,
-
-anim = animation.FuncAnimation(fig, animate, init_func=init,
-                               frames=nbriteration, interval=100, blit=False)
-
+plot(temps,donnees[:,0,0], 'r')
 
 P.show()
