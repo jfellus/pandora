@@ -1105,7 +1105,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
   int i, k = 0;
   int adresse;
   int incrementation;
-  prom_images_struct *prom_images;
+  prom_images_struct *prom_images=NULL;
   unsigned char *image_data = NULL;
 
   // float time;
