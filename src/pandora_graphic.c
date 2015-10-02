@@ -1322,6 +1322,7 @@ gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data)
 
     }
   }
+
   return FALSE; // propage l'event
 }
 

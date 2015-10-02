@@ -44,7 +44,7 @@
  * D'autre peuvent etre encapsule dans des structures et theme, ce qui simplifierais la lecture et l'utilisation des mutex.
  */
 char label_text[LABEL_MAX];
-
+GtkApplication *app=NULL;
 GtkWidget *window = NULL; //La fenetre de l'application Pandora
 GtkWidget *selected_group_dialog, *selected_image_combo_box;
 GtkWidget *vpaned, *scrollbars;
@@ -80,7 +80,7 @@ GtkWidget *neurons_frame, *zone_neurons; //Panneau des neurones
 int nbColonnesTotal = 0; //Nombre total de colonnes de neurones dans les fenetres du bandeau du bas
 int nbLignesMax = 0; //Nombre maximal de lignes de neurones à afficher dans l'une des fenetres du bandeau du bas
 
-gdouble value_hz = 50;
+gdouble value_hz = 5;
 type_group *open_group = NULL;
 
 guint refresh_timer_id = 0; //id du timer actualement utiliser pour le rafraichissement des frame_neurons ouvertes
@@ -444,7 +444,7 @@ gboolean on_vue_metre_change(GtkWidget *gtk_range, type_group *group)
   struct_maj.s = struct_maj.s1 = struct_maj.s2 = ((group->neurons)[j]).s1 = ((group->neurons)[j]).s2 = ((group->neurons)[j]).s = (float) gtk_range_get_value(GTK_RANGE(gtk_range));
 
   packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
-  sem_wait(&(enet_pandora_lock));
+ // sem_wait(&(enet_pandora_lock));
   if (packet == NULL)
   {
     PRINT_WARNING("The neurons packet (update) has not been created.");
@@ -453,7 +453,7 @@ gboolean on_vue_metre_change(GtkWidget *gtk_range, type_group *group)
   {
     PRINT_WARNING("The neurons packet has not been sent %d.", retour);
   }
-  sem_post(&(enet_pandora_lock));
+ // sem_post(&(enet_pandora_lock));
 
   return FALSE;
 }
@@ -487,7 +487,7 @@ gboolean on_toggled_check_bouton(GtkWidget *check_bouton, type_group *group)
   struct_maj.s = struct_maj.s1 = struct_maj.s2 = ((group->neurons)[j]).s1 = ((group->neurons)[j]).s2 = ((group->neurons)[j]).s = (float) (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_bouton)));
 
   packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
-  sem_wait(&(enet_pandora_lock));
+//  sem_wait(&(enet_pandora_lock));
   if (packet == NULL)
   {
     PRINT_WARNING("The neurons packet (update) has not been created.");
@@ -496,7 +496,7 @@ gboolean on_toggled_check_bouton(GtkWidget *check_bouton, type_group *group)
   {
     PRINT_WARNING("The neurons packet has not been sent %d.", retour);
   }
-  sem_post(&(enet_pandora_lock));
+  //sem_post(&(enet_pandora_lock));
 
   return FALSE;
 }
@@ -1900,6 +1900,8 @@ void script_destroy(type_script *script)
  * Cette fonction permet de traiter les informations provenant de promethe pour mettre à jour
  * l'affichage. Elle est appelee automatiquement plusieurs fois par seconde.
  */
+
+
 gboolean neurons_refresh_display()
 {
 //int i;
@@ -1910,6 +1912,7 @@ gboolean neurons_refresh_display()
   pthread_mutex_unlock(&mutex_script_caracteristics);
   return TRUE;
 }
+
 
 void fatal_error(const char *name_of_file, const char *name_of_function, int numero_of_line, const char *message, ...)
 {
@@ -1941,11 +1944,13 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
   switch (refresh_mode)
   {
   case REFRESH_MODE_MANUAL:
+    /*
     if (refresh_timer_id != 0)
     {
       g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
       refresh_timer_id = 0;
     }
+    */
     /*
      if(id_manual!=0)
      {g_source_destroy(g_main_context_find_source_by_id(NULL, id_manual)); id_manual = 0;}
@@ -1959,12 +1964,13 @@ void refresh_mode_combo_box_value_changed(GtkComboBox *comboBox, gpointer data)
     break;
 
   case REFRESH_MODE_AUTO:
+  /*
     if (refresh_timer_id != 0)
     {
       g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
       refresh_timer_id = 0;
     }
-
+*/
     //if (refresh_timer_id == 0 && value_hz > 0.1) refresh_timer_id = g_timeout_add((guint) (1000.0 / value_hz), neurons_refresh_display, NULL);
     //else if (refresh_timer_id == 0) refresh_timer_id = 0;
     /*if(id_manual!=0)
@@ -2002,6 +2008,7 @@ void neurons_manual_refresh(GtkWidget *pWidget, gpointer pdata)
   }
 }
 
+/*
 gboolean neurons_refresh_display_without_change_values()
 {
   int i, current_stop = stop;
@@ -2018,6 +2025,7 @@ gboolean neurons_refresh_display_without_change_values()
   pthread_mutex_unlock(&mutex_script_caracteristics);
   return TRUE;
 }
+*/
 
 void call_matlab(GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, gpointer userdata)
 {
@@ -2233,7 +2241,8 @@ gboolean on_resize_neuron_frame(GtkWidget *widget, GdkRectangle *allocation, gpo
   return FALSE;
 }
 /** Fonction creant la fenetre GTK principale **/
-void pandora_window_new()
+static void pandora_window_new(GtkApplication* app,
+    gpointer        user_data)
 {
   char path[PATH_MAX];
   char path_css[PATH_MAX];
@@ -2271,10 +2280,15 @@ void pandora_window_new()
 
 //La fenetre principale
 
-  window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  //window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+
+  window=gtk_application_window_new(app);
+
   gtk_widget_set_double_buffered(window, TRUE);
+
   /* Positionne la GTK_WINDOW "pWindow" au centre de l'ecran */
   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+
   /* Taille de la fenetre */
   gtk_window_set_default_size(GTK_WINDOW(window), 1200, 800);
 
@@ -2291,6 +2305,8 @@ void pandora_window_new()
   printf("Etat de chargement du css : %d\n", (int) test);
 
   window_title_update();
+
+
   sprintf(path, "%s/bin_leto_prom/resources/pandora_icon.png", getenv("HOME"));
   sprintf(path_fleche, "%s/bin_leto_prom/simulator/pandora/resources/image_fleche_droite.png", getenv("HOME"));
   sprintf(path_separateur, "%s/bin_leto_prom/simulator/pandora/resources/separateur2.png", getenv("HOME"));
@@ -2365,10 +2381,10 @@ void pandora_window_new()
 
   gtk_menu_shell_append(GTK_MENU_SHELL(menuBar), itemFile);
 
-  /*Creation d'une VBox (boete de widgets disposes verticalement) */
+  //Creation d'une VBox (boete de widgets disposes verticalement)
   v_box_main = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
-  /*ajout de v_box_main dans pWindow, qui est alors vu comme un GTK_CONTAINER*/
+  //ajout de v_box_main dans pWindow, qui est alors vu comme un GTK_CONTAINER
   gtk_container_add(GTK_CONTAINER(window), v_box_main);
 
   gtk_box_pack_start(GTK_BOX(v_box_main), menuBar, FALSE, FALSE, 0); // ajout de la barre de menus.
@@ -2465,14 +2481,14 @@ void pandora_window_new()
   // gtk_box_pack_start(GTK_BOX(h_box_global), windowed_area_button, FALSE, FALSE, 0);
   g_signal_connect(G_OBJECT(button_label), "toggled", G_CALLBACK(on_click_extract_area), (gpointer ) neurons_frame);
 
-  /*Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones*/
+  //Création de deux HBox : une pour le panneau latéral et la zone principale, l'autre pour les 6 petites zones
   h_box_main = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
   vpaned = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
   gtk_paned_set_position(GTK_PANED(vpaned), 600);
   gtk_box_pack_start(GTK_BOX(v_box_main), h_box_main, TRUE, TRUE, 0);
 
-  /*Panneau latéral*/
+  //Panneau latéral
   pPane = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
   lPane = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -2507,12 +2523,11 @@ void pandora_window_new()
   refreshSetting = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), refreshSetting, FALSE, TRUE, 0);
 
-  g_signal_connect(G_OBJECT(refreshModeComboBox), "changed", (GCallback ) refresh_mode_combo_box_value_changed, refreshManualButton);
-  g_signal_connect(G_OBJECT(refreshManualButton), "clicked", (GCallback ) neurons_manual_refresh, NULL);
+  //g_signal_connect(G_OBJECT(refreshModeComboBox), "changed", (GCallback ) refresh_mode_combo_box_value_changed, refreshManualButton);
+  //g_signal_connect(G_OBJECT(refreshManualButton), "clicked", (GCallback ) neurons_manual_refresh, NULL);
 
 //Echelle de l'axe des x
   xSetting = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-  ;
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), xSetting, FALSE, TRUE, 0);
   xLabel = gtk_label_new("x scale:");
   xScale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, XSCALE_MIN, XSCALE_MAX, 1); //Ce widget est deje declare comme variable globale
@@ -2523,7 +2538,6 @@ void pandora_window_new()
 
 //Echelle de l'axe des y
   ySetting = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-  ;
   gtk_box_pack_start(GTK_BOX(pVBoxEchelles), ySetting, FALSE, TRUE, 0);
   yLabel = gtk_label_new("y scale:");
   yScale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, YSCALE_MIN, YSCALE_MAX, 1); //Ce widget est deje declare comme variable globale
@@ -2628,6 +2642,7 @@ void pandora_window_new()
 
   scrollbars2 = gtk_scrolled_window_new(NULL, NULL);
 
+
   gtk_widget_set_events(architecture_display, GDK_SCROLL_MASK | GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_BUTTON1_MOTION_MASK); //TODO : remplacer par add , Detecte quand on appuie OU quand on relache un bouton de la souris alors que le curseur est dans la zone3D
   g_signal_connect(G_OBJECT(architecture_display), "scroll-event", G_CALLBACK(architecture_display_scroll_event), NULL);
   g_signal_connect(G_OBJECT(architecture_display), "draw", G_CALLBACK(architecture_display_update), NULL);
@@ -2635,6 +2650,7 @@ void pandora_window_new()
   g_signal_connect(G_OBJECT(architecture_display), "motion-notify-event", G_CALLBACK(architecture_display_drag_motion), NULL);
   g_signal_connect(G_OBJECT(window), "key-press-event", G_CALLBACK(key_press_event), NULL);
   g_signal_connect(G_OBJECT(architecture_display), "button-press-event", G_CALLBACK(architecture_display_button_pressed), (gpointer ) scrollbars2);
+
 //la zone des groupes de neurones
   gtk_container_add(GTK_CONTAINER(vpaned), neurons_frame);
   //g_signal_connect(G_OBJECT(neurons_frame), "configure-event", G_CALLBACK(on_resize_neuron_frame), (gpointer)separator);
@@ -2643,6 +2659,7 @@ void pandora_window_new()
   gtk_container_add(GTK_CONTAINER(neurons_frame), scrollbars2);
 
   zone_neurons = gtk_layout_new(NULL, NULL);
+
   gtk_widget_add_events(zone_neurons, GDK_EXPOSURE_MASK);
   gtk_widget_set_size_request(GTK_WIDGET(zone_neurons), 3000, 3000);
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollbars2), zone_neurons);
@@ -2650,11 +2667,12 @@ void pandora_window_new()
   gtk_widget_set_events(zone_neurons, GDK_BUTTON_RELEASE_MASK);
   g_signal_connect(G_OBJECT(zone_neurons), "button-release-event", G_CALLBACK(on_release), NULL);
 
+
   gtk_box_pack_start(GTK_BOX(v_box_inter), vpaned, TRUE, TRUE, 0);
 
   gtk_box_pack_start(GTK_BOX(h_box_main), v_box_inter, TRUE, TRUE, 0);
 
-  /*Panneau lateral droit*/
+  //Panneau lateral droit
 
   legend = gtk_frame_new("Legends");
   com = gtk_frame_new("Prompt");
@@ -2672,10 +2690,17 @@ void pandora_window_new()
   gtk_box_pack_start(GTK_BOX(h_box_main), lPane, FALSE, TRUE, 0);
 
   gtk_widget_show_all(window); //Affichage du widget pWindow et de tous ceux qui sont dedans
+
+
+
   gtk_widget_hide(refreshManualButton);
   // On cache la fenetre au depart
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(hide_see_legend_button), TRUE);
   on_hide_see_legend_button_active(hide_see_legend_button, (gpointer*) lPane);
+
+
+
+
   //gtk_window_set_default_size(GTK_WINDOW(gtk_widget_get_window(separator)),gtk_widget_get_allocated_width(neurons_frame)-10,-1);
   // gtk_widget_set_size_request(separator,gtk_widget_get_allocated_width(neurons_frame)-5,-1);
   //gtk_widget_hide(lPane);
@@ -2697,6 +2722,8 @@ int main(int argc, char** argv)
   struct sigaction action;
   char chemin[] = CHEMIN;
   struct timeval time_stamp;
+  int status;
+
   //GtkSettings *default_settings = gtk_settings_get_default();
   // g_object_set(default_settings, "gtk-button-images", TRUE, NULL);
 
@@ -2770,7 +2797,11 @@ int main(int argc, char** argv)
   pthread_mutex_init(&mutex_loading, NULL);
 
 // Initialisation de GTK+
-  gtk_init(&argc, &argv);
+
+  app = gtk_application_new ("Pandora.tropbien", G_APPLICATION_FLAGS_NONE);
+  g_signal_connect (app, "activate", G_CALLBACK (pandora_window_new), NULL);
+
+ // gtk_init(&argc, &argv);
 
 //Initialisation d'ENet
   if (enet_initialize() != 0)
@@ -2778,10 +2809,9 @@ int main(int argc, char** argv)
     printf("An error occurred while initializing ENet.\n");
     exit(EXIT_FAILURE);
   }
-
 //Creation de la fenetre GTK principale, disposition des boutons etc...
 
-  pandora_window_new();
+//  pandora_window_new();
 
 //si apres chargement il n'y a pas de bus_id
 
@@ -2790,6 +2820,7 @@ int main(int argc, char** argv)
   {
     EXIT_ON_ERROR("You miss bus_ip or bus_id \n\tUsage: %s [-b bus_ip -i bus_id] \n", argv[0]);
   }
+
 
   if (access(preferences_filename, R_OK) == 0)
   {
@@ -2802,6 +2833,7 @@ int main(int argc, char** argv)
     load_temporary_save = TRUE;
   }
 
+
   //Lancement du thread d'ecoute et de gestion des informations reçues du reseau
   server_for_promethes();
 
@@ -2809,23 +2841,26 @@ int main(int argc, char** argv)
   prom_bus_init(bus_ip);
 
 
-
 //Appelle la fonction de raffraichissement, voir la fonction lie à l'event refresh_mode_combo_box_changed pour plus de details
   refresh_mode = REFRESH_MODE_AUTO;
+
+
   if (refresh_timer_id != 0)
   {
     g_source_destroy(g_main_context_find_source_by_id(NULL, refresh_timer_id));
     refresh_timer_id = 0;
   }
+
   if (refresh_timer_id == 0 && value_hz > 0.1) refresh_timer_id = g_timeout_add((guint) (1000.0 / value_hz), neurons_refresh_display, NULL);
   else if (refresh_timer_id == 0) refresh_timer_id = 0;
 
   gettimeofday(&time_stamp, NULL);
 
   start_time = time_stamp.tv_sec + (double) time_stamp.tv_usec / 1000000.;
-  printf("Start time %lf\n", start_time);
-  gdk_threads_enter();
-  gtk_main(); //Boucle infinie : attente des evenements
-  gdk_threads_leave();
-  return EXIT_SUCCESS;
+  //gdk_threads_enter();
+  //gtk_main(); //Boucle infinie : attente des evenements
+  //gdk_threads_leave();
+  status = g_application_run (G_APPLICATION (app), 0, NULL);
+  g_object_unref (app);
+  return status;
 }

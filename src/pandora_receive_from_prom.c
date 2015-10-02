@@ -88,6 +88,8 @@ void server_for_promethes()
     try++;
    }
     pthread_attr_init(&custom_sched_attr);
+
+
     pthread_attr_setinheritsched(&custom_sched_attr, PTHREAD_EXPLICIT_SCHED);
     pthread_attr_setschedpolicy(&custom_sched_attr, SCHED_BATCH);
     fifo_max_prio = sched_get_priority_max(SCHED_BATCH);
@@ -99,7 +101,7 @@ void server_for_promethes()
     //params.sched_priority = sched_get_priority_max(SCHED_FIFO);
 
     pthread_create(&enet_thread, &custom_sched_attr, (void*(*)(void*)) enet_manager, enet_server);
-    pthread_setschedparam(enet_thread, SCHED_BATCH, &fifo_param);
+    //pthread_setschedparam(enet_thread, SCHED_BATCH, &fifo_param);
 
   if(enet_server == NULL)
   {
@@ -185,7 +187,7 @@ void enet_manager(ENetHost *server)
   {
     first_call++;
 
-    while (enet_host_secure(server, &event, 0) > 0)
+    while (enet_host_secure(server, &event, 100) > 0)
     {
       switch (event.type)
       {
