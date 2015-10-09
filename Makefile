@@ -35,7 +35,7 @@ GTK_FLAGS:= `pkg-config --cflags $(PACKAGES)`
 SOURCES:=pandora.c pandora_prompt.c pandora_receive_from_prom.c pandora_graphic.c pandora_ivy.c pandora_save.c pandora_file_save.c pandora_architecture.c
 OBJECTS:=$(patsubst %.c,%.o,$(SOURCES))
 INCLUDES:=-I../shared/include  -I../enet/include  -I..
-LIBS:= -L../lib/$(system)/enet/lib -lenet -L../lib/$(system)/ivy -lglibivy -L../lib/$(system)/script -lscript -lmxml `pkg-config --libs $(PACKAGES)` -lm -lpcre  -Wl,-rpath,$ORIGIN/Libraries  ../lib/$(system)/blc/libblc.so -ldl
+LIBS:= -L../lib/$(system)/enet/lib -lenet -L../lib/$(system)/ivy -lglibivy -L../lib/$(system)/script -lscript -lmxml `pkg-config --libs $(PACKAGES)` -lm -lpcre  -Wl,-rpath,\$$ORIGIN/Libraries  -L../lib/$(system)/blc -lblc -ldl
 
 
 CFLAGS+="-DGTK_DISABLE_SINGLE_INCLUDES"
