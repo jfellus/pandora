@@ -246,6 +246,8 @@ void draw_big_graph(type_group *group, cairo_t *cr, float frequence)
   float **values;
   char label_text[LABEL_MAX];
 
+  if (sortie==4) sortie=3;
+
   if (group->normalized)
   {
     min = 0.0;
@@ -332,6 +334,7 @@ void update_graph_data(type_group *group)
           values[0][k] = group->neurons[i + j * group->columns * incrementation].s;
           values[1][k] = group->neurons[i + j * group->columns * incrementation].s1;
           values[2][k] = group->neurons[i + j * group->columns * incrementation].s2;
+          values[3][k] = group->neurons[i + j * group->columns * incrementation].d;
         }
       }
       // si le tableau est plein, remplacement de la valeur la plus ancienne par la valeur à ajouter. l'enregistrement des valeurs est similaire à une file circulaire.
@@ -355,6 +358,7 @@ void update_graph_data(type_group *group)
         values[0][indexDernier] = group->neurons[i + j * group->columns * incrementation].s;
         values[1][indexDernier] = group->neurons[i + j * group->columns * incrementation].s1;
         values[2][indexDernier] = group->neurons[i + j * group->columns * incrementation].s2;
+        values[3][indexDernier] = group->neurons[i + j * group->columns * incrementation].d;
       }
       // si le tableau n'est pas plein, ajout de la valeur à la suite des valeurs déja présentes.
       else
@@ -363,6 +367,7 @@ void update_graph_data(type_group *group)
         values[0][indexDernier] = group->neurons[i + j * group->columns * incrementation].s;
         values[1][indexDernier] = group->neurons[i + j * group->columns * incrementation].s1;
         values[2][indexDernier] = group->neurons[i + j * group->columns * incrementation].s2;
+        values[3][indexDernier] = group->neurons[i + j * group->columns * incrementation].d;
       }
 
       // sauvegarde des indices courants.
@@ -396,6 +401,7 @@ void update_big_graph_data(type_group *group)
         values[0][k] = group->neurons[column + line * group->columns * incrementation].s;
         values[1][k] = group->neurons[column + line * group->columns * incrementation].s1;
         values[2][k] = group->neurons[column + line * group->columns * incrementation].s2;
+        values[3][k] = group->neurons[column + line * group->columns * incrementation].d;
       }
     }
     // si le tableau est plein, remplacement de la valeur la plus ancienne par la valeur à ajouter. l'enregistrement des valeurs est similaire à une file circulaire.
@@ -419,6 +425,7 @@ void update_big_graph_data(type_group *group)
       values[0][indexDernier] = group->neurons[column + line * group->columns * incrementation].s;
       values[1][indexDernier] = group->neurons[column + line * group->columns * incrementation].s1;
       values[2][indexDernier] = group->neurons[column + line * group->columns * incrementation].s2;
+      values[3][indexDernier] = group->neurons[column + line * group->columns * incrementation].d;
     }
     // si le tableau n'est pas plein, ajout de la valeur à la suite des valeurs déja présentes.
     else
@@ -427,6 +434,7 @@ void update_big_graph_data(type_group *group)
       values[0][indexDernier] = group->neurons[column + line * group->columns * incrementation].s;
       values[1][indexDernier] = group->neurons[column + line * group->columns * incrementation].s1;
       values[2][indexDernier] = group->neurons[column + line * group->columns * incrementation].s2;
+      values[3][indexDernier] = group->neurons[column + line * group->columns * incrementation].d;
     }
 
     // sauvegarde des indices courants.
@@ -608,7 +616,7 @@ float rectifi_pallier(float ideal_neuro)
   }
   else
   {
-    printf("ATTENTION : Mauvaise utilisation de la fonction determine_ideal_length, remise par defaut de la taille du groupe");
+    PRINT_WARNING("ATTENTION : Mauvaise utilisation de la fonction determine_ideal_length, remise par defaut de la taille du groupe");
     retour = 20.0;
   }
   return retour;
@@ -796,9 +804,9 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
         group->courbes[j * group->columns + i].line = j;
         group->courbes[j * group->columns + i].last_index = -1;
         group->courbes[j * group->columns + i].show = TRUE;
-        group->courbes[j * group->columns + i].values = (float **) malloc(sizeof(float *) * 3);
+        group->courbes[j * group->columns + i].values = (float **) malloc(sizeof(float *) * 4);
         group->courbes[j * group->columns + i].indice = j * group->columns + i;
-        for (k = 0; k < 3; k++)
+        for (k = 0; k < 4; k++)
           group->courbes[j * group->columns + i].values[k] = (float *) malloc(sizeof(float) * NB_Max_VALEURS_ENREGISTREES);
       }
       if (i == group->columns) i = 0;
@@ -850,7 +858,7 @@ void group_display_new(type_group *group, float pos_x, float pos_y, GtkWidget *z
   gtk_box_pack_start(GTK_BOX(principal_hbox), group->button_vbox, FALSE, FALSE, 0);
 
   gtk_container_add(GTK_CONTAINER(group->widget), principal_hbox);
-  //gtk_widget_add_events(GTK_WIDGET(group->widget), GDK_SCROLL_MASK);
+  gtk_widget_add_events(GTK_WIDGET(group->widget), GDK_POINTER_MOTION_MASK);
   gtk_widget_set_events(GTK_WIDGET(group->drawing_area), GDK_SCROLL_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON1_MOTION_MASK | GDK_EXPOSURE_MASK | GDK_BUTTON_RELEASE_MASK);
 
   //gtk_widget_add_events(group->drawing_area, GDK_BUTTON_RELEASE_MASK);
@@ -889,7 +897,7 @@ void group_display_destroy(type_group *group)
 {
 
   int i;
-  destroy_links(group);
+  destroy_links_neuro_selected(group);
   if (group->output_display == 3) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_EXT_STOP, group->id, 0, group->script->name + strlen(bus_id) + 1);
   else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, 0, group->script->name + strlen(bus_id) + 1);
 
@@ -1092,6 +1100,9 @@ void correspondance_display_intensity(unsigned char * image_data, prom_images_st
       case 2:
         val = group->neurons[i + j * group->columns * incrementation].s2;
         break;
+      case 4:
+        val = group->neurons[i + j * group->columns * incrementation].d;
+        break;
       default:
         val = 0;
         break;
@@ -1125,7 +1136,7 @@ void destruction_image(type_group * const group)
 void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t *cr)
 {
   //Attention : il est tres important de garder cet ordre pour les mutex, notemment le fait de ne pas entourer gdk_threads_enter, au risque de provoquer des dead-end due à plusieurs mutex
-  float ndg = 0, min = group->val_min, max = group->val_max, frequence = 0;
+  float min = group->val_min, max = group->val_max, frequence = 0;
   float largeurNeuron, hauteurNeuron;
   //float r, g, b;
   int i, k = 0;
@@ -1137,7 +1148,7 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
   // float time;
   char label_text[LABEL_MAX];
 
-  int sortie = group->output_display;
+  // int sortie = group->output_display;
 
   gtk_container_set_reallocate_redraws(GTK_CONTAINER(group->widget), FALSE);
   //gtk_container_set_reallocate_redraws (GTK_CONTAINER(group->drawing_area), FALSE);
@@ -1154,7 +1165,6 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
   }
   check_ok_bord(group);
   //Début du dessin
-  //printf("je dessine le groupe no %d\n",group->id);
   //Dimensions d'une neurone
   largeurNeuron = (float) gtk_widget_get_allocated_width(GTK_WIDGET(group->drawing_area)) / (float) group->columns;
   hauteurNeuron = (float) gtk_widget_get_allocated_height(GTK_WIDGET(group->drawing_area)) / (float) group->rows;
@@ -1209,6 +1219,12 @@ void group_expose_neurons(type_group *group, gboolean update_frequence, cairo_t 
 
   case 3:
     display_image(group, prom_images, image_data, cr);
+    break;
+
+  case 4:
+    adresse = 4;
+    common_display(group, cr, frequence, adresse, incrementation, largeurNeuron, hauteurNeuron, label_text);
+
     break;
 
   default:
@@ -1302,9 +1318,13 @@ gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data)
         nbr_coeff = groups_to_display[i]->neurons[groups_to_display[i]->neuro_select].nbre_coeff;
         for (j = 0; j < nbr_coeff; j++)
         {
+
           group_pointed = groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].links_to_draw[j].group_pointed;
+          if (group_pointed == NULL) continue;
           if (group_pointed->ok_display == 0) continue;
           no_neuron_pointed = groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].links_to_draw[j].no_neuro_rel_pointed;
+          if (no_neuron_pointed < 0) continue;
+
           xdep = (gint) (groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].center_x);
           ydep = (gint) (groups_to_display[i]->param_neuro_pandora[groups_to_display[i]->neuro_select].center_y);
           xarr = (gint) (group_pointed->param_neuro_pandora[no_neuron_pointed].center_x);
@@ -1326,34 +1346,96 @@ gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data)
   return FALSE; // propage l'event
 }
 
-void destroy_links(type_group* group)
+void destroy_link_low_level(type_group* group, int no_neuro)
 {
-  int no_neuro_rel = 0;
-  int no_neuro_abs = 0;
-  no_neuro_rel = group->neuro_select;
 
-  if (no_neuro_rel != -1)
+  group->param_neuro_pandora[no_neuro].links_ok = FALSE;
+  group->param_neuro_pandora[no_neuro].selected = FALSE;
+  group->param_neuro_pandora[no_neuro].have_to_draw_link = FALSE;
+  group->param_neuro_pandora[no_neuro].have_to_save_link = FALSE;
+  if (group->param_neuro_pandora[no_neuro].links_to_draw != NULL) free(group->param_neuro_pandora[no_neuro].links_to_draw);
+  group->param_neuro_pandora[no_neuro].links_to_draw = NULL;
+  if (group->param_neuro_pandora[no_neuro].coeff != NULL) free(group->param_neuro_pandora[no_neuro].coeff);
+  group->param_neuro_pandora[no_neuro].coeff = NULL;
+  group->param_neuro_pandora[no_neuro].nbre_links = 0;
+
+  emit_signal_stop_to_promethe(group->firstNeuron + no_neuro, group->script, group, no_neuro);
+}
+// pour vider les liens en rapport avec tout sauf le neurone selectionné
+// no_neuro = -1 -> tout est vidé
+void destroy_links_saving(type_group* group, int no_neuro)
+{
+  int i;
+
+  if (no_neuro == -1)
   {
-    group->param_neuro_pandora[no_neuro_rel].links_ok = FALSE;
-    group->param_neuro_pandora[no_neuro_rel].selected = FALSE;
+    for (i = 0; i < group->number_of_neurons; i++)
+    {
+      if (i != group->neuro_select)
+      {
+        destroy_link_low_level(group, i);
+      }
+      else
+      {
+        group->param_neuro_pandora[i].have_to_save_link = FALSE;
+      }
+    }
   }
-  else printf("WARNING : no_neuro_rel==-1 cannot destroy links...\n");
+  else if (no_neuro >= 0 && no_neuro < group->number_of_neurons)
+  {
+    if (no_neuro != group->neuro_select)
+    {
+      destroy_link_low_level(group, no_neuro);
+    }
+    else
+    {
+      group->param_neuro_pandora[no_neuro].have_to_save_link = FALSE;
+    }
+  }
+  else
+  {
+    EXIT_ON_ERROR("Erreur dans le vidage mémoire d'un liens de sauvegarde, le no_neuro indiqué est de %d, ce qui est superieur au nbre de neurone du groupe ou différent de -1 dans les négatif (mauvaise utilisation de la fonction)", no_neuro);
+  }
+
+}
+
+// pour vider les liens en rapport avec le neurone selectionné
+void destroy_links_neuro_selected(type_group* group)
+{
+
+  if (group->neuro_select >= 0)
+  {
+    if (!(group->param_neuro_pandora[group->neuro_select].have_to_save_link))
+    {
+      destroy_link_low_level(group, group->neuro_select);
+    }
+    else
+    {
+      group->param_neuro_pandora[group->neuro_select].selected = FALSE;
+    }
+  }
+
   group->neuro_select = -1;
 
-  no_neuro_abs = group->firstNeuron + no_neuro_rel;
-
-  emit_signal_to_promethe(no_neuro_abs, group->script);
-
 }
 
-void emit_signal_to_promethe(int no_neuro, type_script* script)
+void emit_signal_to_promethe(int no_neuro, type_script* script, type_group* group, int no_neuro_rel)
 {
-  pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro, 0, script->name + strlen(bus_id) + 1);
+  if ((group->param_neuro_pandora[no_neuro_rel].have_to_draw_link == TRUE) || (group->param_neuro_pandora[no_neuro_rel].have_to_save_link == TRUE))
+  {
+   // printf("envoie d'une demande de liens pour le neurone %d\n", no_neuro);
+    pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_START, no_neuro, 0, script->name + strlen(bus_id) + 1);
+  }
 }
 
-void emit_signal_stop_to_promethe(int no_neuro, type_script* script)
+void emit_signal_stop_to_promethe(int no_neuro, type_script* script, type_group* group, int no_neuro_rel)
 {
-  pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro, 0, script->name + strlen(bus_id) + 1);
+  // printf("Appel stop avec no_neuro_rel = %d etat de have to draw = %d etat de have_to_save_link = %d \n", no_neuro_rel,group->param_neuro_pandora[no_neuro_rel].have_to_draw_link,group->param_neuro_pandora[no_neuro_rel].have_to_save_link);
+  if ((group->param_neuro_pandora[no_neuro_rel].have_to_draw_link == FALSE) && (group->param_neuro_pandora[no_neuro_rel].have_to_save_link == FALSE))
+  {
+    // printf("envoie d'une demande darret de liens pour le neurone %d\n",no_neuro);
+    pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURO_LINKS_STOP, no_neuro, 0, script->name + strlen(bus_id) + 1);
+  }
 }
 
 //Appelé ~ 53000fois, à simplifier/diminuer le nombre d'appel
@@ -1364,60 +1446,99 @@ void test_selection(type_group* group, int u, int i, int j, float largeurNeuron,
     if (group->x_event >= (u * largeurNeuron + 0.5) && group->x_event < (u * largeurNeuron + 0.5 + (largeurNeuron - 2) + 1) && group->y_event >= (j * hauteurNeuron + 0.5) && group->y_event < (j * hauteurNeuron + 0.5 + (hauteurNeuron - 2) + 1))
     {
       // on est selectionné
-      if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est allé jusqu'au bout du tableau de neurone pour la remise à zero
+      if ((i + j * group->columns * incrementation) == (group->number_of_neurons - 1)) // on est allé jusqu'au bout du tableau de neurone pour la remise à zero
       {
         group->x_event = -1;
         group->y_event = -1;
       }
-      if ((group->neuro_select >= 0) && (group->neuro_select != (i + j * group->columns * incrementation)))
-      {
-        group->param_neuro_pandora[group->neuro_select].selected = FALSE;
-        emit_signal_stop_to_promethe((group->firstNeuron + group->neuro_select), group->script);
-        emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script);
-      }
 
-      if (group->neuro_select < 0)
+//      if ((group->neuro_select >= 0) && (group->neuro_select != (i + j * group->columns * incrementation)))
+//      {
+//        group->param_neuro_pandora[group->neuro_select].selected = FALSE;
+//        group->param_neuro_pandora[group->neuro_select].have_to_draw=FALSE;
+//        emit_signal_stop_to_promethe((group->firstNeuron + group->neuro_select), group->script);
+//
+//        group->param_neuro_pandora[i + j * group->columns * incrementation].selected =  TRUE;
+//        group->param_neuro_pandora[i + j * group->columns * incrementation].have_to_draw=TRUE;
+//        emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script);
+//      }
+
+      if (group->neuro_select < 0) //cas où personne n'était selectionné auparavant
       {
-        emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script); //déduit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
         group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
+        group->param_neuro_pandora[i + j * group->columns * incrementation].have_to_draw_link = TRUE;
+
+        emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script, group, i + j * group->columns * incrementation); //déduit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
+
         group->neuro_select = i + j * group->columns * incrementation;
+    //    printf("1 Selection du neurone %d \n", group->neuro_select);
       }
-      else if (group->neuro_select >= 0 && group->neuro_select == (i + j * group->columns * incrementation))
+      else if (group->neuro_select >= 0 && group->neuro_select == (i + j * group->columns * incrementation)) //cas où c'etait ce neurone ci qui était selectionné
       {
-        emit_signal_stop_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script);
+
         group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
+        group->param_neuro_pandora[i + j * group->columns * incrementation].have_to_draw_link = FALSE;
+        emit_signal_stop_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script, group, i + j * group->columns * incrementation);
+
+    //    printf("DESelection 1 du neurone %d \n", group->neuro_select);
         group->neuro_select = -1;
 
       }
-      else
+      else //identique à premier cas ???
       {
+
+        group->param_neuro_pandora[group->neuro_select].selected = FALSE;
+        group->param_neuro_pandora[group->neuro_select].have_to_draw_link = FALSE;
+   //     printf("DESelection 2 du neurone %d \n", group->neuro_select);
+        emit_signal_stop_to_promethe((group->firstNeuron + group->neuro_select), group->script, group, i + j * group->neuro_select);
+
         group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
+        group->param_neuro_pandora[i + j * group->columns * incrementation].have_to_draw_link = TRUE;
+
+        emit_signal_to_promethe(group->firstNeuron + i + j * group->columns * incrementation, group->script, group, i + j * group->columns * incrementation);
+
+        //    group->param_neuro_pandora[i + j * group->columns * incrementation].selected = TRUE;
         group->neuro_select = i + j * group->columns * incrementation;
+    //    printf("2 Selection du neurone %d \n", group->neuro_select);
       }
 
     }
     else
     {
-
+      //Si il y a un selectionné     et que celui ci nest pas le neurone en cours de traitement mais que le neurone en cours de traitement est considéré comme selectionné
       if ((group->neuro_select >= 0) && (group->neuro_select != (i + j * group->columns * incrementation)) && (group->param_neuro_pandora[i + j * group->columns * incrementation].selected))
       {
-        emit_signal_stop_to_promethe((group->firstNeuron + i + j * group->columns * incrementation), group->script);
+        group->param_neuro_pandora[i + j * group->columns * incrementation].have_to_draw_link = FALSE; //on arrete la selection du neurone en cours
+        group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
+        emit_signal_stop_to_promethe((group->firstNeuron + i + j * group->columns * incrementation), group->script, group, i + j * group->columns * incrementation); // on envois un stop
+      //  printf("DESelection 3 du neurone %d \n", (i + j * group->columns * incrementation));
       }
       // emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script);
 
       //emit_signal_stop_to_promethe(group->firstNeuron+i + j * group->columns * incrementation,group->script); //déduit du premier ele du groupe et de i et j le num de la neuronne veritable dans le grand tab des neuro de promethe.
-      group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
 
+      /*
+       if ((group->param_neuro_pandora[i + j * group->columns * incrementation].selected)) //si le neurone en cours est selectionné par miracle
+       {
+       group->param_neuro_pandora[i + j * group->columns * incrementation].have_to_draw_link = FALSE; // si on n'est pas en train de traiter ce neurone, par defaut on met tout à false
+       group->param_neuro_pandora[i + j * group->columns * incrementation].selected = FALSE;
+
+       }
+       */
+      //   printf("DESelection 3 du neurone %d \n", (i + j * group->columns * incrementation));
       if (i + j * group->columns * incrementation == group->number_of_neurons - 1) // on est allé jusqu'au bout du tableau de neurone pour la remise à zero
       {
-
         group->x_event = -1;
         group->y_event = -1;
         if (group->neuro_select >= 0)
         {
-          if (group->param_neuro_pandora[group->neuro_select].selected == FALSE)
+          if (group->param_neuro_pandora[group->neuro_select].selected == FALSE) //test d'incohérence
           {
-            group->neuro_select = -1; // on remet le groupe à -1 uniquement si à la fin le chiffre ne correspond plus à rien.
+            PRINT_WARNING("Incohérence dans le test de selection de pandora, correction ... \n");
+            group->param_neuro_pandora[group->neuro_select].have_to_draw_link = FALSE;
+            emit_signal_stop_to_promethe((group->firstNeuron + group->neuro_select), group->script, group, group->neuro_select);
+            group->neuro_select = -1; // on remet le parametre de selection de groupe à -1 uniquement si à la fin le chiffre ne correspond plus à rien.
+
           }
         }
       }

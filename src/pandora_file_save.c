@@ -85,7 +85,7 @@ void pandora_file_save(const char *filename)
   gtk_window_get_size(GTK_WINDOW(window), &width, &height);
   xml_set_int(preferences_node, "window_width", width);
   xml_set_int(preferences_node, "window_height", height);
-  xml_set_int(preferences_node, "refresh", gtk_range_get_value(GTK_RANGE(refreshScale)));
+ // xml_set_int(preferences_node, "refresh", gtk_range_get_value(GTK_RANGE(refreshScale)));
   xml_set_int(preferences_node, "x_scale", gtk_range_get_value(GTK_RANGE(xScale)));
   xml_set_int(preferences_node, "y_scale", gtk_range_get_value(GTK_RANGE(yScale)));
   xml_set_int(preferences_node, "z_x_scale", gtk_range_get_value(GTK_RANGE(zxScale)));
@@ -152,8 +152,12 @@ void pandora_file_load(const char *filename)
   if (bus_id[0] == 0) strcpy(bus_id, xml_get_string(preferences_node, "bus_id"));
   if (bus_ip[0] == 0) strcpy(bus_id, xml_get_string(preferences_node, "bus_ip"));
 
-  if (xml_try_to_get_int(preferences_node, "window_width", &value) && xml_try_to_get_int(preferences_node, "window_height", &value2)) gtk_window_resize(GTK_WINDOW(window), value, value2);
-  if (xml_try_to_get_int(preferences_node, "refresh", &value)) gtk_range_set_value(GTK_RANGE(refreshScale), value);
+  if (xml_try_to_get_int(preferences_node, "window_width", &value) && xml_try_to_get_int(preferences_node, "window_height", &value2))
+    {
+      if(window!=NULL)
+        gtk_window_resize(GTK_WINDOW(window), value, value2);
+    }
+ // if (xml_try_to_get_int(preferences_node, "refresh", &value)) gtk_range_set_value(GTK_RANGE(refreshScale), value);
   if (xml_try_to_get_int(preferences_node, "x_scale", &value)) gtk_range_set_value(GTK_RANGE(xScale), (double) value);
   if (xml_try_to_get_int(preferences_node, "y_scale", &value)) gtk_range_set_value(GTK_RANGE(yScale), value);
   if (xml_try_to_get_int(preferences_node, "z_x_scale", &value)) gtk_range_set_value(GTK_RANGE(zxScale), value);

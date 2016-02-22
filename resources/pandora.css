@@ -1,6 +1,26 @@
 GtkWidget {
+
 }
 
-GtkButton {
+GtkComboBox#Combo_box_architecture GtkButton
+{
+     margin-right: 0px;
+     margin-left: 0px;
+     margin-top: 0px;
+     margin-bottom: 0px;
+     padding: 0px 0px 0px 0px;
+     border-width: 0px 0px 0px 0px;
 }
 
+
+GtkComboBox#Combo_box_architecture {
+    -GtkComboBox-arrow-size: 1;
+    -GtkComboBox-arrow-scaling: 0.2;
+    -GtkWidget-scroll-arrow-vlength: 1;
+     margin-right: 0px;
+     margin-left: 0px;
+     margin-top: 0px;
+     margin-bottom: 0px;
+     padding: 0px 0px 0px 0px;
+     border-width: 0px 0px 0px 0px;
+}

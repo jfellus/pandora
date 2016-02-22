@@ -37,11 +37,13 @@ The fact that you are presently reading this means that you have had knowledge o
 
 void continuous_saving(type_group *used_group);
 
-void destroy_saving_ref(type_script *scripts_used[NB_SCRIPTS_MAX]);
+void continuous_saving_link(type_group *group);
+
+void destroy_saving_ref(type_script *scripts_used[NB_SCRIPTS_MAX], gboolean is_link);
 
 void destroy_saving_ref_one(type_script *scripts_used);
 
-void file_create(type_group *used_group);
+void file_create(type_group *used_group, int is_for_link);
 
 #endif
 

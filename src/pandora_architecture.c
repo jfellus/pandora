@@ -1,24 +1,24 @@
 /*
-Copyright  ETIS — ENSEA, Université de Cergy-Pontoise, CNRS (1991-2014)
-promethe@ensea.fr
+ Copyright  ETIS — ENSEA, Université de Cergy-Pontoise, CNRS (1991-2014)
+ promethe@ensea.fr
 
-Authors: P. Andry, J.C. Baccon, D. Bailly, A. Blanchard, S. Boucena, A. Chatty, N. Cuperlier, P. Delarboulas, P. Gaussier, 
-C. Giovannangeli, C. Grand, L. Hafemeister, C. Hasson, S.K. Hasnain, S. Hanoune, J. Hirel, A. Jauffret, C. Joulain, A. Karaouzène,  
-M. Lagarde, S. Leprêtre, M. Maillard, B. Miramond, S. Moga, G. Mostafaoui, A. Pitti, K. Prepin, M. Quoy, A. de Rengervé, A. Revel ...
+ Authors: P. Andry, J.C. Baccon, D. Bailly, A. Blanchard, S. Boucena, A. Chatty, N. Cuperlier, P. Delarboulas, P. Gaussier,
+ C. Giovannangeli, C. Grand, L. Hafemeister, C. Hasson, S.K. Hasnain, S. Hanoune, J. Hirel, A. Jauffret, C. Joulain, A. Karaouzène,
+ M. Lagarde, S. Leprêtre, M. Maillard, B. Miramond, S. Moga, G. Mostafaoui, A. Pitti, K. Prepin, M. Quoy, A. de Rengervé, A. Revel ...
 
-See more details and updates in the file AUTHORS 
+ See more details and updates in the file AUTHORS
 
-This software is a computer program whose purpose is to simulate neural networks and control robots or simulations.
-This software is governed by the CeCILL v2.1 license under French law and abiding by the rules of distribution of free software. 
-You can use, modify and/ or redistribute the software under the terms of the CeCILL v2.1 license as circulated by CEA, CNRS and INRIA at the following URL "http://www.cecill.info".
-As a counterpart to the access to the source code and  rights to copy, modify and redistribute granted by the license, 
-users are provided only with a limited warranty and the software's author, the holder of the economic rights,  and the successive licensors have only limited liability. 
-In this respect, the user's attention is drawn to the risks associated with loading, using, modifying and/or developing or reproducing the software by the user in light of its specific status of free software, 
-that may mean  that it is complicated to manipulate, and that also therefore means that it is reserved for developers and experienced professionals having in-depth computer knowledge. 
-Users are therefore encouraged to load and test the software's suitability as regards their requirements in conditions enabling the security of their systems and/or data to be ensured 
-and, more generally, to use and operate it in the same conditions as regards security. 
-The fact that you are presently reading this means that you have had knowledge of the CeCILL v2.1 license and that you accept its terms.
-*/
+ This software is a computer program whose purpose is to simulate neural networks and control robots or simulations.
+ This software is governed by the CeCILL v2.1 license under French law and abiding by the rules of distribution of free software.
+ You can use, modify and/ or redistribute the software under the terms of the CeCILL v2.1 license as circulated by CEA, CNRS and INRIA at the following URL "http://www.cecill.info".
+ As a counterpart to the access to the source code and  rights to copy, modify and redistribute granted by the license,
+ users are provided only with a limited warranty and the software's author, the holder of the economic rights,  and the successive licensors have only limited liability.
+ In this respect, the user's attention is drawn to the risks associated with loading, using, modifying and/or developing or reproducing the software by the user in light of its specific status of free software,
+ that may mean  that it is complicated to manipulate, and that also therefore means that it is reserved for developers and experienced professionals having in-depth computer knowledge.
+ Users are therefore encouraged to load and test the software's suitability as regards their requirements in conditions enabling the security of their systems and/or data to be ensured
+ and, more generally, to use and operate it in the same conditions as regards security.
+ The fact that you are presently reading this means that you have had knowledge of the CeCILL v2.1 license and that you accept its terms.
+ */
 /**
  * pandora_architecture.c
  *
@@ -77,6 +77,88 @@ void architecture_get_group_position(type_group *group, float *x, float *y)
         }
       }
     }
+  }
+}
+
+void choice_combo_box_changed(GtkComboBox *comboBox, gpointer data)
+{
+  gint forma;
+  type_group* group=(type_group*)data;
+  forma = gtk_combo_box_get_active(comboBox);
+
+  group->thing_to_save=(int)forma;
+}
+
+void add_scroll_to_save(type_group *group, float pos_x, float pos_y, GtkWidget* architecture_display)
+{
+  GtkWidget* choice_combo_box;
+  GtkRequisition minimum_size;
+  GtkRequisition natural_size;
+  GtkCellRenderer * cells_render ;
+  GtkTreeStore * ts ;
+  GtkTreeIter iter;
+
+
+  if (group->scroll_to_save_widget != NULL || group->ok != TRUE) return;
+
+
+  //Création de la petite fenétre
+ // group->scroll_to_save_widget = gtk_aspect_frame_new("", 0, 0, 1, TRUE);
+//  gtk_widget_set_double_buffered(group->scroll_to_save_widget, TRUE);
+
+
+
+  // gtk_layout_put(GTK_LAYOUT(zone_neurons), group->widget, pos_x, pos_y);
+
+//  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo), column, TRUE);
+  ts = gtk_tree_store_new(1, G_TYPE_STRING);
+  gtk_tree_store_clear (ts);
+  gtk_tree_store_insert(ts, &iter, NULL, 0);
+  gtk_tree_store_set(ts, &iter, 0, "s", -1);
+  gtk_tree_store_insert(ts, &iter, NULL, 0);
+  gtk_tree_store_set(ts, &iter, 0, "s1", -1);
+  gtk_tree_store_insert(ts, &iter, NULL, 0);
+  gtk_tree_store_set(ts, &iter, 0, "s2", -1);
+  gtk_tree_store_insert(ts, &iter, NULL, 0);
+  gtk_tree_store_set(ts, &iter, 0, "d", -1);
+
+
+  group->scroll_to_save_widget = choice_combo_box =  gtk_combo_box_new_with_model(GTK_TREE_MODEL(ts));
+  gtk_widget_set_name (choice_combo_box,"Combo_box_architecture");
+//  g_object_set (G_OBJECT(model), "font", FONT_DESC_LEVEL_3, NULL );
+
+  cells_render = gtk_cell_renderer_text_new();
+  g_object_set (G_OBJECT(cells_render), "font", FONT_COMBO, NULL );
+  gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(choice_combo_box), cells_render, TRUE);
+  gtk_cell_layout_set_attributes( GTK_CELL_LAYOUT( choice_combo_box ), cells_render, "text", 0, NULL );
+
+
+  g_signal_connect(G_OBJECT(group->scroll_to_save_widget), "changed", (GCallback ) choice_combo_box_changed, group);
+
+  gtk_combo_box_set_active(GTK_COMBO_BOX(choice_combo_box), group->thing_to_save);
+  //gtk_container_add(GTK_CONTAINER(group->scroll_to_save_widget), choice_combo_box);
+
+
+  gtk_widget_get_preferred_size (group->scroll_to_save_widget, &minimum_size, &natural_size);
+
+
+  gtk_layout_put(GTK_LAYOUT(architecture_display), group->scroll_to_save_widget, (gint) (pos_x-30), (gint) (pos_y));
+
+
+  gtk_widget_show_all(group->scroll_to_save_widget);
+  gtk_widget_show_all(architecture_display);
+}
+
+void manage_scroll_to_save(type_group *group,gboolean selected_for_save,int x,int y,GtkWidget* architecture_display)
+{
+  if(selected_for_save)
+  {
+    add_scroll_to_save(group, x, y, architecture_display);
+  }
+  else
+  {
+    gtk_widget_destroy(group->scroll_to_save_widget);
+    group->scroll_to_save_widget=NULL;
   }
 }
 
@@ -156,22 +238,65 @@ void architecture_display_update(GtkWidget *architecture_display, cairo_t *cr, v
                 if ((event->state & GDK_CONTROL_MASK) && !saving_press)
                 {
                   group->selected_for_save = !group->selected_for_save;
+                  manage_scroll_to_save(group,group->selected_for_save,x_offset + group->x * graphic.x_scale+LARGEUR_GROUPE,y_offset + group->y * graphic.y_scale, architecture_display);
 
-                  if (group->selected_for_save == 1) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id,0, group->script->name+strlen(bus_id)+1);
-                  else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id,0, group->script->name+strlen(bus_id)+1);
+
+              //    if (group->selected_for_save == 1) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, 0, group->script->name + strlen(bus_id) + 1);
+              //    else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, 0, group->script->name + strlen(bus_id) + 1);
                 }
+
+                if ((event->state & GDK_SHIFT_MASK) && !saving_link_press)
+                {
+                  group->selected_for_save_link = !group->selected_for_save_link;
+
+                 // if (group->selected_for_save_link == 1) pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_START, group->id, 0, group->script->name + strlen(bus_id) + 1);
+                 // else pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_STOP, group->id, 0, group->script->name + strlen(bus_id) + 1);
+                }
+
               }
 
             }
+
+            //remplissage du groupe
             if (group == selected_group) cairo_set_source_rgba(cr, RED);
             else if (group->is_in_a_loop == TRUE) cairo_set_source_rgba(cr, 0.8, 0.8, 0.8, 1);
             else gdk_cairo_set_source_rgba(cr, &colors[group->script->color]);
-            cairo_fill_preserve(cr);
+            cairo_fill(cr); // preserve le rectangle
+
+
+
+            if (group->selected_for_save_link == 1)
+            {
+              cairo_save(cr);
+         //     cairo_clip(cr);
+              cairo_rectangle(cr, x_offset - 8 + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale, 2, HAUTEUR_GROUPE);
+              cairo_set_line_width(cr, 5);
+
+              if (group->on_saving_link == 1)
+                  cairo_set_source_rgba(cr, GREEN);
+              if (group->on_saving_link == 0)
+                  cairo_set_source_rgba(cr, RED);
+
+              cairo_stroke(cr);
+           //   cairo_set_line_width(cr, 2);
+              cairo_restore(cr);
+            }
+            cairo_rectangle(cr, x_offset + group->x * graphic.x_scale, y_offset + group->y * graphic.y_scale, LARGEUR_GROUPE, HAUTEUR_GROUPE);
+
+
             if (group->selected_for_save == 1)
             {
 
-              if (group->on_saving == 1) cairo_set_source_rgba(cr, YELLOW);
-              if (group->on_saving == 0) cairo_set_source_rgba(cr, BLUE);
+              if (group->on_saving == 1)
+                {
+                  cairo_set_line_width(cr, 4);
+                  cairo_set_source_rgba(cr, YELLOW);
+                }
+              if (group->on_saving == 0)
+                {
+                  cairo_set_line_width(cr, 2);
+                  cairo_set_source_rgba(cr, BLUE);
+                }
 
               cairo_stroke_preserve(cr);
             }
@@ -181,6 +306,10 @@ void architecture_display_update(GtkWidget *architecture_display, cairo_t *cr, v
               cairo_set_source_rgba(cr, BLACK);
               cairo_stroke_preserve(cr);
             }
+
+
+
+
 
             /* Texts  */
             cairo_save(cr);

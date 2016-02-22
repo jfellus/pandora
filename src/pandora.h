@@ -157,8 +157,13 @@ typedef struct type_para_neuro {
   double center_x;
   double center_y;
   gboolean links_ok;
+  gboolean have_to_draw_link;
+  gboolean have_to_save_link;
   type_link_draw *links_to_draw;
   type_coeff* coeff;
+  int nbre_links;
+  GtkWidget* checkbox_associated;
+  GtkWidget* range_associated;
 // int number_of_links_to_draw;
 
 } type_para_neuro;
@@ -186,7 +191,7 @@ typedef struct group {
   int firstNeuron; ///Numéro du premier neurone de ce groupe dans le grand tableau de tous les neurones du script
   int nb_update_since_next;
   float val_min, val_max;
-  void *widget, *drawing_area, *label;
+  void *widget, *drawing_area, *label; //TODO : normaliser les types
   void *entry_val_min, *entry_val_max;
   void *ext, *dialog;
   void *path;
@@ -197,6 +202,7 @@ typedef struct group {
   float ****tabValues;
   int **indexDernier, **indexAncien;
   GtkWidget *button_vbox;
+  GtkWidget *scroll_to_save_widget;
   int **afficher; // utilisé pour le mode big graph uniquement.
   data_courbe *courbes;
   int number_of_courbes;
@@ -211,18 +217,22 @@ typedef struct group {
   GThread *thread;
 
   gboolean selected_for_save;
+  gboolean selected_for_save_link;
   gboolean on_saving;
+  gboolean on_saving_link;
   gboolean ok;
   gboolean ok_display;
   gboolean refresh_freq;
   gboolean from_file;
 
   FILE* associated_file;
+  FILE* associated_file_link;
 
   int idDisplay;
   gboolean is_watch;
   float neurons_width;
   float neurons_height;
+  int thing_to_save;
 
   // variables utilisées pour le calcul du taux d'activité de chaque groupe.
   stat_group_execution stats;
@@ -239,6 +249,8 @@ typedef struct group {
   float borne_max;
   float borne_min;
   char name_n[256];
+  float frequence_specifique;
+  float frequence_specifique_link;
 } type_group;
 
 typedef struct type_control{
@@ -270,6 +282,7 @@ typedef struct script {
   GtkWidget* pWindow;
   type_control** control_group;
   int* number_of_control;
+  double freq_rafraichi;
 } type_script;
 
 typedef struct script_link {
@@ -332,6 +345,7 @@ extern GtkWidget *refreshScale, *xScale, *yScale, *zxScale, *zyScale;
 extern GtkWidget *vpaned, *scrollbars;
 extern GtkWidget *neurons_frame, *zone_neurons;
 extern gboolean saving_press;
+extern gboolean saving_link_press;
 extern gboolean draw_links_info;
 
 extern pthread_t new_window_thread;
@@ -340,6 +354,7 @@ extern GtkWidget *compress_button;
 
 extern gint format_mode;
 extern GtkListStore* currently_saving_list;
+extern GtkListStore* currently_saving_list_link;
 //------------------------------------------------PROTOTYPES--------------------------------------------------------
 
 void init_pandora(int argc, char** argv);
@@ -416,4 +431,7 @@ void on_toggled_affiche_control_button(GtkWidget *affiche_control_button, gpoint
 void search_control_in_script_and_allocate_control(type_script* script_actu);
 void create_range_controls(type_script* script_actu,GtkWidget *box1);
 gboolean on_destroy_vue_metre_and_check_box(GtkWidget *gtk_range, type_group *group);
+void on_toggled_saving_link_button(GtkWidget *save_button, gpointer pData);
+
+void launch_sequence(GtkApplication* app, gpointer user_data);
 #endif

@@ -144,6 +144,7 @@ int enet_host_secure(ENetHost * host, ENetEvent * event, enet_uint32 timeout)
   int retour;
   sem_wait(&(enet_pandora_lock));
   retour = enet_host_service(host, event, timeout);
+  //if (retour<0) PRINT_WARNING("Failure in enet (pandora)\n");   // pour debug
   sem_post(&(enet_pandora_lock));
   return retour;
 }
@@ -177,7 +178,9 @@ void enet_manager(ENetHost *server)
   type_script *script = NULL;
   type_group *group, *input_group;
   type_neurone *neurons;
-  int no_neuro;
+  int no_neuro_abs;
+  int no_neuro_rel;
+  int nb_neuro;
   int number_of_neuro_links;
   long time;
   int phase;
@@ -187,12 +190,13 @@ void enet_manager(ENetHost *server)
   {
     first_call++;
 
-    while (enet_host_secure(server, &event, 100) > 0)
+    while (enet_host_secure(server, &event, 1) > 0)
     {
       switch (event.type)
       {
-
       case ENET_EVENT_TYPE_CONNECT:
+        printf("Connexion ! \n");
+
         enet_address_get_host_ip(&event.peer->address, ip, HOST_NAME_MAX);
         printf("A new client connected (ENet) from ip %s:%i.\n", ip, event.peer->address.port);
 
@@ -207,6 +211,7 @@ void enet_manager(ENetHost *server)
         script->peer = event.peer; //enet_host_connect(server, &(event.peer->address), PANDORA_NUMBER_OF_CHANNELS, 0);
         script->groups = NULL;
         script->pWindow=NULL;
+        script->freq_rafraichi=50;
         sem_init(&script->sem_groups_defined, 0, 0);
         scripts[number_of_scripts] = script;
         number_of_scripts++;
@@ -257,6 +262,11 @@ void enet_manager(ENetHost *server)
               group->param_neuro_pandora[j].center_x = 0;
               group->param_neuro_pandora[j].center_y = 0;
               group->param_neuro_pandora[j].coeff = NULL;
+              group->param_neuro_pandora[j].have_to_draw_link=FALSE;
+              group->param_neuro_pandora[j].have_to_save_link=FALSE;
+              group->param_neuro_pandora[j].nbre_links=0;
+              group->param_neuro_pandora[j].range_associated=NULL;
+              group->param_neuro_pandora[j].checkbox_associated=NULL;
             }
             group->knownX = FALSE;
             group->knownY = FALSE;
@@ -277,16 +287,20 @@ void enet_manager(ENetHost *server)
             group->previous = NULL;
             group->previous_second = NULL;
             group->widget = NULL;
+            group->scroll_to_save_widget=NULL;
             group->ext = NULL;
             group->image_selected_index = 0;
-
+            group->thing_to_save=SAVE_S1;
             group->tabValues = NULL;
             group->indexAncien = NULL;
             group->indexDernier = NULL;
             group->afficher = NULL;
             group->associated_file = NULL;
+            group->associated_file_link=NULL;
             group->selected_for_save = FALSE;
+            group->selected_for_save_link = FALSE;
             group->on_saving = FALSE;
+            group->on_saving_link = FALSE;
 
             group->courbes = NULL;
 
@@ -313,6 +327,8 @@ void enet_manager(ENetHost *server)
             group->borne_min = min_default;
             group->step = step_default;
             group->init = 0;
+            group->frequence_specifique=-1.0;
+            group->frequence_specifique_link=-1.0;
           }
 
           current_data = &current_data[groups_size];
@@ -478,6 +494,25 @@ void enet_manager(ENetHost *server)
           //Réception du paquet
           memcpy(group->neurons, event.packet->data, sizeof(type_neurone) * number_of_neurons);
 
+
+          if (group->type_control>=0)
+          {
+            for(i=0;i<group->number_of_neurons;i++)
+            {
+              if(group->param_neuro_pandora[i].range_associated!=NULL)
+              {
+                gtk_range_set_value(GTK_RANGE(group->param_neuro_pandora[i].range_associated),(gdouble)group->neurons[i].s1);
+              }
+              if(group->param_neuro_pandora[i].checkbox_associated!=NULL)
+              {
+                if ((gdouble)group->neurons[i].s1 > 0.5) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(group->param_neuro_pandora[i].checkbox_associated), TRUE);
+                else gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(group->param_neuro_pandora[i].checkbox_associated), FALSE);
+              }
+            }
+
+          }
+
+
           if (group->selected_for_save == 1 && saving_press == 1)
           {
 
@@ -499,7 +534,6 @@ void enet_manager(ENetHost *server)
           break;
 
         case ENET_UPDATE_EXT_CHANNEL:
-
           group_id = *((int*) current_data);
           current_data = &current_data[sizeof(int)];
 
@@ -598,38 +632,136 @@ void enet_manager(ENetHost *server)
           enet_packet_destroy(event.packet);
 
           break;
-        case ENET_UPDATE_LINKS:
-          current_data = event.packet->data;
-          number_of_neuro_links = (event.packet->dataLength - sizeof(int)) / (sizeof(type_coeff));
-          no_neuro = *((int*) current_data);
-          current_data = &(current_data[sizeof(int)]);
 
-          // coeffs = (type_coeff*)current_data;
-          //coeffs=links->coeffs;
+        case ENET_UPDATE_LINKS:
+
+          current_data = ((event.packet)->data);
+         // number_of_neuro_links = (event.packet->dataLength - sizeof(int)) / (sizeof(type_coeff));
+          //    number_of_neuro_links = (event.packet->dataLength - sizeof(int)) / (sizeof(type_coeff));
+          nb_neuro=*((int*) current_data); //si superieure à 1 : mode envoie par groupement
 
           if (script == NULL) break;
           if (script->groups == NULL || script->groups == 0x0) break; // securité
 
-          group = search_associated_group(no_neuro, script);
+          current_data = &(current_data[sizeof(int)]);
 
+          no_neuro_abs = *((int*) current_data);
+
+          group = search_associated_group(no_neuro_abs, script);
           if (group == NULL) break;
           if (group->ok != TRUE) break;
+          if(group->selected_for_save_link==FALSE && group->neuro_select<0) PRINT_WARNING("On reçoit des données de links qui ne sont normalement pas necessaire !! \n");
 
-          if (number_of_neuro_links) create_links(group, no_neuro, current_data, number_of_neuro_links, script);
+
+          for(i=0;i<nb_neuro;i++)
+          {
+            no_neuro_abs = *((int*) current_data);
+            if(no_neuro_abs<0)
+            {
+              PRINT_WARNING("Erreur d'envoi coté prométhé : no_neuro_abs < 0 \n");
+              break;
+            }
+            no_neuro_rel=no_neuro_abs-group->firstNeuron;
+            current_data = &(current_data[sizeof(int)]);
+
+            number_of_neuro_links=*((int*) current_data);
+            if(number_of_neuro_links<0)
+            {
+              PRINT_WARNING("Erreur d'envoi coté prométhé : number_of_neuro_links < 0 \n");
+              break;
+            }
+
+            group->param_neuro_pandora[no_neuro_rel].nbre_links=number_of_neuro_links;
+
+            current_data = &(current_data[sizeof(int)]);
+
+            if (number_of_neuro_links>0) create_links(group, no_neuro_abs, current_data, number_of_neuro_links, script);
+            else
+            {
+              if((number_of_neuro_links == 0) && (group->param_neuro_pandora[no_neuro_rel].nbre_links != 0))
+              {
+                PRINT_WARNING("Erreur de cohérence entre number_of_neuro_links et param_neuro_pandora[no_neuro].nbre_links\n");
+                destroy_links_saving(group, no_neuro_abs);
+              }
+
+            }
+
+            current_data = &(current_data[number_of_neuro_links * sizeof(type_coeff)]);
+
+        //   coeffs = (type_coeff*)current_data;
+        //  coeffs=links->coeffs;
+
+
+
+       //   group = search_associated_group(no_neuro, script);
+
+       //   if (group == NULL) break;
+       //   if (group->ok != TRUE) break;
+          }
+
+          if (group->selected_for_save_link == 1 && saving_link_press == 1)
+           {
+            continuous_saving_link(group);
+
+         //   pour l'instant on ne sauvegarde pas encore : en test
+           }
+
+
+        //  if (number_of_neuro_links) create_links(group, no_neuro, current_data, number_of_neuro_links, script);
 
           enet_packet_destroy(event.packet);
-          break;
-        }
 
         break;
 
+//        case ENET_UPDATE_LINKS_BY_GROUP:
+//          number_of_neurons = (event.packet->dataLength) / sizeof(type_neurone);
+//                  neurons = (type_neurone*) event.packet->data;
+//                  group_id = neurons->groupe;
+//
+//                  if (script == NULL) break;
+//                  if (script->groups == NULL || script->groups == 0x0) break; // securité
+//                  if (script->groups[group_id].ok != TRUE) break; //sécurité 2
+//
+//                  group = &script->groups[group_id];
+//
+//                  //Réception du paquet
+//                  memcpy(group->neurons, event.packet->data, sizeof(type_neurone) * number_of_neurons);
+//
+//                  if (group->selected_for_save == 1 && saving_press == 1)
+//                  {
+//
+//                    continuous_saving(group);
+//
+//                  }
+//                  group->counter++;
+//                  group->refresh_freq = TRUE;
+//
+//                  /*
+//                   if ((refresh_mode == REFRESH_MODE_MANUAL) && (group->drawing_area != NULL) && (group->widget != NULL) && (group->ok == TRUE) && (group->ok_display == TRUE))
+//                   {
+//                   group->refresh_freq = TRUE;
+//                   g_idle_add_full(G_PRIORITY_HIGH_IDLE, (GSourceFunc) queue_draw, (gpointer) group, NULL);
+//
+//                   }
+//                   */
+//                  enet_packet_destroy(event.packet);
+//                  break;
+
+        }
+        break;
+
       case ENET_EVENT_TYPE_DISCONNECT:
+        printf("Disconnect\n");
         script = event.peer->data;
         event.peer->data = NULL;
         break;
 
       case ENET_EVENT_TYPE_NONE:
         printf("ENET: none event \n");
+        break;
+
+      default :
+        printf("WTF ? cas default dans enet, ne devrais pas arriver ... \n");
         break;
       }
       sem_wait(&(enet_pandora_lock));
@@ -773,21 +905,40 @@ void create_links(type_group *group, int no_neuro, enet_uint8 *current_data, int
   type_coeff* coeffs = NULL;
 
   no_neuro_rel = no_neuro - (group->firstNeuron);
-  if (!(group->param_neuro_pandora[no_neuro_rel].links_ok))
-  {
-    MANY_REALLOCATIONS(&group->param_neuro_pandora[no_neuro_rel].coeff, number_of_neuro_links);
-    // group->neurons[no_neuro_rel].coeff=MANY_REALLOCATIONS(group->neurons[no_neuro_rel].coeff,number_of_neuro_links,type_coeff);
-    MANY_REALLOCATIONS(&group->param_neuro_pandora[no_neuro_rel].links_to_draw, number_of_neuro_links);
-    group->param_neuro_pandora[no_neuro_rel].links_ok = TRUE;
+
+ //   printf("entree dans create_links avec no_neuro_rel = %d \n", no_neuro_rel);
+    if (!(group->param_neuro_pandora[no_neuro_rel].links_ok))
+    {
+   //   printf("entree dans le test de !links OK \n");
+      MANY_REALLOCATIONS(&(group->param_neuro_pandora[no_neuro_rel].coeff), number_of_neuro_links);
+      // group->neurons[no_neuro_rel].coeff=MANY_REALLOCATIONS(group->neurons[no_neuro_rel].coeff,number_of_neuro_links,type_coeff);
+      MANY_REALLOCATIONS(&(group->param_neuro_pandora[no_neuro_rel].links_to_draw), number_of_neuro_links);
+
+
+      for (i = 0; i < number_of_neuro_links; i++)
+            {
+              group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].group_pointed = NULL;
+              group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].no_neuro_rel_pointed=-1;
+            }
+
+      group->param_neuro_pandora[no_neuro_rel].links_ok = TRUE;
+    }
+
+    memcpy(group->param_neuro_pandora[no_neuro_rel].coeff, current_data, number_of_neuro_links * sizeof(type_coeff));
+    coeffs = group->param_neuro_pandora[no_neuro_rel].coeff;
+
+  //  printf("coeffs[0].val = %f \n",coeffs[0].val);
+    if(group->param_neuro_pandora[no_neuro_rel].have_to_draw_link) // inutile de faire tout le bazar en dessous si il n'y a pas à dessiner le liens en question
+    {
+    //  printf("passage du have_to_draw \n");
+      for (i = 0; i < number_of_neuro_links; i++)
+      {
+        group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].group_pointed = search_associated_group(coeffs[i].entree, script);
+        group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].no_neuro_rel_pointed = (coeffs[i].entree - group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].group_pointed->firstNeuron);
+      }
+    }
   }
 
-  memcpy(group->param_neuro_pandora[no_neuro_rel].coeff, current_data, number_of_neuro_links * sizeof(type_coeff));
-  coeffs = group->param_neuro_pandora[no_neuro_rel].coeff;
 
-  for (i = 0; i < number_of_neuro_links; i++)
-  {
-    group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].group_pointed = search_associated_group(coeffs[i].entree, script);
-    group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].no_neuro_rel_pointed = (coeffs[i].entree - group->param_neuro_pandora[no_neuro_rel].links_to_draw[i].group_pointed->firstNeuron);
-  }
 
-}
+

@@ -36,6 +36,11 @@ The fact that you are presently reading this means that you have had knowledge o
 #define TEXT_OFFSET 4
 #define TEXT_LINE_HEIGHT 12
 
+enum {
+  SAVE_D = 0, SAVE_S2, SAVE_S1, SAVE_S
+};
+
+
 /** Structures **/
 typedef struct graphic {
   int draw_links;
@@ -62,6 +67,9 @@ void key_press_event(GtkWidget *pWidget, GdkEventKey *event);
 void architecture_get_group_position(type_group *group, float *x, float *y);
 void architecture_set_view_point(GtkWidget *scrollbars, gdouble x, gdouble y);
 void architecture_display_update(GtkWidget *architecture_display, cairo_t *cr, void *data);
+void add_scroll_to_save(type_group *group, float pos_x, float pos_y, GtkWidget* architecture_display);
+void choice_combo_box_changed(GtkComboBox *comboBox, gpointer data);
+void manage_scroll_to_save(type_group *group,gboolean selected_for_save,int x,int y,GtkWidget* architecture_display);
 gboolean queue_draw_archi(gpointer data);
 
 #endif /* PANDORA_ARCHITECURE_H_ */

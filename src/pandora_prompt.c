@@ -64,7 +64,7 @@ gboolean send_info_to_top(gpointer *user_data)
 void init_top(prompt_lign *buf, GtkTextBuffer* text_buf)
 {
   int i = 0;
-  //printf("on passe dans l'init");
+
   for (i = 0; i < NB_LIGN_MAX; i++)
   {
     init_lign(&(buf[i]));
@@ -148,7 +148,7 @@ void insert_lign(prompt_lign lign, prompt_lign *prom_buf)
   }
   else
   {
-    printf("Mauvaise utilisation de insert_lign !");
+    PRINT_WARNING("Mauvaise utilisation de insert_lign !");
   }
 
 }

@@ -32,8 +32,8 @@
 
 #include "pandora.h"
 
-
 #define TEXT_LINE_HEIGHT 12
+#define FONT_COMBO "Monospace Regular 8"
 //#ifndef _SEE_TIME
 //#define _SEE_TIME
 //#endif
@@ -100,12 +100,16 @@ gboolean button_press_neurons(GtkWidget *widget, GdkEvent *event, type_group *gr
 gboolean button_press_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *group);
 gboolean button_release_on_neuron(GtkWidget *widget, GdkEvent *event, type_group *group);
 void draw_links(GtkWidget *zone_neuron, cairo_t *cr, void *data, int x_zone, int y_zone, int xd_zone, int yd_zone, float info);
-void emit_signal_stop_to_promethe(int no_neuro, type_script* script);
-void emit_signal_to_promethe(int no_neuro, type_script* script);
+void emit_signal_stop_to_promethe(int no_neuro, type_script* script, type_group* group, int no_neuro_rel);
+void emit_signal_to_promethe(int no_neuro, type_script* script, type_group* group, int no_neuro_rel);
 gboolean draw_all_links(GtkWidget *zone_neuron, cairo_t *cr, void *data);
 float calcul_pallier(float actual_length, gboolean direction);
 void test_selection(type_group* group, int u, int i, int j, float largeurNeuron, float hauteurNeuron, int incrementation);
-void destroy_links(type_group* group);
+
+void destroy_link_low_level(type_group* group, int no_neuro);
+void destroy_links_neuro_selected(type_group* group);
+void destroy_links_saving(type_group* group, int no_neuro);
+
 void init_image(unsigned char* image_data, prom_images_struct * const prom_images, type_group * const group, cairo_t * const cr, int nb_band);
 void correspondance_3b(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
 void correspondance_4b(unsigned char * image_data, prom_images_struct * const prom_images, type_group* const group);
@@ -117,7 +121,6 @@ static inline void display_image(type_group *group, prom_images_struct* prom_ima
 static inline void common_display_inside(int *u, int i, int j, int incrementation, type_group *group, float largeurNeuron, float hauteurNeuron, cairo_t * const cr, float* r, float* v, float* b);
 static inline void common_display(type_group *group, cairo_t * const cr, float frequence, int adresse, int incrementation, float largeurNeuron, float hauteurNeuron, char* label_text);
 static inline void mode_graph(type_group *group, int i, int j, int incrementation, int sortie, float largeurNeuron, float hauteurNeuron, cairo_t *cr);
-
 
 static inline float select_compo(float a, float b, float c, float alpha, char no)
 {
@@ -167,15 +170,15 @@ static inline void common_display_inside(int *u, int i, int j, int incrementatio
 
 static inline void common_display(type_group *group, cairo_t * const cr, float frequence, int adresse, int incrementation, float largeurNeuron, float hauteurNeuron, char* label_text)
 {
-  int sortie=group->output_display, i, j;
-  float val;
+  int sortie = group->output_display, i, j;
+  float val = 0.0;
   int u;
   float r, v, b;
   prom_images_struct* prom_images;
-  unsigned char * image_data=NULL;
-  float ndg=0, yVal, y0=0;
+  unsigned char * image_data = NULL;
+  float ndg = 0, yVal, y0 = 0;
   float min = group->val_min, max = group->val_max;
-  float tmp=0;
+  float tmp = 0;
   cairo_surface_t * image;
 
   switch (group->display_mode)
@@ -188,7 +191,28 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
     {
       for (i = 0 + incrementation - 1; i < group->columns * incrementation; i += incrementation)
       {
-        val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+        switch (adresse)
+        {
+        case 0:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 1:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 2:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 3:
+          val = 0.0;
+          break;
+        case 4:
+          val = group->neurons[i + j * group->columns * incrementation].d;
+          break;
+        default:
+          val = 0.0;
+          break;
+        }
+
         common_display_inside(&u, i, j, incrementation, group, largeurNeuron, hauteurNeuron, cr, &r, &v, &b);
         ndg = niveauDeGris(val, min, max);
         cairo_rectangle(cr, (u + (1 - ndg) * .5) * largeurNeuron + 0.5, (j + (1 - ndg) * .5) * hauteurNeuron + 0.5, (largeurNeuron - 2) * ndg + 1, (hauteurNeuron - 2) * ndg + 1);
@@ -206,7 +230,27 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
     {
       for (i = 0 + incrementation - 1; i < group->columns * incrementation; i += incrementation)
       {
-        val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+        switch (adresse)
+        {
+        case 0:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 1:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 2:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 3:
+          val = 0.0;
+          break;
+        case 4:
+          val = group->neurons[i + j * group->columns * incrementation].d;
+          break;
+        default:
+          val = 0.0;
+          break;
+        }
         common_display_inside(&u, i, j, incrementation, group, largeurNeuron, hauteurNeuron, cr, &r, &v, &b);
         ndg = niveauDeGris(val, min, max);
         cairo_arc(cr, (i + .5) * largeurNeuron, (j + .5) * hauteurNeuron, ndg * largeurNeuron * .5, 0, 2 * M_PI);
@@ -223,7 +267,27 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
     {
       for (i = 0 + incrementation - 1; i < group->columns * incrementation; i += incrementation)
       {
-        val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+        switch (adresse)
+        {
+        case 0:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 1:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 2:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 3:
+          val = 0.0;
+          break;
+        case 4:
+          val = group->neurons[i + j * group->columns * incrementation].d;
+          break;
+        default:
+          val = 0.0;
+          break;
+        }
         common_display_inside(&u, i, j, incrementation, group, largeurNeuron, hauteurNeuron, cr, &r, &v, &b);
         ndg = niveauDeGris(val, min, max);
         cairo_set_source_rgba(cr, ndg * r, ndg * v, ndg * b, 1);
@@ -241,7 +305,28 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
     {
       for (i = 0 + incrementation - 1; i < group->columns * incrementation; i += incrementation)
       {
-        val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+        switch (adresse)
+        {
+        case 0:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 1:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 2:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 3:
+          val = 0.0;
+          break;
+        case 4:
+          val = group->neurons[i + j * group->columns * incrementation].d;
+          break;
+        default:
+          val = 0.0;
+          break;
+
+        }
         common_display_inside(&u, i, j, incrementation, group, largeurNeuron, hauteurNeuron, cr, &r, &v, &b);
         prom_images = (prom_images_struct*) group->ext;
         if (group->image_ready == FALSE)
@@ -273,7 +358,7 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
     cairo_restore(cr);
     break;
 
-  case DISPLAY_MODE_BAR_GRAPH:
+  case DISPLAY_MODE_BAR_GRAPH: //TODO : a debugger !!
     cairo_set_source_rgba(cr, BLACK);
     cairo_paint(cr);
     sortie = group->output_display;
@@ -281,7 +366,28 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
     {
       for (i = 0 + incrementation - 1; i < group->columns * incrementation; i += incrementation)
       {
-        val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+        switch (adresse)
+        {
+        case 0:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 1:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 2:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 3:
+          val = 0.0;
+          break;
+        case 4:
+          val = group->neurons[i + j * group->columns * incrementation].d;
+          break;
+        default:
+          val = 0.0;
+          break;
+
+        }
         common_display_inside(&u, i, j, incrementation, group, largeurNeuron, hauteurNeuron, cr, &r, &v, &b);
         if (group->rows > 10 || group->columns > 10) break;
         y0 = coordonneeYZero(min, max, hauteurNeuron);
@@ -304,7 +410,7 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
       cairo_stroke(cr);
     }
 
-  //  cairo_fill(cr);
+    //  cairo_fill(cr);
 
     break;
 
@@ -312,11 +418,33 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
     cairo_set_source_rgba(cr, BLACK);
     cairo_paint(cr);
     sortie = group->output_display;
+
     for (j = 0; j < group->rows; j++)
     {
       for (i = 0 + incrementation - 1; i < group->columns * incrementation; i += incrementation)
       {
-        val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+        switch (adresse)
+        {
+        case 0:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 1:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 2:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 3:
+          val = 0.0;
+          break;
+        case 4:
+          val = group->neurons[i + j * group->columns * incrementation].d;
+          break;
+        default:
+          val = 0.0;
+          break;
+
+        }
         common_display_inside(&u, i, j, incrementation, group, largeurNeuron, hauteurNeuron, cr, &r, &v, &b);
         sprintf(label_text, "%f", val);
         group->param_neuro_pandora[i + j * group->columns * incrementation].center_x = (double) (((u * largeurNeuron) + (largeurNeuron - 5) / 2));
@@ -332,15 +460,37 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
     }
     break;
 
-  case DISPLAY_MODE_GRAPH:
+  case DISPLAY_MODE_GRAPH: //TODO : debug
     cairo_set_source_rgba(cr, WHITE);
     cairo_paint(cr);
     sortie = group->output_display;
+    if (sortie == 4) sortie = 3;
     for (j = 0; j < group->rows; j++)
     {
       for (i = 0 + incrementation - 1; i < group->columns * incrementation; i += incrementation)
       {
-        val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+        switch (adresse)
+        {
+        case 0:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 1:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 2:
+          val = *(&(group->neurons[i + j * group->columns * incrementation].s) + adresse);
+          break;
+        case 3:
+          val = 0.0;
+          break;
+        case 4:
+          val = group->neurons[i + j * group->columns * incrementation].d;
+          break;
+        default:
+          val = 0.0;
+          break;
+
+        }
         common_display_inside(&u, i, j, incrementation, group, largeurNeuron, hauteurNeuron, cr, &r, &v, &b);
         mode_graph(group, i, j, incrementation, sortie, largeurNeuron, hauteurNeuron, cr);
       }
@@ -351,6 +501,7 @@ static inline void common_display(type_group *group, cairo_t * const cr, float f
     cairo_set_source_rgba(cr, WHITE);
     cairo_paint(cr);
     sortie = group->output_display;
+    if (sortie == 4) sortie = 3;
     update_big_graph_data(group);
     draw_big_graph(group, cr, frequence);
     break;
@@ -363,8 +514,8 @@ static inline void mode_graph(type_group *group, int i, int j, int incrementatio
 {
   float **values = NULL;
   float tmp;
-  int indexDernier=-1, x;
-  int indexAncien=-1, indexTmp;
+  int indexDernier = -1, x;
+  int indexAncien = -1, indexTmp;
   float min = group->val_min, max = group->val_max;
   float yVal;
   int k;
@@ -390,6 +541,7 @@ static inline void mode_graph(type_group *group, int i, int j, int incrementatio
       values[0][k] = group->neurons[i + j * group->columns * incrementation].s;
       values[1][k] = group->neurons[i + j * group->columns * incrementation].s1;
       values[2][k] = group->neurons[i + j * group->columns * incrementation].s2;
+      values[3][k] = group->neurons[i + j * group->columns * incrementation].d;
     }
   }
   //Update tabValues
@@ -413,6 +565,7 @@ static inline void mode_graph(type_group *group, int i, int j, int incrementatio
     values[0][indexDernier] = group->neurons[i + j * group->columns * incrementation].s;
     values[1][indexDernier] = group->neurons[i + j * group->columns * incrementation].s1;
     values[2][indexDernier] = group->neurons[i + j * group->columns * incrementation].s2;
+    values[3][indexDernier] = group->neurons[i + j * group->columns * incrementation].d;
   }
   // si le tableau n'est pas plein, ajout de la valeur à la suite des valeurs déja présentes.
   else
@@ -421,6 +574,7 @@ static inline void mode_graph(type_group *group, int i, int j, int incrementatio
     values[0][indexDernier] = group->neurons[i + j * group->columns * incrementation].s;
     values[1][indexDernier] = group->neurons[i + j * group->columns * incrementation].s1;
     values[2][indexDernier] = group->neurons[i + j * group->columns * incrementation].s2;
+    values[3][indexDernier] = group->neurons[i + j * group->columns * incrementation].d;
   }
 
   indexTmp = indexDernier;
