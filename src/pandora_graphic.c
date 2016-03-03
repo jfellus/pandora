@@ -1441,6 +1441,8 @@ void emit_signal_stop_to_promethe(int no_neuro, type_script* script, type_group*
 //Appelé ~ 53000fois, à simplifier/diminuer le nombre d'appel
 void test_selection(type_group* group, int u, int i, int j, float largeurNeuron, float hauteurNeuron, int incrementation)
 {
+  if(group!=NULL)
+  {
   if (group->x_event > 0) //si l'event de selection n'a pas déja été traité
   {
     if (group->x_event >= (u * largeurNeuron + 0.5) && group->x_event < (u * largeurNeuron + 0.5 + (largeurNeuron - 2) + 1) && group->y_event >= (j * hauteurNeuron + 0.5) && group->y_event < (j * hauteurNeuron + 0.5 + (hauteurNeuron - 2) + 1))
@@ -1544,5 +1546,5 @@ void test_selection(type_group* group, int u, int i, int j, float largeurNeuron,
       }
     }
   }
-
+  }
 }

@@ -186,6 +186,8 @@ void enet_manager(ENetHost *server)
   int phase;
   float min_default = 0.f, max_default = 200.f, step_default = 0.01f;
   char param_link[256];
+  char default_name[256]="erreur";
+
   while (running)
   {
     first_call++;
@@ -205,13 +207,15 @@ void enet_manager(ENetHost *server)
         script->color = script->id % COLOR_MAX;
         script->z = 0;
         script->y_offset = 0;
-        script->control_group = NULL;
         script->height = 0;
         script->displayed = 0;
         script->peer = event.peer; //enet_host_connect(server, &(event.peer->address), PANDORA_NUMBER_OF_CHANNELS, 0);
         script->groups = NULL;
         script->pWindow=NULL;
         script->freq_rafraichi=50;
+        script->control_group=NULL;
+        script->control_button=NULL;
+
         sem_init(&script->sem_groups_defined, 0, 0);
         scripts[number_of_scripts] = script;
         number_of_scripts++;
@@ -244,7 +248,8 @@ void enet_manager(ENetHost *server)
           //Création des groupes
           for (i = 0; i < number_of_groups; i++)
           {
-            group = &script->groups[i];
+            //group = &script->groups[i];
+            group = script->groups + i;
             group->id = i;
             group->script = script;
             strcpy(group->name, received_groups_packet[i].no_name);
@@ -267,6 +272,7 @@ void enet_manager(ENetHost *server)
               group->param_neuro_pandora[j].nbre_links=0;
               group->param_neuro_pandora[j].range_associated=NULL;
               group->param_neuro_pandora[j].checkbox_associated=NULL;
+              group->param_neuro_pandora[j].range_in_use=0;
             }
             group->knownX = FALSE;
             group->knownY = FALSE;
@@ -329,6 +335,11 @@ void enet_manager(ENetHost *server)
             group->init = 0;
             group->frequence_specifique=-1.0;
             group->frequence_specifique_link=-1.0;
+            group->x_event = -1;
+            group->y_event = -1;
+            group->previous_output_display=1;
+
+            strncpy(group->name_n,default_name,255);
           }
 
           current_data = &current_data[groups_size];
@@ -423,7 +434,7 @@ void enet_manager(ENetHost *server)
                   group->neurons[k].s2 = group->init;
                 }
               }
-              if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strcpy(group->name_n, param_link);
+              if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strncpy(group->name_n, param_link,256);
               pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_ONE, group->id,0, group->script->name + strlen(bus_id) + 1);
 
             }
@@ -439,7 +450,7 @@ void enet_manager(ENetHost *server)
                   group->neurons[k].s2 = group->init;
                 }
               }
-              if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strcpy(group->name_n, param_link);
+              if (prom_getopt(received_links_packet[link_id].nom, "-n", param_link) == 2) strncpy(group->name_n, param_link,256);
               pandora_bus_send_message(bus_id, "pandora(%d,%d,%d) %s", PANDORA_SEND_NEURONS_ONE, group->id,0, group->script->name + strlen(bus_id) + 1);
             }
 
@@ -494,14 +505,13 @@ void enet_manager(ENetHost *server)
           //Réception du paquet
           memcpy(group->neurons, event.packet->data, sizeof(type_neurone) * number_of_neurons);
 
-
           if (group->type_control>=0)
           {
             for(i=0;i<group->number_of_neurons;i++)
             {
-              if(group->param_neuro_pandora[i].range_associated!=NULL)
+              if(group->param_neuro_pandora[i].range_associated!=NULL && group->param_neuro_pandora[i].range_in_use==0 && isdiff(group->neurons[i].s1,(float)gtk_range_get_value(GTK_RANGE( (group->param_neuro_pandora[i]).range_associated ))))
               {
-                gtk_range_set_value(GTK_RANGE(group->param_neuro_pandora[i].range_associated),(gdouble)group->neurons[i].s1);
+                gtk_range_set_value(GTK_RANGE((group->param_neuro_pandora[i]).range_associated),(gdouble)(group->neurons[i].s1));
               }
               if(group->param_neuro_pandora[i].checkbox_associated!=NULL)
               {

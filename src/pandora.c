@@ -524,7 +524,7 @@ void search_control_in_script_and_allocate_control(type_script* script_actu)
 
 }
 
-gboolean on_vue_metre_change(GtkWidget *gtk_range, type_group *group)
+gboolean on_vue_metre_change(GtkWidget *gtk_range, GtkScrollType scroll, gdouble value, type_group *group)
 {
   maj_neuro_enet struct_maj;
   ENetPacket *packet = NULL;
@@ -532,9 +532,18 @@ gboolean on_vue_metre_change(GtkWidget *gtk_range, type_group *group)
   int j;
   j = *((int*)(g_object_get_data(G_OBJECT(gtk_range), "neurone_asso")));
 
+  //group->param_neuro_pandora[j].range_in_use=1;
   struct_maj.no_group = group->id;
   struct_maj.no_neuro = j + group->firstNeuron;
-  struct_maj.s = struct_maj.s1 = struct_maj.s2 = ((group->neurons)[j]).s1 = ((group->neurons)[j]).s2 = ((group->neurons)[j]).s = (float) gtk_range_get_value(GTK_RANGE(gtk_range));
+
+  if (value<group->borne_min)
+    value=group->borne_min;
+  if (value>group->borne_max)
+    value=group->borne_max;
+
+  struct_maj.s = struct_maj.s1 = struct_maj.s2 = ((group->neurons)[j]).s1 = ((group->neurons)[j]).s2 = ((group->neurons)[j]).s = (float) value;
+
+  gtk_range_set_value(gtk_range,value);
 
   packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
  // sem_wait(&(enet_pandora_lock));
@@ -547,8 +556,8 @@ gboolean on_vue_metre_change(GtkWidget *gtk_range, type_group *group)
     PRINT_WARNING("The neurons packet has not been sent %d.", retour);
   }
  // sem_post(&(enet_pandora_lock));
-
-  return FALSE;
+ // group->param_neuro_pandora[j].range_in_use=0;
+  return TRUE;
 }
 
 gboolean on_vue_metre_change_freq_script(GtkWidget *gtk_range, type_script *script)
@@ -616,7 +625,7 @@ gboolean on_toggled_check_bouton(GtkWidget *check_bouton, type_group *group)
   }
   //sem_post(&(enet_pandora_lock));
 
-  return FALSE;
+  return TRUE;
 }
 
 void create_range_controls(type_script* script_actu, GtkWidget *box1)
@@ -697,7 +706,7 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
         *point=j;
 
         g_object_set_data(G_OBJECT(gtk_range), "neurone_asso", (gpointer) point);
-        g_signal_connect(G_OBJECT(gtk_range), "value-changed", G_CALLBACK(on_vue_metre_change), script_actu->control_group[VUE_METRE][i].associated_group);
+        g_signal_connect(G_OBJECT(gtk_range), "change-value", G_CALLBACK(on_vue_metre_change), script_actu->control_group[VUE_METRE][i].associated_group);
         g_signal_connect(G_OBJECT(gtk_range), "destroy", G_CALLBACK(on_destroy_vue_metre_and_check_box), script_actu->control_group[VUE_METRE][i].associated_group);
 
         gtk_widget_set_hexpand(GTK_WIDGET(gtk_range), TRUE);
@@ -737,7 +746,7 @@ void create_range_controls(type_script* script_actu, GtkWidget *box1)
         separator2 = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
         //   label = gtk_label_new(script_actu->control_group[CHECKBOX][i].associated_group->name_n);
 
-        check_button = GTK_WIDGET(gtk_check_button_new_with_label(script_actu->control_group[CHECKBOX][i].associated_group->name_n));
+        check_button = GTK_WIDGET( gtk_check_button_new_with_label((((script_actu->control_group)[CHECKBOX][i]).associated_group)->name_n));
 
         // gtk_grid_attach(GTK_GRID(grid), label, 0, k, 1, 1);
         gtk_grid_attach(GTK_GRID(grid), separator1, 0, k, 1, 1);

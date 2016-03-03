@@ -164,6 +164,7 @@ typedef struct type_para_neuro {
   int nbre_links;
   GtkWidget* checkbox_associated;
   GtkWidget* range_associated;
+  int range_in_use;
 // int number_of_links_to_draw;
 
 } type_para_neuro;
