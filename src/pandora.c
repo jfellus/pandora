@@ -543,7 +543,7 @@ gboolean on_vue_metre_change(GtkWidget *gtk_range, GtkScrollType scroll, gdouble
 
   struct_maj.s = struct_maj.s1 = struct_maj.s2 = ((group->neurons)[j]).s1 = ((group->neurons)[j]).s2 = ((group->neurons)[j]).s = (float) value;
 
-  gtk_range_set_value(gtk_range,value);
+  gtk_range_set_value(GTK_RANGE(gtk_range),value);
 
   packet = enet_packet_create((void*) (&struct_maj), sizeof(maj_neuro_enet), ENET_PACKET_FLAG_RELIABLE);
  // sem_wait(&(enet_pandora_lock));

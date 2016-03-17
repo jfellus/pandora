@@ -186,12 +186,11 @@ void enet_manager(ENetHost *server)
   int phase;
   float min_default = 0.f, max_default = 200.f, step_default = 0.01f;
   char param_link[256];
-  char default_name[256]="erreur";
+  //char default_name[256]="";
 
   while (running)
   {
     first_call++;
-
     while (enet_host_secure(server, &event, 1) > 0)
     {
       switch (event.type)
@@ -339,7 +338,7 @@ void enet_manager(ENetHost *server)
             group->y_event = -1;
             group->previous_output_display=1;
 
-            strncpy(group->name_n,default_name,255);
+            strncpy(group->name_n,group->name,255);
           }
 
           current_data = &current_data[groups_size];
@@ -712,7 +711,6 @@ void enet_manager(ENetHost *server)
           if (group->selected_for_save_link == 1 && saving_link_press == 1)
            {
             continuous_saving_link(group);
-
          //   pour l'instant on ne sauvegarde pas encore : en test
            }
 
